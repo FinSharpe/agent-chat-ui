@@ -1,5 +1,5 @@
 const appConfig = {
-    appName: "Definedge GPT",
+    appName: process.env.NEXT_PUBLIC_PRODUCT_NAME || 'Agent Chat',
 }
 
 export default appConfig

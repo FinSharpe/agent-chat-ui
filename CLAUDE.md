@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js application based on LangChain's Agent Chat UI, enabling chat interactions with any LangGraph server that has a `messages` key. The application has been customized for Definedge GPT (see `src/configs/app.config.ts`).
+This is a Next.js application based on LangChain's Agent Chat UI, enabling chat interactions with any LangGraph server that has a `messages` key. The application has been customized for FinSharpe GPT (see `src/configs/app.config.ts`).
 
 ## Tech Stack
 
@@ -208,7 +208,7 @@ TypeScript configured with `@/*` alias mapping to `./src/*` (see `tsconfig.json`
 ## Customization
 
 The application has been customized from the original LangChain Agent Chat UI:
-- App name changed to "Definedge GPT" in `src/configs/app.config.ts`
+- App name changed to "FinSharpe GPT" in `src/configs/app.config.ts`
 - Custom client components can be added to the registry in `src/components/thread/messages/client-components/`
 
 ## Production Deployment

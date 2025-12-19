@@ -169,44 +169,50 @@ export function AssistantMessage({
   }
 
   if (hideToolCalls && hasToolCalls) {
-    return <>
-      <Interrupt
-        interruptValue={threadInterrupt?.value}
-        isLastMessage={isLastMessage}
-        hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-      />
-      {message && (
-        <CustomComponent
-          message={message}
-          thread={thread}
-        />
-      )}
-    </>;
+    return (
+      <CitationProvider>
+        <>
+          <Interrupt
+            interruptValue={threadInterrupt?.value}
+            isLastMessage={isLastMessage}
+            hasNoAIOrToolMessages={hasNoAIOrToolMessages}
+          />
+          {message && (
+            <CustomComponent
+              message={message}
+              thread={thread}
+            />
+          )}
+        </>
+      </CitationProvider>
+    );
   }
 
   if (hasToolCalls && !hideToolCalls) {
-    return <>
-      {(hasToolCalls && toolCallsHaveContents && (
-        <ToolCalls toolCalls={message.tool_calls} handleRegenerate={() => handleRegenerate(parentCheckpoint)} />
-      )) ||
-        (hasAnthropicToolCalls && (
-          <ToolCalls toolCalls={anthropicStreamedToolCalls} handleRegenerate={() => handleRegenerate(parentCheckpoint)} />
-        )) ||
-        (hasToolCalls && (
+    return (
+      <CitationProvider>
+        {(hasToolCalls && toolCallsHaveContents && (
           <ToolCalls toolCalls={message.tool_calls} handleRegenerate={() => handleRegenerate(parentCheckpoint)} />
-        ))}
-      <Interrupt
-        interruptValue={threadInterrupt?.value}
-        isLastMessage={isLastMessage}
-        hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-      />
-      {message && (
-        <CustomComponent
-          message={message}
-          thread={thread}
+        )) ||
+          (hasAnthropicToolCalls && (
+            <ToolCalls toolCalls={anthropicStreamedToolCalls} handleRegenerate={() => handleRegenerate(parentCheckpoint)} />
+          )) ||
+          (hasToolCalls && (
+            <ToolCalls toolCalls={message.tool_calls} handleRegenerate={() => handleRegenerate(parentCheckpoint)} />
+          ))}
+        <Interrupt
+          interruptValue={threadInterrupt?.value}
+          isLastMessage={isLastMessage}
+          hasNoAIOrToolMessages={hasNoAIOrToolMessages}
         />
-      )}
-    </>
+        {message && (
+          <CustomComponent
+            message={message}
+            thread={thread}
+          />
+        )}
+      </CitationProvider>
+    );
   }
 
   return (

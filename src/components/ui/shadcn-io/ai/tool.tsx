@@ -1,5 +1,7 @@
 'use client';
 
+import { CitationsList } from '@/components/thread/citations-list';
+import { MarkdownText } from '@/components/thread/markdown-text';
 import { Badge } from '@/components/ui/badge';
 import {
   Collapsible,
@@ -161,7 +163,10 @@ export const ToolOutput = ({
           <div className="rounded-md bg-muted/50">
             <CodeBlock code={JSON.stringify(parsedContent, null, 2)} language="json" />
           </div>) : (
-          <CodeBlock code={typeof message?.content === "string" ? message.content : ""} language="json" />
+          <div className="px-2">
+            <MarkdownText>{typeof message?.content === "string" ? message.content : ""}</MarkdownText>
+            {typeof message?.content === "string" && <CitationsList content={message.content} />}
+          </div>
         )}
       </div>
     </div>

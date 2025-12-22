@@ -40,7 +40,7 @@ export type StockAnalysisReportData = {
   summary: Section;
   red_flags: Section;
 
-  simulation_chart: Record<string, any>;
+  simulation_chart?: Record<string, any>;
 };
 
 export type StockAnalysis = {

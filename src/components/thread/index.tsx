@@ -4,6 +4,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import appConfig from "@/configs/app.config";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useHideToolCalls } from "@/hooks/useDefaultApiValues";
@@ -26,6 +33,7 @@ import {
   SquarePen,
   XIcon
 } from "lucide-react";
+import { startCase } from "lodash";
 import Image from "next/image";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
@@ -46,6 +54,7 @@ import ThreadHistory from "./history";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import { HumanMessage } from "./messages/human";
 import { TooltipIconButton } from "./tooltip-icon-button";
+import { PlannerModels } from "@/configs/models";
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -88,6 +97,13 @@ function ScrollToBottom(props: { className?: string }) {
   );
 }
 
+// Helper function to format model display names
+function getModelDisplayName(modelKey: string): string {
+  const formatted = startCase(modelKey.toLowerCase());
+  // Replace spaces between numbers with dots (e.g., "4 5" -> "4.5")
+  return formatted.replace(/(\d)\s+(\d)/g, '$1.$2');
+}
+
 // function OpenGitHubRepo() {
 //   return (
 //     <TooltipProvider>
@@ -123,6 +139,9 @@ export function Thread() {
   );
   const [hideToolCalls, setHideToolCalls] = useHideToolCalls()
   const [input, setInput] = useState("");
+  const [selectedModel, setSelectedModel] = useState<PlannerModels>(
+    PlannerModels.SONNET_4_5
+  );
   const {
     contentBlocks,
     setContentBlocks,
@@ -215,6 +234,11 @@ export function Thread() {
       { messages: [...toolMessages, newHumanMessage], context },
       {
         streamMode: ["values"],
+        config: {
+          configurable: {
+            planner_agent_model: selectedModel
+          }
+        },
         optimisticValues: (prev) => ({
           ...prev,
           context,
@@ -500,6 +524,25 @@ export function Thread() {
                                 </Label>
                               </div>
                             </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <div className="flex flex-col gap-2 p-2">
+                                <Select
+                                  value={selectedModel}
+                                  onValueChange={(value) => setSelectedModel(value as PlannerModels)}
+                                >
+                                  <SelectTrigger className="w-full h-8 text-sm">
+                                    <SelectValue placeholder="Select a model" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Object.entries(PlannerModels).map(([key, value]) => (
+                                      <SelectItem key={value} value={value}>
+                                        {getModelDisplayName(key)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </DropdownMenuItem>
                             <DropdownMenuItem>
                               <Label
                                 htmlFor="file-input"
@@ -525,6 +568,23 @@ export function Thread() {
                           >
                             Hide Tool Calls
                           </Label>
+                        </div>
+                        <div className="hidden md:flex items-center gap-2">
+                          <Select
+                            value={selectedModel}
+                            onValueChange={(value) => setSelectedModel(value as PlannerModels)}
+                          >
+                            <SelectTrigger className="w-[200px] h-8 text-sm">
+                              <SelectValue placeholder="Select a model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(PlannerModels).map(([key, value]) => (
+                                <SelectItem key={value} value={value}>
+                                  {getModelDisplayName(key)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <Label
                           htmlFor="file-input"

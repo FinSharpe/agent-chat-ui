@@ -32,7 +32,10 @@ export default function StockAnalysisReportMessageComponent({
   return (
     <>
       <Welcome analysis={analysis} />
-      <div className="report-compact-table mx-12 max-w-3xl space-y-8 pt-12" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
+      <div
+        className="report-compact-table mx-12 max-w-3xl space-y-8 pt-12"
+        style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+      >
         {shouldRenderSection("business_overview") && (
           <FormatSection section={data.business_overview} />
         )}
@@ -79,7 +82,7 @@ export default function StockAnalysisReportMessageComponent({
         {shouldRenderSection("summary") && (
           <FormatSection section={data.summary} />
         )}
-        {shouldRenderSection("simulation_chart") && (
+        {shouldRenderSection("simulation_chart") && Boolean(data.simulation_chart) && (
           <SimulationChart {...data.simulation_chart} />
         )}
 

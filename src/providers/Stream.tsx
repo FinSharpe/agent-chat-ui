@@ -25,6 +25,7 @@ import React, {
 } from "react";
 import { toast } from "sonner";
 import { useThreads } from "./Thread";
+import { PlannerModels } from "@/configs/models";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
@@ -37,6 +38,9 @@ const useTypedStream = useStream<
       context?: Record<string, unknown>;
     };
     CustomEventType: UIMessage | RemoveUIMessage;
+    ConfigurableType: {
+      planner_agent_model: PlannerModels;
+    }
   }
 >;
 

@@ -31,11 +31,16 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
       <FormatNewsSentiment section={data.news_sentiment} />
       <FormatSection section={data.red_flags} />
       <FormatSection section={data.summary} />
-      <SimulationChart {...data.simulation_chart} />
+      {data.simulation_chart && <SimulationChart {...data.simulation_chart} />}
       <div className="flex justify-end gap-2">
         <Button
           variant="outline"
-          onClick={() => topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          onClick={() =>
+            topRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            })
+          }
         >
           <ArrowUp className="mr-2 h-4 w-4" />
           Back to Top

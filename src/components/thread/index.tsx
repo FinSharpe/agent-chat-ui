@@ -509,7 +509,7 @@ export function Thread() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
-                            <DropdownMenuItem asChild>
+                            {/* <DropdownMenuItem asChild>
                               <div className="flex items-center space-x-2">
                                 <Switch
                                   id="render-tool-calls"
@@ -523,8 +523,8 @@ export function Thread() {
                                   Hide Tool Calls
                                 </Label>
                               </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
+                            </DropdownMenuItem> */}
+                            <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>
                               <div className="flex flex-col gap-2 p-2">
                                 <Select
                                   value={selectedModel}
@@ -556,7 +556,7 @@ export function Thread() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        <div className="hidden md:flex items-center space-x-2">
+                        {/* <div className="hidden md:flex items-center space-x-2">
                           <Switch
                             id="render-tool-calls"
                             checked={hideToolCalls ?? false}
@@ -568,7 +568,7 @@ export function Thread() {
                           >
                             Hide Tool Calls
                           </Label>
-                        </div>
+                        </div> */}
                         <div className="hidden md:flex items-center gap-2">
                           <Select
                             value={selectedModel}

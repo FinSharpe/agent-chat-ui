@@ -16,5 +16,5 @@ export function useApiUrl() {
 }
 
 export function useHideToolCalls() {
-  return useQueryState("hideToolCalls", parseAsBoolean.withDefault(true));
+  return useQueryState("hideToolCalls", parseAsBoolean.withDefault(false));
 }

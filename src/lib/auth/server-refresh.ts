@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 const BACKEND_URL = process.env.LANGGRAPH_API_URL || "http://localhost:2024";
 const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 604800;
-const IS_HTTPS = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ?? false;
+const IS_HTTPS = process.env.NEXT_PUBLIC_API_URL?.startsWith("https://") ?? false;
 const FGP_COOKIE_NAME = IS_HTTPS ? "__Secure-Fgp" : "fgp";
 
 /**

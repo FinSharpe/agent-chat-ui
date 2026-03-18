@@ -6,7 +6,7 @@ const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 60480
 
 // __Secure- prefix requires HTTPS. Derive from the actual app URL, not NODE_ENV,
 // because production builds can run on localhost (HTTP) during development.
-const IS_HTTPS = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ?? false;
+const IS_HTTPS = process.env.NEXT_PUBLIC_API_URL?.startsWith("https://") ?? false;
 const FGP_COOKIE_NAME = IS_HTTPS ? "__Secure-Fgp" : "fgp";
 
 export { FGP_COOKIE_NAME };

@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const origin =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000";
+  const origin = process.env.NEXT_PUBLIC_API_URL
+    ? new URL(process.env.NEXT_PUBLIC_API_URL).origin
+    : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
   // Determine report route based on analysis type
   let reportPath: string;

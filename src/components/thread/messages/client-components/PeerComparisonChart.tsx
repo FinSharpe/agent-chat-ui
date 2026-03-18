@@ -28,9 +28,10 @@ function formatMetric(key: string): string {
     pe: "P/E",
     pb: "P/B",
     ev_ebitda: "EV/EBITDA",
-    roe: "ROE",
-    roce: "ROCE",
+    roe: "ROE (3Y Avg)",
+    roce: "ROCE (3Y Avg)",
     op_margin: "Op. Margin",
+    net_margin: "Net Profit Margin",
   };
   return (
     labels[key] ??

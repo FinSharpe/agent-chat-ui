@@ -14,7 +14,7 @@ const nextConfig = {
     return config;
   },
   // Prevent Next.js from bundling these packages (they contain native binaries)
-  serverExternalPackages: ["@sparticuz/chromium-min", "puppeteer-core"],
+  serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core", "puppeteer"],
 };
 
 export default nextConfig;

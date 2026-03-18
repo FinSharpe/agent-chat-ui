@@ -68,7 +68,7 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.1.8
         version: 1.2.6(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@sparticuz/chromium-min':
+      '@sparticuz/chromium':
         specifier: ^143.0.0
         version: 143.0.0
       '@tanstack/query-async-storage-persister':
@@ -189,9 +189,6 @@ importers:
       '@eslint/js':
         specifier: ^9.19.0
         version: 9.27.0
-      '@sparticuz/chromium':
-        specifier: ^143.0.0
-        version: 143.0.0
       '@tailwindcss/postcss':
         specifier: ^4.0.13
         version: 4.1.7
@@ -1903,10 +1900,6 @@ packages:
   '@sindresorhus/merge-streams@4.0.0':
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
-
-  '@sparticuz/chromium-min@143.0.0':
-    resolution: {integrity: sha512-B9nRt5kQi6q8wW+bmLlGqKC3VEulZgq3XWYAevK5B9ep3izIJGasIsVgczRvXuLeE9iGUQ8/dgSfNmC0/CbW/g==}
-    engines: {node: '>=20.11.0'}
 
   '@sparticuz/chromium@143.0.0':
     resolution: {integrity: sha512-/vvplFwu1yDNt/Q1uwXQUwxmfZutU9K+WtzSYwptLWV8IeSdSF6vwW9hW11fZA8Gl9+2mytAGUe6/otgd2VeXA==}
@@ -7555,16 +7548,6 @@ snapshots:
   '@shikijs/vscode-textmate@10.0.2': {}
 
   '@sindresorhus/merge-streams@4.0.0': {}
-
-  '@sparticuz/chromium-min@143.0.0':
-    dependencies:
-      follow-redirects: 1.15.11
-      tar-fs: 3.1.1
-    transitivePeerDependencies:
-      - bare-abort-controller
-      - bare-buffer
-      - debug
-      - react-native-b4a
 
   '@sparticuz/chromium@143.0.0':
     dependencies:

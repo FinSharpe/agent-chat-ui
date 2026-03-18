@@ -2,48 +2,41 @@
  * Puppeteer utilities for PDF generation and browser automation
  */
 
-// URL to the Chromium binary package hosted in /public
-// In production, uses the Vercel project URL. For local dev, uses fallback.
-const CHROMIUM_PACK_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/chromium-pack.tar`
-  : "https://github.com/gabenunez/puppeteer-on-vercel/raw/refs/heads/main/example/chromium-dont-use-in-prod.tar";
-
 // Timeout constants
 export const PUPPETEER_TIMEOUTS = {
   PAGE_LOAD: 30000, // 30 seconds
   FONT_READY: 5000, // 5 seconds
 } as const;
 
-// Cache the Chromium executable path to avoid re-downloading on subsequent requests
+// Cache the Chromium executable path to avoid re-decompressing on subsequent requests
 let cachedExecutablePath: string | null = null;
-let downloadPromise: Promise<string> | null = null;
+let executablePromise: Promise<string> | null = null;
 
 /**
- * Downloads and caches the Chromium executable path.
- * Uses a download promise to prevent concurrent downloads.
+ * Resolves and caches the Chromium executable path.
+ * Uses @sparticuz/chromium which decompresses from its own node_modules
+ * (no HTTP download needed).
  */
 export async function getChromiumPath(): Promise<string> {
-  // Return cached path if available
   if (cachedExecutablePath) return cachedExecutablePath;
 
-  // Prevent concurrent downloads by reusing the same promise
-  if (!downloadPromise) {
-    const chromium = (await import("@sparticuz/chromium-min")).default;
-    downloadPromise = chromium
-      .executablePath(CHROMIUM_PACK_URL)
-      .then((path) => {
+  if (!executablePromise) {
+    const chromium = (await import("@sparticuz/chromium")).default;
+    executablePromise = chromium
+      .executablePath()
+      .then((path: string) => {
         cachedExecutablePath = path;
         console.log("Chromium path resolved:", path);
         return path;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error("Failed to get Chromium path:", error);
-        downloadPromise = null; // Reset on error to allow retry
+        executablePromise = null;
         throw error;
       });
   }
 
-  return downloadPromise;
+  return executablePromise;
 }
 
 /**
@@ -57,8 +50,8 @@ export async function getBrowserLaunchOptions() {
   };
 
   if (isVercel) {
-    // Vercel: Use puppeteer-core with downloaded Chromium binary
-    const chromium = (await import("@sparticuz/chromium-min")).default;
+    // Vercel: Use puppeteer-core with @sparticuz/chromium (decompresses locally)
+    const chromium = (await import("@sparticuz/chromium")).default;
     puppeteer = await import("puppeteer-core");
     const executablePath = await getChromiumPath();
     launchOptions = {

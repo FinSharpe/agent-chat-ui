@@ -1,5 +1,6 @@
 import StockAnalysisReportMessageComponent from "@/components/pdfs_templates/stock-report/stock-report";
 import ClientComponentsRegistry from "@/components/thread/messages/client-components/registry";
+import { getAccessToken, getFingerprint } from "@/lib/auth/cookies";
 import { createClient } from "@/providers/client";
 import { StockAnalysis } from "@/types/stock-analysis";
 import { UIMessage } from "@langchain/langgraph-sdk/react-ui";
@@ -26,9 +27,16 @@ export default async function StockAnalysisReportPage({ searchParams }: Props) {
   }
 
   try {
+    const accessToken = await getAccessToken();
+    const fingerprint = await getFingerprint();
+    const headers: Record<string, string> = {};
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    if (fingerprint) headers["X-Fgp"] = fingerprint;
+
     const client = createClient(
-      process.env.NEXT_PUBLIC_API_URL!,
+      process.env.LANGGRAPH_API_URL!,
       process.env.LANGSMITH_API_KEY,
+      headers,
     );
     const state = await client.threads.getState(threadId as string);
 

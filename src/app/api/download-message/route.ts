@@ -28,8 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const origin =
-    request.headers.get("origin") ||
-    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
     "http://localhost:3000";
 
   // Determine report route based on analysis type
@@ -68,6 +67,24 @@ export async function POST(request: NextRequest) {
 
     const page = await browser.newPage();
 
+    // Forward auth cookies to Puppeteer so the report page can
+    // authenticate with the backend via the API proxy.
+    const targetUrl = new URL(gotoRoute.toString());
+    const domain = targetUrl.hostname;
+    const isHttps = targetUrl.protocol === "https:";
+    const fgpName = isHttps ? "__Secure-Fgp" : "fgp";
+    const authCookieNames = ["access_token", "refresh_token", fgpName];
+    const puppeteerCookies = authCookieNames
+      .map((name) => {
+        const value = request.cookies.get(name)?.value;
+        if (!value) return null;
+        return { name, value, domain, path: "/", secure: isHttps };
+      })
+      .filter((c) => c !== null);
+    if (puppeteerCookies.length > 0) {
+      await page.setCookie(...puppeteerCookies);
+    }
+
     // Use a consistent viewport to avoid reflow when printing to PDF
     await page.setViewport({ width: 864, height: 800, deviceScaleFactor: 1 });
 
@@ -88,43 +105,9 @@ export async function POST(request: NextRequest) {
       console.warn("Font readiness check failed:", err);
     }
 
-    // Compute full page height to preserve layout as seen on screen
-    const heightMetrics = await page.evaluate(() => {
-      const body = document.body;
-      const html = document.documentElement;
-
-      // Also check the main element's height
-      const main = document.querySelector("main");
-      const mainHeight = main?.scrollHeight || 0;
-
-      return {
-        bodyScrollHeight: body.scrollHeight,
-        bodyOffsetHeight: body.offsetHeight,
-        htmlClientHeight: html.clientHeight,
-        htmlScrollHeight: html.scrollHeight,
-        htmlOffsetHeight: html.offsetHeight,
-        mainHeight: mainHeight,
-      };
-    });
-
-    const fullHeight = Math.max(
-      heightMetrics.bodyScrollHeight,
-      heightMetrics.bodyOffsetHeight,
-      heightMetrics.htmlClientHeight,
-      heightMetrics.htmlScrollHeight,
-      heightMetrics.htmlOffsetHeight,
-      heightMetrics.mainHeight,
-    );
-
     const pdfOptions = {
       printBackground: true,
-      ...(reportPath === "pf-analysis-report" || reportPath === "stock-analysis-report" || reportPath === "mf-analysis-report"
-        ? { format: "A4" }
-        : {
-            margin: { top: "0", right: "0", bottom: "0", left: "0" },
-            width: "756px",
-            height: `${fullHeight}px`,
-          }),
+      format: "A4" as const,
       scale: 1,
     };
     const pdfBuffer = await page.pdf(pdfOptions);

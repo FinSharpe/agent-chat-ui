@@ -1,5 +1,6 @@
 import MfAnalysisReportMessageComponent from "@/components/pdfs_templates/mf-report/mf-report";
 import ClientComponentsRegistry from "@/components/thread/messages/client-components/registry";
+import { getAccessToken, getFingerprint } from "@/lib/auth/cookies";
 import { createClient } from "@/providers/client";
 import { MfAnalysis } from "@/types/mf-analysis";
 import { UIMessage } from "@langchain/langgraph-sdk/react-ui";
@@ -25,9 +26,16 @@ export default async function MfAnalysisReportPage({ searchParams }: Props) {
     }
   }
 
+  const accessToken = await getAccessToken();
+  const fingerprint = await getFingerprint();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+  if (fingerprint) headers["X-Fgp"] = fingerprint;
+
   const client = createClient(
-    process.env.NEXT_PUBLIC_API_URL!,
+    process.env.LANGGRAPH_API_URL!,
     process.env.LANGSMITH_API_KEY,
+    headers,
   );
   const state = await client.threads.getState(threadId as string);
 

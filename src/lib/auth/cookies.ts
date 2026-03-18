@@ -2,11 +2,12 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { AuthTokenResponse, GracePeriodTokenResponse } from "@/api/generated/auth-apis/models";
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 604800;
 
-// __Secure- prefix requires Secure flag (HTTPS). In dev (HTTP), use plain name.
-const FGP_COOKIE_NAME = IS_PRODUCTION ? "__Secure-Fgp" : "fgp";
+// __Secure- prefix requires HTTPS. Derive from the actual app URL, not NODE_ENV,
+// because production builds can run on localhost (HTTP) during development.
+const IS_HTTPS = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ?? false;
+const FGP_COOKIE_NAME = IS_HTTPS ? "__Secure-Fgp" : "fgp";
 
 export { FGP_COOKIE_NAME };
 
@@ -16,7 +17,7 @@ export function setAuthCookies(
 ): void {
   response.cookies.set("access_token", tokens.access_token, {
     httpOnly: true,
-    secure: IS_PRODUCTION,
+    secure: IS_HTTPS,
     sameSite: "lax",
     path: "/",
     maxAge: 900,
@@ -25,7 +26,7 @@ export function setAuthCookies(
   if ("refresh_token" in tokens && tokens.refresh_token) {
     response.cookies.set("refresh_token", tokens.refresh_token, {
       httpOnly: true,
-      secure: IS_PRODUCTION,
+      secure: IS_HTTPS,
       sameSite: "strict",
       path: "/",
       maxAge: REFRESH_TOKEN_MAX_AGE,
@@ -34,7 +35,7 @@ export function setAuthCookies(
 
   response.cookies.set(FGP_COOKIE_NAME, tokens.fingerprint, {
     httpOnly: true,
-    secure: IS_PRODUCTION,
+    secure: IS_HTTPS,
     sameSite: "strict",
     path: "/",
     maxAge: REFRESH_TOKEN_MAX_AGE,
@@ -44,7 +45,7 @@ export function setAuthCookies(
   const userInfo = { id: tokens.user.id, name: tokens.user.name, roles: tokens.user.roles };
   response.cookies.set("user_info", JSON.stringify(userInfo), {
     httpOnly: false,
-    secure: IS_PRODUCTION,
+    secure: IS_HTTPS,
     sameSite: "lax",
     path: "/",
     maxAge: 900,
@@ -64,7 +65,7 @@ export async function getAccessToken(): Promise<string | undefined> {
 
 export async function getFingerprint(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  return cookieStore.get(FGP_COOKIE_NAME)?.value;
+  return cookieStore.get(FGP_COOKIE_NAME)?.value ?? cookieStore.get("fgp")?.value;
 }
 
 export async function getRefreshToken(): Promise<string | undefined> {

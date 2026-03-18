@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 
 const BACKEND_URL = process.env.LANGGRAPH_API_URL || "http://localhost:2024";
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 604800;
-const FGP_COOKIE_NAME = IS_PRODUCTION ? "__Secure-Fgp" : "fgp";
+const IS_HTTPS = process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ?? false;
+const FGP_COOKIE_NAME = IS_HTTPS ? "__Secure-Fgp" : "fgp";
 
 /**
  * A function that makes the backend request given auth tokens.
@@ -29,7 +29,7 @@ interface RefreshTokens {
 }
 
 function buildRefreshSetCookieHeaders(tokens: RefreshTokens): string[] {
-  const secure = IS_PRODUCTION ? "; Secure" : "";
+  const secure = IS_HTTPS ? "; Secure" : "";
   const headers: string[] = [];
 
   headers.push(

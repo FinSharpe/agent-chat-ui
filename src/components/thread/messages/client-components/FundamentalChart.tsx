@@ -23,10 +23,21 @@ type Props = {
 
 /** Pretty-print a key like "operating_profit" to "Operating Profit" */
 function formatKey(key: string): string {
-  return key
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+  const labels: Record<string, string> = {
+    interest_income: "Interest Income",
+    revenue: "Revenue",
+    operating_profit: "Operating Profit",
+    net_profit: "Net Profit",
+    operating_margin: "Operating Margin (%)",
+    net_margin: "Net Profit Margin (%)",
+  };
+  return (
+    labels[key] ??
+    key
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  );
 }
 
 /** Format large numbers (e.g. 186331 -> "1.86L" or "186,331") */

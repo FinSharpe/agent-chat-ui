@@ -4,13 +4,14 @@
 
 export interface CustomScannerDetails {
   search_query: string;
-  ratios_used: string[];
-  explanation: string;
   page_number: number;
   page_size: number;
   segment: string;
   group_type: string;
+  group?: string | null;
   show_only_latest_quarter_data: string;
+  fixed_columns?: string | null;
+  sort?: string | null;
 }
 
 export interface SavedScannerDetails {
@@ -65,8 +66,7 @@ export function isCustomScannerApprovalInterrupt(
     typeof interrupt.message === "string" &&
     interrupt.scanner_details &&
     typeof interrupt.scanner_details === "object" &&
-    typeof interrupt.scanner_details.search_query === "string" &&
-    Array.isArray(interrupt.scanner_details.ratios_used)
+    typeof interrupt.scanner_details.search_query === "string"
   );
 }
 

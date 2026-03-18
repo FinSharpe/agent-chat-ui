@@ -365,36 +365,48 @@ export function ScannerApprovalInterruptView({
                 className="overflow-hidden"
               >
                 <div className="p-3 space-y-3 bg-background">
-                  {/* Ratios Used (custom scanners only) */}
-                  {isCustomScanner && (
+                  {/* Group filter (custom scanners only) */}
+                  {isCustomScanner && interrupt.scanner_details.group && (
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Ratios Used
+                        Group
+                      </div>
+                      <p className="text-sm text-foreground">
+                        {interrupt.scanner_details.group}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Sort (custom scanners only) */}
+                  {isCustomScanner && interrupt.scanner_details.sort && (
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                        Sort
+                      </div>
+                      <p className="text-sm text-foreground">
+                        {interrupt.scanner_details.sort}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Fixed Columns (custom scanners only) */}
+                  {isCustomScanner && interrupt.scanner_details.fixed_columns && (
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                        Extra Columns
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {interrupt.scanner_details.ratios_used.map(
-                          (ratio, idx) => (
+                        {interrupt.scanner_details.fixed_columns
+                          .split(",")
+                          .map((col: string, idx: number) => (
                             <span
                               key={idx}
                               className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
                             >
-                              {ratio}
+                              {col.trim()}
                             </span>
-                          ),
-                        )}
+                          ))}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Explanation (custom scanners only) */}
-                  {isCustomScanner && (
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Explanation
-                      </div>
-                      <p className="text-sm text-foreground">
-                        {interrupt.scanner_details.explanation}
-                      </p>
                     </div>
                   )}
 

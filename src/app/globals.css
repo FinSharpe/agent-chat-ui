@@ -479,3 +479,28 @@ html {
     0 4px 20px rgba(59, 130, 246, 0.15),
     0 0 40px rgba(66, 212, 163, 0.08);
 }
+
+/* ==========================================================================
+   10. AUTH PAGES
+   ========================================================================== */
+
+@keyframes auth-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Override browser autofill on dark auth pages */
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: #ffffff;
+}

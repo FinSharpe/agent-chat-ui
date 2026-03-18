@@ -2,6 +2,7 @@
 
 import { AuthBackground } from "@/modules/auth/components/AuthBackground";
 import { AnimatedLogo } from "@/modules/auth/components/AnimatedLogo";
+import { LogoFlight } from "@/modules/auth/components/LogoFlight";
 import { motion } from "framer-motion";
 import { Shield, Zap, TrendingUp } from "lucide-react";
 
@@ -19,6 +20,9 @@ export default function AuthLayout({
   return (
     <div className="dark relative min-h-screen">
       <AuthBackground />
+      <div className="hidden lg:block">
+        <LogoFlight />
+      </div>
 
       <div className="relative z-10 flex min-h-screen">
         {/* Left panel — Desktop visual showcase */}

@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, Mail, Lock } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +26,12 @@ import {
   type LoginFormValues,
   type AuthLoginResponse,
 } from "@/modules/auth";
+
+const inputClass =
+  "h-12 rounded-xl bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus-visible:bg-white/[0.07] focus-visible:border-[#42d4a3]/40 focus-visible:ring-[#42d4a3]/15 transition-all duration-300";
+
+const btnClass =
+  "relative h-12 w-full overflow-hidden rounded-xl border-0 bg-gradient-to-r from-[#2563eb] to-[#0d9488] text-white font-medium shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(37,99,235,0.35)] hover:from-[#3b82f6] hover:to-[#14b8a6] active:scale-[0.98]";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,7 +63,9 @@ export default function LoginPage() {
     mutation.mutate(values, {
       onSuccess: (data) => {
         if (data.requires_verification) {
-          router.push(`/verify-email?email=${encodeURIComponent(getValues("email"))}`);
+          router.push(
+            `/verify-email?email=${encodeURIComponent(getValues("email"))}`,
+          );
           return;
         }
         if (data.user) updateUser(data.user);
@@ -65,63 +75,102 @@ export default function LoginPage() {
   };
 
   return (
-    <Card>
+    <Card className="border-white/[0.08] bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/30 rounded-2xl py-6">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to your FinSharpe account</CardDescription>
+        <CardTitle className="text-2xl font-bold text-white tracking-tight">
+          Welcome back
+        </CardTitle>
+        <CardDescription className="text-white/40">
+          Your AI-powered financial edge awaits
+        </CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-5">
           {mutation.error && (
-            <div className="rounded-md bg-error-bg px-3 py-2 text-sm text-error-fg">
+            <motion.div
+              className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2.5 text-sm text-red-400"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
               {mutation.error.message}
-            </div>
+            </motion.div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              autoComplete="email"
-              autoFocus
-              {...register("email")}
-            />
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="email"
+              className="text-[11px] uppercase tracking-wider text-white/50 font-medium"
+            >
+              Email
+            </Label>
+            <div className="group relative">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 transition-colors duration-300 group-focus-within:text-[#42d4a3]" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                autoFocus
+                className={`pl-11 ${inputClass}`}
+                {...register("email")}
+              />
+            </div>
             {errors.email && (
-              <p className="text-xs text-error-fg">{errors.email.message}</p>
+              <p className="text-xs text-red-400">{errors.email.message}</p>
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <PasswordInput
-              id="password"
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              {...register("password")}
-            />
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="password"
+              className="text-[11px] uppercase tracking-wider text-white/50 font-medium"
+            >
+              Password
+            </Label>
+            <div className="group relative">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 transition-colors duration-300 group-focus-within:text-[#42d4a3] z-10" />
+              <PasswordInput
+                id="password"
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                className={`pl-11 ${inputClass}`}
+                {...register("password")}
+              />
+            </div>
             {errors.password && (
-              <p className="text-xs text-error-fg">{errors.password.message}</p>
+              <p className="text-xs text-red-400">
+                {errors.password.message}
+              </p>
             )}
           </div>
 
           <Button
             type="submit"
-            variant="brand"
-            className="w-full"
+            className={btnClass}
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? "Signing in..." : "Sign in"}
+            <span className="pointer-events-none absolute inset-0 -translate-x-full animate-[auth-shimmer_3s_ease-in-out_infinite_1s] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" />
+            {mutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </CardContent>
       </form>
 
       <CardFooter className="justify-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-white/40">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-primary hover:underline">
+          <Link
+            href="/register"
+            className="text-[#42d4a3] hover:text-[#4ade80] transition-colors"
+          >
             Create one
           </Link>
         </p>

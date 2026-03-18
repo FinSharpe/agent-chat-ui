@@ -37,7 +37,7 @@ function buildRefreshSetCookieHeaders(tokens: RefreshTokens): string[] {
   );
 
   headers.push(
-    `refresh_token=${tokens.refresh_token}; HttpOnly; Path=/; Max-Age=${REFRESH_TOKEN_MAX_AGE}; SameSite=Strict${secure}`,
+    `refresh_token=${tokens.refresh_token}; HttpOnly; Path=/; Max-Age=${REFRESH_TOKEN_MAX_AGE}; SameSite=Lax${secure}`,
   );
 
   headers.push(

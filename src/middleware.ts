@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/register", "/verify-email", "/welcome"];
-const PUBLIC_PREFIXES = ["/api/", "/_next/", "/favicon.ico"];
+const PUBLIC_PREFIXES = ["/api/", "/_next/", "/favicon.ico", "/moneyone/"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;

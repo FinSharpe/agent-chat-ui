@@ -27,7 +27,7 @@ export function setAuthCookies(
     response.cookies.set("refresh_token", tokens.refresh_token, {
       httpOnly: true,
       secure: IS_HTTPS,
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
       maxAge: REFRESH_TOKEN_MAX_AGE,
     });

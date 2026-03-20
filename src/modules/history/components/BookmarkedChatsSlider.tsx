@@ -31,7 +31,7 @@ export default function BookmarkedChatsSlider() {
   if (threads.length === 0) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 min-w-0">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bookmark className="h-4 w-4 text-yellow-500" />
@@ -72,7 +72,7 @@ export default function BookmarkedChatsSlider() {
           {threads.map((thread) => (
             <div
               key={thread.thread_id}
-              className="w-full flex-shrink-0 pr-0"
+              className="w-full flex-shrink-0"
             >
               <ThreadCard thread={thread} />
             </div>

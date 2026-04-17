@@ -3,12 +3,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Popover,
+  PopoverClose,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useAuth, isHydratedUser } from "@/providers/AuthProvider";
-import { LogOut } from "lucide-react";
+import { LogOut, Plug } from "lucide-react";
+import Link from "next/link";
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "?";
@@ -55,6 +57,20 @@ export function UserMenu({ size = "default" }: { size?: "default" | "sm" }) {
             <p className="text-muted-foreground mt-1 text-xs">{user.email}</p>
           )}
         </div>
+        <div className="my-1 h-px bg-border" />
+        <PopoverClose asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            asChild
+          >
+            <Link href="/settings/mcp">
+              <Plug className="size-4" />
+              MCP Access
+            </Link>
+          </Button>
+        </PopoverClose>
         <div className="my-1 h-px bg-border" />
         <Button
           variant="ghost"

@@ -20,4 +20,5 @@ export * from "./scoreChartDataItem";
 export * from "./strategyAnalyticsResponse";
 export * from "./strategyMasterDetail";
 export * from "./validationError";
+export * from "./validationErrorCtx";
 export * from "./validationErrorLocItem";

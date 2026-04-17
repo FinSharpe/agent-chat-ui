@@ -96,4 +96,23 @@ export default defineConfig({
       },
     },
   },
+  'mcp-apis': {
+    input: {
+      target: './openapi-mcp.json',
+    },
+    output: {
+      mode: 'tags-split',
+      target: './src/api/generated/mcp-apis',
+      schemas: './src/api/generated/mcp-apis/models',
+      client: 'react-query',
+      httpClient: 'fetch',
+      mock: false,
+      clean: true,
+      prettier: true,
+      baseUrl: '/api/utilities',
+      override: {
+        useDates: false,
+      },
+    },
+  },
 });

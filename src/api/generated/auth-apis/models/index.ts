@@ -20,6 +20,7 @@ export * from "./userResponseImage";
 export * from "./userResponseInstitutionId";
 export * from "./userResponseName";
 export * from "./validationError";
+export * from "./validationErrorCtx";
 export * from "./validationErrorLocItem";
 export * from "./verificationRequiredResponse";
 export * from "./verifyEmailRequest";

@@ -35,6 +35,11 @@ const API_GROUPS = [
     tags: ["auth"],
     outputPath: path.join(__dirname, "../openapi-auth.json"),
   },
+  {
+    name: "MCP APIs",
+    tags: ["me-mcp"],
+    outputPath: path.join(__dirname, "../openapi-mcp.json"),
+  },
 ];
 
 async function fetchOpenAPISpec() {

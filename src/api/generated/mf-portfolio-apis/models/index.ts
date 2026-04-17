@@ -32,4 +32,5 @@ export * from "./returnsChartDataDataItem";
 export * from "./scoreChartDataItem";
 export * from "./sebiCategoriesResponse";
 export * from "./validationError";
+export * from "./validationErrorCtx";
 export * from "./validationErrorLocItem";

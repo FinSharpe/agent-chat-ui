@@ -6,7 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Compass, History, Menu, Plus, Upload } from "lucide-react";
+import { Compass, History, Menu, Plug, Plus, Upload } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { parseAsBoolean, useQueryState } from "nuqs";
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/import", icon: Upload, label: "Import", exact: false },
   { href: "/discover", icon: Compass, label: "Discover", exact: false },
   { href: "/history", icon: History, label: "Memory", exact: false },
+  { href: "/settings/mcp", icon: Plug, label: "MCP Access", exact: false },
 ] as const;
 
 export function SideNavStrip() {

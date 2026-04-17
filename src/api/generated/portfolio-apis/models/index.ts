@@ -33,4 +33,5 @@ export * from "./returnsChartDataColors";
 export * from "./returnsChartDataDataItem";
 export * from "./scoreChartDataItem";
 export * from "./validationError";
+export * from "./validationErrorCtx";
 export * from "./validationErrorLocItem";

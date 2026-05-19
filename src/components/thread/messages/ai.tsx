@@ -199,22 +199,13 @@ export function AssistantMessage({
             )}
 
             {(hasToolCalls && toolCallsHaveContents && (
-              <ToolCalls
-                toolCalls={message.tool_calls}
-                handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-              />
+              <ToolCalls toolCalls={message.tool_calls} />
             )) ||
               (hasAnthropicToolCalls && (
-                <ToolCalls
-                  toolCalls={anthropicStreamedToolCalls}
-                  handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-                />
+                <ToolCalls toolCalls={anthropicStreamedToolCalls} />
               )) ||
               (hasToolCalls && (
-                <ToolCalls
-                  toolCalls={message.tool_calls}
-                  handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-                />
+                <ToolCalls toolCalls={message.tool_calls} />
               ))}
 
             <Interrupt
@@ -228,6 +219,25 @@ export function AssistantMessage({
                 thread={thread}
               />
             )}
+            <div
+              className={cn(
+                "mr-auto flex items-center gap-2 transition-opacity",
+                "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
+              )}
+            >
+              <BranchSwitcher
+                branch={meta?.branch}
+                branchOptions={meta?.branchOptions}
+                onSelect={(branch) => thread.setBranch(branch)}
+                isLoading={isLoading}
+              />
+              <CommandBar
+                content={contentString}
+                isLoading={isLoading}
+                isAiMessage={true}
+                handleRegenerate={() => handleRegenerate(parentCheckpoint)}
+              />
+            </div>
           </div>
         </div>
       </CitationProvider>

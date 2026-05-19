@@ -12,6 +12,7 @@ import {
   ensureToolCallsHaveResponses,
 } from "@/lib/ensure-tool-responses";
 import { cn } from "@/lib/utils";
+import DynamicSuggestions from "@/modules/chat/components/DynamicSuggestions";
 import SuggestedQueries from "@/modules/chat/components/SuggestedQueries";
 import { useStreamContext } from "@/providers/Stream";
 import { Checkpoint, Message } from "@langchain/langgraph-sdk";
@@ -145,6 +146,7 @@ export function Thread() {
   const stream = useStreamContext();
   const messages = stream.messages;
   const isLoading = stream.isLoading;
+  const nextPromptSuggestions = stream.values.next_prompt_suggestions ?? [];
 
   const lastError = useRef<string | undefined>(undefined);
 
@@ -216,7 +218,7 @@ export function Thread() {
         streamMode: ["values"],
         config: {
           configurable: {
-            planner_agent_model: selectedModel,
+            tradekit_agent_model: selectedModel,
           },
         },
         optimisticValues: (prev) => ({
@@ -265,11 +267,12 @@ export function Thread() {
         streamMode: ["values"],
         config: {
           configurable: {
-            planner_agent_model: selectedModel,
+            tradekit_agent_model: selectedModel,
           },
         },
         optimisticValues: (prev) => ({
           ...prev,
+          next_prompt_suggestions: [],
           messages: [
             ...(prev.messages ?? []),
             ...toolMessages,
@@ -368,6 +371,16 @@ export function Thread() {
                   />
                 )}
                 {isLoading && <AssistantMessageLoading />}
+                {!isLoading &&
+                  nextPromptSuggestions.length > 0 &&
+                  messages.length > 0 &&
+                  messages[messages.length - 1].type === "ai" && (
+                    <DynamicSuggestions
+                      suggestions={nextPromptSuggestions}
+                      onSelect={handleSuggestedQuery}
+                      disabled={isLoading}
+                    />
+                  )}
                 {stream.error && !isLoading && (
                   <div className="w-full rounded-lg border border-red-200 bg-red-50 p-4">
                     <p className="text-sm font-medium text-red-800">

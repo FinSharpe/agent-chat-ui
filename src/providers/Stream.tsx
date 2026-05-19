@@ -28,7 +28,11 @@ import { toast } from "sonner";
 import { useThreads } from "./Thread";
 import { PlannerModels } from "@/configs/models";
 
-export type StateType = { messages: Message[]; ui?: UIMessage[] };
+export type StateType = {
+  messages: Message[];
+  ui?: UIMessage[];
+  next_prompt_suggestions?: string[];
+};
 
 const useTypedStream = useStream<
   StateType,
@@ -40,7 +44,7 @@ const useTypedStream = useStream<
     };
     CustomEventType: UIMessage | RemoveUIMessage;
     ConfigurableType: {
-      planner_agent_model: PlannerModels;
+      tradekit_agent_model: PlannerModels;
     };
   }
 >;

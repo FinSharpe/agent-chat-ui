@@ -127,7 +127,7 @@ export function Thread() {
   const [threadId, _setThreadId] = useQueryState("threadId");
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState<PlannerModels>(
-    PlannerModels.SONNET_4_5,
+    PlannerModels.GEMINI_3_FLASH,
   );
   const {
     contentBlocks,

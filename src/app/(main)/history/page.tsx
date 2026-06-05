@@ -38,7 +38,7 @@ const memorySlides: CarouselSlide[] = [
 
 export default function page() {
   return (
-    <div className="mx-auto w-full max-w-4xl min-w-0 space-y-6 overflow-hidden p-6 pb-24">
+    <div className="mx-auto w-full max-w-5xl min-w-0 space-y-6 overflow-hidden p-6 pb-24">
       {/* Carousel Banner */}
       <CarouselBanner slides={memorySlides} />
       {/* What is Memory Section */}

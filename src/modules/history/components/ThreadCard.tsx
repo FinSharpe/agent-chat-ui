@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Thread } from "@langchain/langgraph-sdk";
 import { Bookmark, BookmarkCheck, Clock, MessageSquare } from "lucide-react";
 import Link from "next/link";
@@ -8,9 +9,11 @@ import { getThreadInfo } from "../utils/threadUtils";
 
 interface ThreadCardProps {
   thread: Thread;
+  /** Render against the dark navy navigation drawer instead of a light page. */
+  dark?: boolean;
 }
 
-export default function ThreadCard({ thread }: ThreadCardProps) {
+export default function ThreadCard({ thread, dark = false }: ThreadCardProps) {
   const { title, preview, messageCount, timestamp } = getThreadInfo(thread);
   const [isBookmarked, setIsBookmarked] = useState(false);
 
@@ -36,18 +39,40 @@ export default function ThreadCard({ thread }: ThreadCardProps) {
       href={`/?threadId=${thread.thread_id}`}
       className="block h-full"
     >
-      <Card className="flex h-full cursor-pointer flex-col justify-between border-gray-200 p-4 transition-shadow hover:shadow-md">
-        <div className="flex items-start justify-between gap-3">
+      <Card
+        className={cn(
+          "flex h-full cursor-pointer flex-col justify-between overflow-hidden transition-all",
+          dark
+            ? "rounded-xl border-white/[0.08] bg-white/[0.04] p-3 shadow-none hover:border-white/15 hover:bg-white/[0.07]"
+            : "border-gray-200 p-4 hover:shadow-md",
+        )}
+      >
+        <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <h3 className="min-w-0 flex-shrink truncate font-medium text-gray-900">
+            <div className="mb-1 flex min-w-0 items-center gap-2">
+              <h3
+                className={cn(
+                  "min-w-0 truncate font-medium",
+                  dark ? "text-white/90" : "text-gray-900",
+                )}
+              >
                 {title}
               </h3>
             </div>
-            <p className="mb-2 line-clamp-2 text-sm break-words text-gray-600">
+            <p
+              className={cn(
+                "mb-2 line-clamp-2 text-sm break-words",
+                dark ? "text-white/45" : "text-gray-600",
+              )}
+            >
               {preview}
             </p>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+            <div
+              className={cn(
+                "flex flex-wrap items-center gap-4 text-xs",
+                dark ? "text-white/35" : "text-gray-500",
+              )}
+            >
               {timestamp && (
                 <div className="flex items-center gap-1 whitespace-nowrap">
                   <Clock className="h-3 w-3 flex-shrink-0" />
@@ -62,14 +87,29 @@ export default function ThreadCard({ thread }: ThreadCardProps) {
           </div>
           <div className="flex flex-shrink-0 items-center gap-2">
             <button
-              className="rounded-full p-1 transition-colors hover:bg-gray-100"
+              className={cn(
+                "rounded-full p-1 transition-colors",
+                dark ? "hover:bg-white/10" : "hover:bg-gray-100",
+              )}
               title={isBookmarked ? "Remove Bookmark" : "Bookmark"}
               onClick={handleBookmark}
             >
               {isBookmarked ? (
-                <BookmarkCheck className="h-4 w-4 text-yellow-500" />
+                <BookmarkCheck
+                  className={cn(
+                    "h-4 w-4",
+                    dark ? "text-amber-300" : "text-yellow-500",
+                  )}
+                />
               ) : (
-                <Bookmark className="h-4 w-4 text-gray-400 hover:text-yellow-500" />
+                <Bookmark
+                  className={cn(
+                    "h-4 w-4",
+                    dark
+                      ? "text-white/30 hover:text-amber-300"
+                      : "text-gray-400 hover:text-yellow-500",
+                  )}
+                />
               )}
             </button>
           </div>

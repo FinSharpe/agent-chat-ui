@@ -218,7 +218,7 @@ export function Thread() {
         streamMode: ["values"],
         config: {
           configurable: {
-            tradekit_agent_model: selectedModel,
+            model: selectedModel,
           },
         },
         optimisticValues: (prev) => ({
@@ -267,7 +267,7 @@ export function Thread() {
         streamMode: ["values"],
         config: {
           configurable: {
-            tradekit_agent_model: selectedModel,
+            model: selectedModel,
           },
         },
         optimisticValues: (prev) => ({

@@ -1,6 +1,7 @@
 "use client";
 import { ComponentType } from "react";
 import Sources from "./sources";
+import DataGrounding from "./data-grounding";
 import { ScannerResults } from "./scanner-results";
 import SimulationChart from "./SimulationChart";
 import LineChart from "./LineChart";
@@ -12,6 +13,7 @@ import ReportStatus from "./report-status";
 
 const ClientComponentsRegistry: Record<string, ComponentType<any>> = {
   sources: Sources,
+  data_grounding: DataGrounding,
   scanner_results: ScannerResults,
   simulation_chart: SimulationChart,
   line_chart: LineChart,

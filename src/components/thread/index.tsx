@@ -45,6 +45,7 @@ import {
   useArtifactOpen,
 } from "./artifact";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
+import McpAppToolMessage from "./messages/client-components/mcp-app";
 import { HumanMessage } from "./messages/human";
 
 function StickyToBottomContent(props: {
@@ -350,6 +351,15 @@ export function Thread() {
                         key={message.id || `${message.type}-${index}`}
                         message={message}
                         isLoading={isLoading}
+                      />
+                    ) : message.type === "tool" ? (
+                      // Render-tool results render as an inline MCP-Apps widget
+                      // (no accordion, independent of hide-tool-calls); returns
+                      // null for ordinary tool results, which show via the
+                      // calling AIMessage's tool-call accordion instead.
+                      <McpAppToolMessage
+                        key={message.id || `${message.type}-${index}`}
+                        message={message}
                       />
                     ) : (
                       <AssistantMessage

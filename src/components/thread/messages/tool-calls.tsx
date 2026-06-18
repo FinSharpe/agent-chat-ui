@@ -1,6 +1,7 @@
 import { useStreamContext } from "@/providers/Stream";
 import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
 import { useMemo, useState } from "react";
+import { getMcpAppPayload } from "./client-components/mcp-app";
 import { JsonViewer } from "./json-viewer";
 import { ToolCallGroup } from "./tool-call-group";
 
@@ -23,9 +24,18 @@ export function ToolCalls({
 
   if (!toolCalls || toolCalls.length === 0) return null;
 
+  // Calls whose result renders as an inline MCP-Apps widget are shown by that
+  // widget (see McpAppToolMessage), not duplicated in the accordion.
+  const visibleToolCalls = toolCalls.filter((tc) => {
+    const response = tc.id ? toolResponses.get(tc.id) : undefined;
+    return !(response && getMcpAppPayload(response));
+  });
+
+  if (visibleToolCalls.length === 0) return null;
+
   return (
     <div className="chat-container flex flex-col gap-2">
-      {toolCalls.map((tc, idx) => (
+      {visibleToolCalls.map((tc, idx) => (
         <ToolCallGroup
           key={tc.id ?? idx}
           toolCall={tc}

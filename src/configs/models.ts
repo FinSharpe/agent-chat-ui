@@ -12,5 +12,5 @@ export enum PlannerModels {
     SONNET_4_5 = "anthropic:claude-sonnet-4-5-20250929",
     HAIKU_4_5 = "anthropic:claude-haiku-4-5-20251001",
     DEEPSEEK_V4_PRO = "deepseek:deepseek-v4-pro",
-    DEEPSEEK_V4_PRO_NVIDIA = "nvidia:deepseek-ai/deepseek-v4-pro",
+    DEEPSEEK_V4_FLASH = "deepseek:deepseek-v4-flash",
 }

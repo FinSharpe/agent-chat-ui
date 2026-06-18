@@ -6,7 +6,12 @@ import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { parsePartialJson } from "@langchain/core/output_parsers";
-import { AIMessage, Checkpoint, Message } from "@langchain/langgraph-sdk";
+import {
+  AIMessage,
+  Checkpoint,
+  Message,
+  ToolMessage,
+} from "@langchain/langgraph-sdk";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { Fragment, useMemo } from "react";
 import { ThreadView } from "../agent-inbox";
@@ -15,6 +20,7 @@ import { CitationsList } from "../citations-list";
 import { MarkdownText } from "../markdown-text";
 import { getContentString } from "../utils";
 import ClientComponentsRegistry from "./client-components/registry";
+import { getMcpAppPayload } from "./client-components/mcp-app";
 import { GenericInterruptView } from "./generic-interrupt";
 import { ScannerApprovalInterruptView } from "./scanner-approval-interrupt";
 import { BranchSwitcher, CommandBar } from "./shared";
@@ -162,7 +168,29 @@ export function AssistantMessage({
   const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
   const isToolResult = message?.type === "tool";
 
+  // Tool results in this thread, by call id — used to detect tool calls whose
+  // output renders as an inline MCP-Apps widget (shown via McpAppToolMessage).
+  const toolMessagesById = useMemo(() => {
+    const map = new Map<string, ToolMessage>();
+    for (const m of thread.messages) {
+      if (m.type === "tool" && m.tool_call_id) map.set(m.tool_call_id, m);
+    }
+    return map;
+  }, [thread.messages]);
+  const allToolCallsAreWidgets =
+    !!hasToolCalls &&
+    (message as AIMessage).tool_calls!.every((tc) => {
+      const resp = tc.id ? toolMessagesById.get(tc.id) : undefined;
+      return resp ? !!getMcpAppPayload(resp) : false;
+    });
+
   if (isToolResult) {
+    return null;
+  }
+
+  // Hide the tool-calling bubble when its only output is widget(s) and it has no
+  // text of its own — the widget (rendered from the tool message) is the result.
+  if (allToolCallsAreWidgets && !contentString) {
     return null;
   }
 

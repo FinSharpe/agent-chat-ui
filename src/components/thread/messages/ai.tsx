@@ -25,7 +25,7 @@ import { GenericInterruptView } from "./generic-interrupt";
 import { ScannerApprovalInterruptView } from "./scanner-approval-interrupt";
 import { BranchSwitcher, CommandBar } from "./shared";
 import { ToolCalls } from "./tool-calls";
-import { TypingBarsLoader } from "./typing-bars-loader";
+import { ThinkingLoader } from "./thinking-loader";
 
 function CustomComponent({
   message,
@@ -308,7 +308,7 @@ export function AssistantMessage({
 export function AssistantMessageLoading() {
   return (
     <div className="mr-auto flex w-full items-start">
-      <TypingBarsLoader />
+      <ThinkingLoader />
     </div>
   );
 }

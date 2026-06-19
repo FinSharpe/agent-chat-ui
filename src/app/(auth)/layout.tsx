@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthBackground } from "@/modules/auth/components/AuthBackground";
-import { AnimatedLogo } from "@/modules/auth/components/AnimatedLogo";
+import { AnimatedLogoPulse } from "@/modules/auth/components/AnimatedLogoPulse";
 import { LogoFlight } from "@/modules/auth/components/LogoFlight";
 import { motion } from "framer-motion";
 import { Shield, Zap, TrendingUp } from "lucide-react";
@@ -33,7 +33,7 @@ export default function AuthLayout({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
           >
-            <AnimatedLogo size={160} />
+            <AnimatedLogoPulse size={160} />
 
             <motion.div
               className="flex flex-col items-center gap-3 text-center"
@@ -87,7 +87,7 @@ export default function AuthLayout({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
           >
-            <AnimatedLogo size={80} />
+            <AnimatedLogoPulse size={80} />
             <h1 className="text-2xl font-bold tracking-tight text-white leading-none">
               Fin
               <span className="bg-gradient-to-r from-[#00a2ff] to-[#45e3d7] bg-clip-text text-transparent">

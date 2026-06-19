@@ -89,8 +89,9 @@ const hexToRgb = (h: string): number[] => {
 const mix = (a: number[], b: number[], t: number): number[] =>
   a.map((v, i) => Math.round(v + (b[i] - v) * t));
 
-const ANIM_CYCLE = 2.6; // seconds for a full propagation sweep
-const SIZE = 120; // rendered px (square)
+const ANIM_CYCLE = 4.2; // seconds for a full propagation sweep
+const LOGO_CYCLE = 2.6; // seconds per emblem pulse (matches login logo)
+const SIZE = 52; // rendered px (square)
 
 /* FinSharpe star emblem (public/logo.svg), points re-centred about (0,0) from
    the original 0–500 box so it can be scaled/placed at the brain's hub. The
@@ -168,7 +169,7 @@ function NeuralBrain() {
     // The emblem is the brain's core. We keep EVERY vein (all converge on the
     // hub) and lay the opaque emblem on top: the central tangle is hidden, and
     // each vein emerges from beneath an emblem edge — so they read as connected.
-    const EMB = 0.5; // logo scale within the 600 viewBox
+    const EMB = 0.75; // logo scale within the 600 viewBox
     const used = BR;
     const usedEnd = used.map((b) => colorAt(b.endX));
     const Rspan = Math.max(...used.map((b) => b.d0 + b.len)) + 6;
@@ -184,11 +185,28 @@ function NeuralBrain() {
       C[1] + p[1] * emb,
     ];
 
-    // Muted brand fills so the emblem reads as the FinSharpe star yet sits
-    // calmly amid the veins. Front (blue arrows) are opaque enough to occlude
-    // the back (teal wings) edges they overlap.
-    const tealFill = mix(teal, navy, 0.32);
-    const blueFill = mix(blue, navy, 0.18);
+    // Vivid brand emblem — identical treatment to the auth login logo
+    // (AnimatedLogoPulse): full-saturation vertical gradients with a luminous,
+    // stacked-triangle pulse that sweeps outward through the star. The 0–500
+    // logo span maps to ±250 centred units, scaled by EMB about the hub C.
+    const tealGrad = ctx.createLinearGradient(
+      0,
+      C[1] - 250 * EMB,
+      0,
+      C[1] + 250 * EMB,
+    );
+    tealGrad.addColorStop(0, "#45e3d7");
+    tealGrad.addColorStop(1, "#0b8c87");
+    const blueGrad = ctx.createLinearGradient(
+      0,
+      C[1] - 250 * EMB,
+      0,
+      C[1] + 250 * EMB,
+    );
+    blueGrad.addColorStop(0, "#00a2ff");
+    blueGrad.addColorStop(1, "#00388a");
+    const tealPulseCol = [11, 140, 135];
+    const bluePulseCol = [0, 130, 230];
 
     // Sub-sample one layer's star edges, tagging each sample with its radius
     // from the hub (viewBox units) so a wavefront can sweep outward along the
@@ -217,10 +235,10 @@ function NeuralBrain() {
     // Fill + stroke a single layer's triangles (closed). Filling matters: the
     // front layer's fill is what hides the back layer's overlapped borders.
     // `vis` fades the body in/out so the emblem is only present with the pulse.
-    const fillLayer = (layer: number[][][], fill: number[], vis: number) => {
-      if (vis <= 0.01) return;
+    const fillLayer = (layer: number[][][], grad: CanvasGradient) => {
+      // One path with both wings as subpaths, filled once (matches login logo).
+      ctx.beginPath();
       layer.forEach((pts) => {
-        ctx.beginPath();
         const m0 = mapPt(pts[0], EMB);
         ctx.moveTo(m0[0], m0[1]);
         for (let i = 1; i < pts.length; i++) {
@@ -228,12 +246,12 @@ function NeuralBrain() {
           ctx.lineTo(m[0], m[1]);
         }
         ctx.closePath();
-        ctx.fillStyle = rgba(fill, 0.95 * vis);
-        ctx.fill();
-        ctx.strokeStyle = rgba(restCol, 0.85 * vis);
-        ctx.lineWidth = 2.6;
-        ctx.stroke();
       });
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
     };
 
     // Clip to a layer's silhouette and send a TRIANGULAR wavefront through it:
@@ -252,36 +270,30 @@ function NeuralBrain() {
         ctx.closePath();
       });
     };
-    const pulseLayer = (
-      layer: number[][][],
-      R: number,
-      baseCol: number[],
-      vis: number,
-    ) => {
-      if (R < 0 || vis <= 0.01) return;
+    const pulseLayer = (layer: number[][][], R: number, baseCol: number[]) => {
       const f = Math.max(0, Math.min(1, R / Remb));
       if (f <= 0.02) return;
-      const bright = mix(baseCol, WHITE, 0.72);
+      const bright = mix(baseCol, WHITE, 0.7);
 
       ctx.save();
       traceScaled(layer, 1); // clip to the real silhouette
       ctx.clip();
 
-      // a few nested triangle outlines trailing the head (scale f) toward the
+      // nested triangle outlines trailing the head (scale f) back toward the
       // centre — a stacked-triangle wavefront expanding through the body
-      const N = 4;
+      const N = 5;
       for (let k = N - 1; k >= 0; k--) {
-        const s = f - k * 0.17;
+        const s = f - k * 0.16;
         if (s <= 0.02) continue;
-        const a = (1 - k / N) * vis;
+        const a = 1 - k / N;
         traceScaled(layer, s);
-        ctx.strokeStyle = rgba(bright, a * 0.16);
-        ctx.lineWidth = 8;
+        ctx.strokeStyle = rgba(bright, a * 0.18);
+        ctx.lineWidth = 11;
         ctx.stroke(); // soft glow
         if (k === 0) {
           traceScaled(layer, s);
-          ctx.strokeStyle = rgba(bright, 0.6 * vis);
-          ctx.lineWidth = 2.4;
+          ctx.strokeStyle = rgba(bright, 0.8);
+          ctx.lineWidth = 3;
           ctx.stroke(); // bright leading edge
         }
       }
@@ -404,24 +416,16 @@ function NeuralBrain() {
     };
 
     // Render the emblem back-to-front so each layer's fill occludes the edges
-    // of the layer behind it. The border glow for a layer is drawn before the
-    // NEXT fill, so hidden edges never light up either.
-    // Pulse/glow activity envelope — ramps up while the wavefront is passing
-    // through the emblem and falls back to 0 once it exits into the veins, so
-    // the logo doesn't carry a permanent glow. The body itself stays visible.
-    const pulseVis = (R: number) =>
-      R < 0
-        ? 0
-        : smooth(0, Remb * 0.3, R) * (1 - smooth(Remb * 0.9, Remb * 1.7, R));
-
+    // of the layer behind it. Treatment matches the auth login logo: vivid
+    // brand fills always present, with a luminous stacked-triangle pulse — plus
+    // an edge glow that flows the signal outward into the veins behind it.
     const drawEmblem = (R: number) => {
-      const pv = pulseVis(R);
-      fillLayer(LOGO.teal, tealFill, 1); // back: teal wings (always visible)
-      pulseLayer(LOGO.teal, R, tealFill, pv); // signal flows through the body
-      glowLayer(TEAL_EDGES, R, pv);
-      fillLayer(LOGO.blue, blueFill, 1); // front: blue arrows (occludes teal)
-      pulseLayer(LOGO.blue, R, blueFill, pv);
-      glowLayer(BLUE_EDGES, R, pv);
+      fillLayer(LOGO.teal, tealGrad); // back: teal wings (always visible)
+      pulseLayer(LOGO.teal, R, tealPulseCol); // pulse sweeps through the body
+      glowLayer(TEAL_EDGES, R, 1);
+      fillLayer(LOGO.blue, blueGrad); // front: blue arrows (occludes teal)
+      pulseLayer(LOGO.blue, R, bluePulseCol);
+      glowLayer(BLUE_EDGES, R, 1);
     };
 
     // Ping-pong wavefront: centre → end (first half) → centre (second half),
@@ -451,9 +455,11 @@ function NeuralBrain() {
       const R = radiusAt(tau);
       drawWave(R);
 
-      // opaque emblem on top (occludes the central tangle); its border glow
-      // sweeps outward from the hub as the same wavefront passes through it
-      drawEmblem(R);
+      // opaque emblem on top (occludes the central tangle). Its pulse runs on
+      // the login logo's own outward cycle — vivid fills with a stacked-triangle
+      // wavefront radiating from the hub, looping every LOGO_CYCLE.
+      const pEmb = (t % LOGO_CYCLE) / LOGO_CYCLE;
+      drawEmblem(pEmb * Remb * 1.5);
 
       raf = requestAnimationFrame(frame);
     };

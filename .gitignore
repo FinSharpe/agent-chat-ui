@@ -41,3 +41,8 @@ props.json
 # VS Code (keep extensions.json tracked)
 .vscode/settings.json
 .superpowers
+.playwright-mcp/**
+
+# Python bytecode (e.g. vendored skill scripts)
+__pycache__/
+*.pyc

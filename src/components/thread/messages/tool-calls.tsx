@@ -34,14 +34,13 @@ export function ToolCalls({
   if (visibleToolCalls.length === 0) return null;
 
   return (
-    <div className="chat-container flex flex-col gap-2">
-      {visibleToolCalls.map((tc, idx) => (
-        <ToolCallGroup
-          key={tc.id ?? idx}
-          toolCall={tc}
-          response={tc.id ? toolResponses.get(tc.id) : undefined}
-        />
-      ))}
+    <div className="chat-container">
+      <ToolCallGroup
+        items={visibleToolCalls.map((tc) => ({
+          toolCall: tc,
+          response: tc.id ? toolResponses.get(tc.id) : undefined,
+        }))}
+      />
     </div>
   );
 }

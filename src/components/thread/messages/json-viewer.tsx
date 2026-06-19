@@ -9,6 +9,9 @@ interface JsonViewerProps {
   maxHeight?: string;
   copyLabel?: string;
   className?: string;
+  /** Render without the outer border/background and copy toolbar, so the tree
+   *  can sit inside a host container that supplies its own chrome. */
+  bare?: boolean;
 }
 
 type JsonPrimitive = string | number | boolean | null;
@@ -42,6 +45,7 @@ export function JsonViewer({
   maxHeight = "40vh",
   copyLabel = "Copy JSON",
   className,
+  bare = false,
 }: JsonViewerProps) {
   const [copied, setCopied] = useState(false);
 
@@ -50,6 +54,23 @@ export function JsonViewer({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (bare) {
+    return (
+      <div
+        className={cn("overflow-auto p-3 font-mono text-sm leading-relaxed", className)}
+        style={{ maxHeight }}
+      >
+        <JsonNode
+          value={value}
+          depth={0}
+          defaultExpandDepth={defaultExpandDepth}
+          isLast
+          ancestors={[]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

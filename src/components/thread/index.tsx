@@ -312,7 +312,7 @@ export function Thread() {
               (chatStarted || isKeyboardOpen) && "grid grid-rows-[1fr_auto]",
             )}
             contentClassName={cn(
-              "chat-container mx-auto flex flex-col gap-4 w-full",
+              "chat-container mx-auto flex flex-col w-full",
               isKeyboardOpen
                 ? "pb-4 justify-end"
                 : chatStarted

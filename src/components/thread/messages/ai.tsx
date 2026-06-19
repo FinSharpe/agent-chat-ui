@@ -247,25 +247,9 @@ export function AssistantMessage({
                 thread={thread}
               />
             )}
-            <div
-              className={cn(
-                "mr-auto flex items-center gap-2 transition-opacity",
-                "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
-              )}
-            >
-              <BranchSwitcher
-                branch={meta?.branch}
-                branchOptions={meta?.branchOptions}
-                onSelect={(branch) => thread.setBranch(branch)}
-                isLoading={isLoading}
-              />
-              <CommandBar
-                content={contentString}
-                isLoading={isLoading}
-                isAiMessage={true}
-                handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-              />
-            </div>
+            {/* No command bar on messages with tool calls — the copy/regenerate
+                controls would leave dead whitespace between the tool group and
+                the next turn. Plain-text turns keep their command bar below. */}
           </div>
         </div>
       </CitationProvider>

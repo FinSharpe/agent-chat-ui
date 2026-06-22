@@ -3,7 +3,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { PlannerModels } from "@/configs/models";
+import {
+  DEFAULT_MODEL_TIER,
+  getModelTier,
+  MODEL_TIERS,
+  PlannerModels,
+} from "@/configs/models";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import useDetectKeyboardOpen from "@/hooks/useDetectKeyboardOpen";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -16,7 +21,6 @@ import DynamicSuggestions from "@/modules/chat/components/DynamicSuggestions";
 import SuggestedQueries from "@/modules/chat/components/SuggestedQueries";
 import { useStreamContext } from "@/providers/Stream";
 import { Checkpoint, Message } from "@langchain/langgraph-sdk";
-import { startCase } from "lodash";
 import {
   ArrowDown,
   ArrowUp,
@@ -89,13 +93,6 @@ function ScrollToBottom(props: { className?: string }) {
   );
 }
 
-// Helper function to format model display names
-function getModelDisplayName(modelKey: string): string {
-  const formatted = startCase(modelKey.toLowerCase());
-  // Replace spaces between numbers with dots (e.g., "4 5" -> "4.5")
-  return formatted.replace(/(\d)\s+(\d)/g, "$1.$2");
-}
-
 // function OpenGitHubRepo() {
 //   return (
 //     <TooltipProvider>
@@ -129,7 +126,7 @@ export function Thread() {
   const [threadId, _setThreadId] = useQueryState("threadId");
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState<PlannerModels>(
-    PlannerModels.GEMINI_3_FLASH,
+    DEFAULT_MODEL_TIER.model,
   );
   const {
     contentBlocks,
@@ -494,13 +491,7 @@ export function Thread() {
                                 )}
                               >
                                 <Sparkles className="size-3" />
-                                <span>
-                                  {getModelDisplayName(
-                                    Object.entries(PlannerModels).find(
-                                      ([, v]) => v === selectedModel,
-                                    )?.[0] || "",
-                                  )}
-                                </span>
+                                <span>{getModelTier(selectedModel).label}</span>
                                 <ChevronDown
                                   className={cn(
                                     "size-3 opacity-50 transition-transform duration-200",
@@ -520,45 +511,50 @@ export function Thread() {
                                 </p>
                               </div>
                               <div className="py-1">
-                                {Object.entries(PlannerModels).map(
-                                  ([key, value]) => (
+                                {MODEL_TIERS.map((tier) => {
+                                  const isSelected =
+                                    selectedModel === tier.model;
+                                  return (
                                     <button
-                                      key={value}
+                                      key={tier.id}
                                       type="button"
                                       onClick={() => {
-                                        setSelectedModel(
-                                          value as PlannerModels,
-                                        );
+                                        setSelectedModel(tier.model);
                                         setModelOpen(false);
                                       }}
                                       className={cn(
-                                        "flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors duration-150",
-                                        selectedModel === value
+                                        "flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors duration-150",
+                                        isSelected
                                           ? "bg-primary-main-dark/5 text-primary-main-dark"
                                           : "text-text-secondary hover:bg-bg-hover hover:text-text-primary",
                                       )}
                                     >
                                       <span
                                         className={cn(
-                                          "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                                          selectedModel === value
+                                          "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                                          isSelected
                                             ? "border-brand-teal bg-brand-teal text-white"
                                             : "border-border-default",
                                         )}
                                       >
-                                        {selectedModel === value && (
+                                        {isSelected && (
                                           <Check
                                             className="size-2.5"
                                             strokeWidth={3}
                                           />
                                         )}
                                       </span>
-                                      <span className="font-medium">
-                                        {getModelDisplayName(key)}
+                                      <span className="flex flex-col">
+                                        <span className="text-xs font-medium">
+                                          {tier.label}
+                                        </span>
+                                        <span className="text-[10px] text-text-muted">
+                                          {tier.description}
+                                        </span>
                                       </span>
                                     </button>
-                                  ),
-                                )}
+                                  );
+                                })}
                               </div>
                             </PopoverContent>
                           </Popover>

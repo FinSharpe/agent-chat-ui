@@ -24,7 +24,7 @@ export enum PlannerModels {
  *
  * To re-point a tier at a different model, change only its `model` field.
  */
-export type ModelTierId = "default" | "high" | "max" | "ultra";
+export type ModelTierId = "low" | "medium" | "high" | "max" | "ultra";
 
 export interface ModelTier {
     id: ModelTierId;
@@ -38,22 +38,28 @@ export interface ModelTier {
 
 export const MODEL_TIERS: ModelTier[] = [
     {
-        id: "default",
-        label: "Default",
-        description: "Fast & efficient for everyday questions",
+        id: "low",
+        label: "Low",
+        description: "Fastest & cheapest for everyday questions",
         model: PlannerModels.DEEPSEEK_V4_FLASH,
+    },
+    {
+        id: "medium",
+        label: "Medium",
+        description: "Strong value for broader tasks",
+        model: PlannerModels.DEEPSEEK_V4_PRO,
     },
     {
         id: "high",
         label: "High",
-        description: "Stronger reasoning for deeper analysis",
-        model: PlannerModels.DEEPSEEK_V4_PRO,
+        description: "Strong reasoning with a huge context window",
+        model: PlannerModels.GEMINI_3,
     },
     {
         id: "max",
         label: "Max",
-        description: "High capability with a huge context window",
-        model: PlannerModels.GEMINI_3,
+        description: "Frontier-class for hard problems",
+        model: PlannerModels.GPT_5_4,
     },
     {
         id: "ultra",
@@ -64,7 +70,8 @@ export const MODEL_TIERS: ModelTier[] = [
 ];
 
 /** The tier selected by default when a chat opens. */
-export const DEFAULT_MODEL_TIER: ModelTier = MODEL_TIERS[0];
+export const DEFAULT_MODEL_TIER: ModelTier =
+    MODEL_TIERS.find((t) => t.id === "medium") ?? MODEL_TIERS[0];
 
 /** Resolve the tier that owns a given backend model (falls back to default). */
 export function getModelTier(model: PlannerModels): ModelTier {

@@ -548,7 +548,7 @@ export function Thread() {
                                         <span className="text-xs font-medium">
                                           {tier.label}
                                         </span>
-                                        <span className="text-[10px] text-text-muted">
+                                        <span className="text-[6px] text-text-muted">
                                           {tier.description}
                                         </span>
                                       </span>

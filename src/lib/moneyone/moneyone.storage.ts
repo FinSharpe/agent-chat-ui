@@ -260,7 +260,6 @@ export function completePendingConsent(
   };
 
   saveConsent(consentData);
-  console.log("Completed pending consent with real consentID:", consentID);
 
   return consentData;
 }

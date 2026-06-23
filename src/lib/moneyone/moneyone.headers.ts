@@ -1,3 +1,5 @@
+import "server-only";
+
 function getAuthHeader(name: string, envVar: string | undefined): string {
   if (!envVar) {
     console.warn(`MoneyOne auth header "${name}" is not configured. Set the corresponding environment variable.`);

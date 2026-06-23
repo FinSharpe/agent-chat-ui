@@ -206,7 +206,6 @@ export function useRefreshFiData() {
       queryClient.removeQueries({
         queryKey: [FI_DATA_QUERY_KEY, consentID],
       });
-      console.log("Cleared FI data cache for consent:", consentID);
 
       // Step 2: Poll for new data with retries
       // Similar to useFiDataConsentFlow behavior
@@ -251,7 +250,6 @@ export function useRefreshFiData() {
         isExpired: false,
         consentCreationData: new Date().toISOString(),
       });
-      console.log("Marked consent data as ready after refresh:", consentID);
     },
   });
 }

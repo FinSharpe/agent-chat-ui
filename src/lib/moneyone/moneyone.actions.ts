@@ -140,8 +140,6 @@ export const createConsentRequestV3 = async (
           status: response.status,
           statusText: response.statusText,
           body: errorBody,
-          requestBody: JSON.parse(body),
-          headers: moneyOneAuthHeaders,
         });
       }
       if (response.status === 503)
@@ -313,8 +311,26 @@ export const getConsentList = async (
         (c: Consent) => c.consentHandle === consentHandle,
       );
       if (!consent) throw new Error("Consent not found");
-      if (process.env.NODE_ENV === "development")
-        console.log("Consent found in list: ", consent);
+
+      // Defense-in-depth: the AA return payload is decrypted but its contents
+      // aren't otherwise authenticated. Never complete a consent whose productID
+      // doesn't match the asset type we asked for (prevents an attacker-supplied
+      // handle resolving to a different asset type's consent).
+      const expectedProductID = consentFormMap[consentType];
+      if (expectedProductID && consent.productID !== expectedProductID) {
+        throw new Error("Resolved consent does not match the requested type");
+      }
+      // accountID mismatch is anomalous but its echo semantics aren't yet
+      // verified against live traffic — warn (dev) rather than hard-fail. See
+      // IMPORT_HOLDINGS_DOCUMENTATION.md Appendix B.
+      if (
+        process.env.NODE_ENV === "development" &&
+        consent.accountID !== accountID
+      ) {
+        console.warn(
+          "getConsentList: resolved consent accountID does not match request",
+        );
+      }
 
       return consent;
     }

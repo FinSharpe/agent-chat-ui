@@ -14,9 +14,6 @@ export async function processFiData(
     .filter((a) => a.fiType === consentType)
     .flatMap((a) => a.Summary?.Investment.Holdings.Holding || []);
 
-  // For now, just return raw holdings without filtering
-  console.log("Processed holdings:", holdings);
-
   return {
     holdings,
     rawData: response,

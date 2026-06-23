@@ -13,7 +13,7 @@
 ## Key References
 
 - **Design doc:** `docs/plans/2026-03-07-stock-report-schema-migration-design.md`
-- **Migration guide:** `documentation/STOCK_REPORT_SCHEMA_MIGRATION.md`
+- **Migration guide:** `docs/reference/STOCK_REPORT_SCHEMA_MIGRATION.md`
 - **Sample data:** `props.json` (root) - ICICIBANK example with full new schema
 - **PF report card pattern:** `src/components/thread/messages/client-components/pf-analysis.tsx:34-43` (ACCENT_BORDER map) and `:383-396` (SectionCard component)
 - **Generated types:** `src/api/generated/report-apis/models/index.ts`

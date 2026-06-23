@@ -25,6 +25,11 @@ This guide provides step-by-step instructions for integrating a new consent type
 - ✅ **MUTUAL_FUNDS** (`WM101`) - Editable form (quantity field)
 - ✅ **ETF** - Editable form (quantity field) - Placeholder, pending API response
 - ✅ **BANK_ACCOUNTS** (`DEPOSITDETAILS`) - Read-only with analytics
+- ✅ **SIP** - Read-only preview (SipPreviewModal)
+
+> **Pattern note**: New consent types are wired into `ImportDataPage` by passing
+> a per-type `AnalysisModal` to the shared `<MoneyOneHoldingsCard>`. The card is
+> generic; the modal (accepting `BaseAnalysisModalProps`) is what differs per type.
 
 ---
 
@@ -887,7 +892,7 @@ export const FD_QUANTITY_FIELD = "principal" as const;
   - **Read-Only**: `src/modules/import-data/components/modals/BankAccountsPreviewModal/` - Complex read-only with analytics
   - **Editable Form**: `src/modules/import-data/components/modals/EquitiesPreviewModal/` - Complete editable implementation
   - **Placeholder**: `src/modules/import-data/components/modals/EtfPreviewModal/` - Template with TODOs
-- **Import Holdings Documentation**: `documentation/IMPORT_HOLDINGS_DOCUMENTATION.md`
+- **Import Holdings Documentation**: `docs/reference/IMPORT_HOLDINGS_DOCUMENTATION.md`
 
 ---
 

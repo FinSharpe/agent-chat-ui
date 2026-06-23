@@ -60,10 +60,18 @@ export function QueryProvider({ children }: QueryProviderProps) {
 
                         // Only persist FI data queries with consent IDs: ["fi-data", consentID]
                         // Excludes the disabled placeholder: ["fi-data-disabled"]
+                        //
+                        // Require status === 'success' so we never dehydrate a pending
+                        // (in-flight) or errored query. getAllFiData polls with 3s delays,
+                        // so the throttled persister can otherwise snapshot a query while
+                        // it's still pending — that pending promise gets persisted and
+                        // rejects on the next page load, surfacing as
+                        // "A query that was dehydrated as pending ended up rejecting".
                         return (
                             Array.isArray(queryKey) &&
                             queryKey[0] === 'fi-data' &&
-                            queryKey.length > 1
+                            queryKey.length > 1 &&
+                            query.state.status === 'success'
                         );
                     },
                 },

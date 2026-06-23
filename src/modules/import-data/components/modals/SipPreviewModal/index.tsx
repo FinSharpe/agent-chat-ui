@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
+import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import { SIP_COLUMNS } from "@/modules/import-data/types/sip";
 import { BarChart3, Info, Loader2, Repeat } from "lucide-react";
 import { useSipData } from "./hooks/useSipData";
@@ -34,10 +35,14 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
   const importMutation = useImportSipMutation();
 
   // Fetch and transform SIP data
-  const { displayData, isLoading, fiData } = useSipData(
-    consentID,
-    !!isDataReady,
-  );
+  const {
+    displayData,
+    isLoading,
+    fiData,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useSipData(consentID, !!isDataReady);
 
   const handleSubmit = () => {
     if (!fiData || fiData.length === 0) return;
@@ -75,6 +80,16 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
           </DialogDescription>
         </DialogHeader>
 
+        {isError ? (
+          <FiDataErrorState
+            assetLabel="SIP registrations"
+            errorKind={errorKind}
+            message={errorMessage}
+            consent={consent}
+            onClose={handleClose}
+          />
+        ) : (
+          <>
         {/* Info banner */}
         <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
@@ -169,6 +184,8 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
             )}
           </Button>
         </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

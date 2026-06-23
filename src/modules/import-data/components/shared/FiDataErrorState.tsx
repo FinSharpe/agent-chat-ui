@@ -1,0 +1,188 @@
+/**
+ * Shared error state for FI-data preview modals.
+ *
+ * Renders inside a preview modal when the FI-data fetch fails, instead of a
+ * silently empty form/table. The action it offers depends on why the fetch
+ * failed (see `FiDataErrorKind`):
+ *   - data-missing → "Fetch latest data" (triggers a fresh FI request; the
+ *     modal recovers automatically once data arrives)
+ *   - consent-dead → "Remove connection" (deletes the consent so the card
+ *     falls back to Connect for re-consent)
+ *   - transient    → "Try again"
+ */
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
+import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
+import { ConsentData, deleteConsent } from "@/lib/moneyone/moneyone.storage";
+import { FiDataErrorKind } from "@/lib/moneyone/moneyone.utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
+type FiDataErrorStateProps = {
+  /** Human-readable asset label, e.g. "equity holdings". */
+  assetLabel: string;
+  /** Why the fetch failed (drives the offered action). */
+  errorKind: FiDataErrorKind | null;
+  /** Raw error message from MoneyOne (shown for transient errors). */
+  message?: string;
+  /** The consent this modal is for (needed for refresh/delete actions). */
+  consent?: ConsentData | null;
+  /** Close the modal. */
+  onClose: () => void;
+};
+
+export function FiDataErrorState({
+  assetLabel,
+  errorKind,
+  message,
+  consent,
+  onClose,
+}: FiDataErrorStateProps) {
+  const queryClient = useQueryClient();
+  const { mutate: refresh, isPending: isRefreshing } = useRefreshFiData();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const consentID = consent?.consentID;
+
+  const handleRefresh = () => {
+    if (!consentID) {
+      toast.error("Unable to fetch: consent ID not found");
+      return;
+    }
+    // On success, useRefreshFiData writes fresh data into the same query cache
+    // key this modal reads — the modal then re-renders into its normal form.
+    refresh(consentID, {
+      onSuccess: () => toast.success("Latest data fetched"),
+      onError: (error) =>
+        toast.error(
+          error instanceof Error ? error.message : "Failed to fetch data",
+        ),
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!consentID || isDeleting) return;
+
+    setIsDeleting(true);
+    // Revoke on MoneyOne first; on failure (and not already gone) still remove
+    // locally but warn it may still be live on MoneyOne's side.
+    const result = await revokeConsent(consentID);
+
+    if ("error" in result && !result.alreadyGone) {
+      toast.warning(
+        `Removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
+      );
+    } else {
+      toast.success("Connection removed");
+    }
+
+    deleteConsent(consentID);
+    queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, consentID] });
+    setIsDeleting(false);
+    onClose();
+  };
+
+  const isConsentDead = errorKind === "consent-dead";
+  const isDataMissing = errorKind === "data-missing";
+
+  return (
+    <>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+        <div className="rounded-full bg-amber-50 p-3">
+          <AlertTriangle className="h-7 w-7 text-amber-500" />
+        </div>
+
+        {isConsentDead ? (
+          <>
+            <h3 className="font-medium text-gray-900">Connection expired</h3>
+            <p className="max-w-md text-sm text-gray-600">
+              Your consent for these {assetLabel} is no longer valid (expired or
+              revoked). Remove this connection and reconnect to continue.
+            </p>
+          </>
+        ) : isDataMissing ? (
+          <>
+            <h3 className="font-medium text-gray-900">No data to show yet</h3>
+            <p className="max-w-md text-sm text-gray-600">
+              This connection is valid, but there&apos;s no {assetLabel} data
+              available right now — it may not have been fetched yet, or it was
+              cleared after the retention period. Fetch the latest data to
+              continue.
+            </p>
+          </>
+        ) : (
+          <>
+            <h3 className="font-medium text-gray-900">
+              Couldn&apos;t load your {assetLabel}
+            </h3>
+            <p className="max-w-md text-sm text-gray-600">
+              {message ||
+                "Something went wrong while fetching your data. Please try again in a moment."}
+            </p>
+          </>
+        )}
+      </div>
+
+      <DialogFooter className="gap-2 sm:gap-0">
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isRefreshing || isDeleting}
+        >
+          Close
+        </Button>
+
+        {isConsentDead ? (
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmOpen(true)}
+            disabled={isRefreshing || isDeleting}
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Removing…
+              </>
+            ) : (
+              <>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove connection
+              </>
+            )}
+          </Button>
+        ) : (
+          <Button onClick={handleRefresh} disabled={isRefreshing}>
+            {isRefreshing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Fetching…
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {isDataMissing ? "Fetch latest data" : "Try again"}
+              </>
+            )}
+          </Button>
+        )}
+      </DialogFooter>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Remove connection?"
+        description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
+        confirmLabel="Remove"
+        destructive
+        confirming={isDeleting}
+        onConfirm={handleDelete}
+      />
+    </>
+  );
+}

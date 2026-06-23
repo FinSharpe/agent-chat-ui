@@ -28,7 +28,14 @@ export function useMutualFundsData(
   isDataReady: boolean,
 ) {
   // Fetch FI data - always enabled if consentID exists (for cache hydration)
-  const { data: fiData, isLoading } = useFiData(consentID, !!isDataReady);
+  const {
+    data: fiData,
+    isLoading,
+    isError,
+    isConsentError,
+    errorKind,
+    error,
+  } = useFiData(consentID, !!isDataReady);
 
   // Cast to mutual fund-specific type
   const mutualFundsData = fiData as MutualFundsFiDataResponse | undefined;
@@ -52,6 +59,14 @@ export function useMutualFundsData(
     formDefaultValues,
     /** Whether data is currently loading */
     isLoading,
+    /** Whether the FI-data fetch failed */
+    isError,
+    /** Whether the failure is due to an expired/revoked consent */
+    isConsentError,
+    /** How to handle the failure: consent-dead | data-missing | transient */
+    errorKind,
+    /** Error message from the failed fetch, if any */
+    errorMessage: error?.message,
     /** Raw FI data response (mutual fund-specific type) */
     fiData: mutualFundsData,
   };

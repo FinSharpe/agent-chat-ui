@@ -29,7 +29,14 @@ export function useEtfData(
   isDataReady: boolean,
 ) {
   // Fetch FI data - always enabled if consentID exists (for cache hydration)
-  const { data: fiData, isLoading } = useFiData(consentID, !!isDataReady);
+  const {
+    data: fiData,
+    isLoading,
+    isError,
+    isConsentError,
+    errorKind,
+    error,
+  } = useFiData(consentID, !!isDataReady);
 
   // Cast to ETF-specific type
   const etfData = fiData as ETFFiDataResponse | undefined;
@@ -59,6 +66,14 @@ export function useEtfData(
     formDefaultValues,
     /** Whether data is currently loading */
     isLoading,
+    /** Whether the FI-data fetch failed */
+    isError,
+    /** Whether the failure is due to an expired/revoked consent */
+    isConsentError,
+    /** How to handle the failure: consent-dead | data-missing | transient */
+    errorKind,
+    /** Error message from the failed fetch, if any */
+    errorMessage: error?.message,
     /** Raw FI data response (ETF-specific type) */
     fiData: etfData,
     /** Total current value of all ETF holdings */

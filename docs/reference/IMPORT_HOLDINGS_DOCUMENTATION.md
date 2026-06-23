@@ -33,6 +33,7 @@ The import holdings feature enables users to securely import their financial dat
 - **Mutual Funds (WM101)**: MF holdings with scheme details, NAV, folio numbers - *Editable form*
 - **ETF**: Exchange Traded Fund holdings - *Editable form (Placeholder, pending API response)*
 - **Bank Accounts (DEPOSITDETAILS)**: Bank account statements and transactions - *Read-only with analytics*
+- **SIP**: Systematic Investment Plan registrations - *Read-only preview (SipPreviewModal)*
 
 ---
 
@@ -207,7 +208,7 @@ Custom Events
 │  │  2. User grants consent for data access                            │     │
 │  │  3. MoneyOne redirects back with encrypted params                  │     │
 │  │                                                                     │     │
-│  │     /?ecreq=...&fi=...&resdate=...                                 │     │
+│  │     /?ecres=...&fi=...&resdate=...                                 │     │
 │  └────────────────────────────────────────────────────────────────────┘     │
 │                                                                              │
 └────────────────────────────────┬────────────────────────────────────────────┘
@@ -458,7 +459,7 @@ Example: https://app.com/moneyone/EQUITIES~abc123~thread-xyz
 2. User grants consent for data access
 3. MoneyOne redirects back with encrypted params:
    ```
-   ?ecreq=...&fi=...&resdate=...
+   ?ecres=...&fi=...&resdate=...
    ```
 
 **Code**: MoneyOne → `src/app/moneyone/[slug]/page.tsx`
@@ -704,6 +705,7 @@ export function MoneyOneHoldingsCard({
   icon: Icon,
   title,
   description,
+  AnalysisModal, // Consent-type-specific preview modal (BaseAnalysisModalProps)
 }: MoneyOneHoldingsCardProps) {
   const { data: consent } = useConsentQuery(consentType);
   const { mutate: refreshData, isPending: isRefreshing } = useRefreshFiData();
@@ -730,12 +732,30 @@ export function MoneyOneHoldingsCard({
           <ImportHoldings consentType={consentType} />
         )}
 
-        {/* Right: Analyse button */}
-        <HoldingsPreviewModal consent={consent} />
+        {/* Right: Analyse button — injected per consent type */}
+        <AnalysisModal consent={consent} />
       </div>
     </Card>
   );
 }
+```
+
+> **Note**: The card is now generic over the preview modal. Each consent type
+> passes its own `AnalysisModal` (e.g. `EquitiesPreviewModal`,
+> `MutualFundsPreviewModal`, `BankAccountsPreviewModal`, `EtfPreviewModal`,
+> `SipPreviewModal`) from `ImportDataPage`, rather than the card hardcoding
+> `HoldingsPreviewModal`. The modal must accept `BaseAnalysisModalProps`
+> (`{ consent: ConsentData | null }`).
+
+```tsx
+// Wiring in ImportDataPage.tsx
+<MoneyOneHoldingsCard
+  consentType={ConsentType.EQUITIES}
+  icon={BarChart3}
+  title="Equity Holdings"
+  description="..."
+  AnalysisModal={EquitiesPreviewModal}
+/>
 ```
 
 **Key Features**:
@@ -1037,10 +1057,14 @@ window.addEventListener("moneyone:consent-updated", handleCustomStorageChange);
 
 4. User refreshes → updateConsent({ consentCreationData: new Date() })
 
-5. User revokes → deleteConsent(consentID)
-   - Remove consent
-   - Remove from user's index
+5. User removes → revokeConsent(consentID) then deleteConsent(consentID)
+   - revokeConsent: POST /revokeconsent on MoneyOne (stops AA data sharing).
+     "Already revoked"/"does not exist" is treated as success; any other
+     failure still removes locally but warns the user (warning-on-failure).
+   - deleteConsent: remove consent + remove from user's index
+   - Clear cached FI data: queryClient.removeQueries(["fi-data", consentID])
    - Dispatch "moneyone:consent-updated" event
+   - Guarded by a ConfirmDialog (revoke is irreversible)
 ```
 
 ---
@@ -1121,7 +1145,7 @@ POST /webRedirection/decryptUrl
 Request:
 {
   "webRedirectionURL": {
-    "ecreq": "...",
+    "ecres": "...",
     "fi": "...",
     "resdate": "..."
   }
@@ -1363,7 +1387,8 @@ export enum ConsentType {
   MUTUAL_FUNDS = 'MUTUAL_FUNDS',
   EQUITIES = 'EQUITIES',
   ETF = 'ETF',
-  BANK_ACCOUNTS = 'BANK_ACCOUNTS'
+  BANK_ACCOUNTS = 'BANK_ACCOUNTS',
+  SIP = 'SIP'
 }
 ```
 
@@ -1390,6 +1415,51 @@ queryClient.setQueryDefaults(["fi-data"], {
 ---
 
 ## Error Handling
+
+### FinPro FI-Data Error Catalogue
+
+`POST /getallfidata` (and `POST /fi/request`) return a JSON body of the shape
+`{ ver, timestamp, errorCode, errorMsg, status }` on failure. The frontend reads
+this body (`getAllFiData` / `requestFiData` in `moneyone.actions.ts`) and surfaces
+the real `errorCode` instead of a generic "status 400". Source: the *Get All FI
+Data → Error Code Catalogue* in the FinPro Postman collection.
+
+| FP code | `errorCode` | `errorMsg` | Meaning |
+|---------|-------------|------------|---------|
+| FP0034 | `InvalidConsentId` | "Consent ID does not exist." | Consent gone |
+| FP0058 | `InvalidRequest` | "Consent ID is Revoked…" | Consent revoked |
+| FP0060 | `NoDataAvailable` | "Data is not available for the given consent" | **Valid consent, no data fetched yet (or purged after retention)** |
+| FP0061 | `DataIsDeleted` | "Data is deleted for this consent" | FI data expired & deleted |
+| FP0063 | `NoDataFound` | "Data is not available" | No linked accounts found |
+| FP0055 | `InvalidPayload` | "Either consentId or accountID…" | Bad request payload |
+| FP0070 | `InternalError` | "Internal Server Error…" | Server-side error |
+
+> **Common gotcha**: `NoDataAvailable` (FP0060) is **not** an expired consent —
+> it means the consent is still valid but FinPro currently holds no data. The fix
+> is to re-fetch via `/fi/request`, not to delete/re-consent.
+
+### Frontend Error Classification
+
+`classifyFiDataError(errorCode, errorMsg)` in `moneyone.utils.ts` maps the above
+into three handling buckets (`FiDataErrorKind`):
+
+| Kind | Triggers | UI behaviour |
+|------|----------|--------------|
+| `consent-dead` | `InvalidConsentId` (FP0034), Revoked (FP0058) | Card flips to **Expired** state (`isExpired` set on `ConsentData`); preview modal offers **Remove connection**. Refresh polling stops immediately. |
+| `data-missing` | `NoDataAvailable` (FP0060), `DataIsDeleted` (FP0061), `NoDataFound` (FP0063) | Modal shows **"No data to show yet"** + a **Fetch latest data** button (runs the refresh flow; modal auto-recovers into the form once data arrives). Consent stays Connected. |
+| `transient` | network / 5xx / unrecognised | **Try again** button. |
+
+**Key files**:
+- `src/lib/moneyone/moneyone.utils.ts` — `classifyFiDataError`, `isConsentInvalidError`
+- `src/modules/import-data/hooks/useFiData.ts` — exposes `errorKind`; flips consent to `isExpired` on `consent-dead`; stops refresh polling on dead consents
+- `src/modules/import-data/components/shared/FiDataErrorState.tsx` — per-kind modal error UI (Fetch / Remove / Try again)
+- `src/modules/import-data/components/account-types/MoneyOneHoldingsCard.tsx` — Connected (Refresh + Delete) and Expired (Refresh + Delete) card states
+
+> **Authoritative status check**: to verify a consent's true state instead of
+> trusting the locally-cached `consentExpiry`, call `getConsentStatus(consentID,
+> mobileNo, consentType, accountID)` (`moneyone.actions.ts`), which wraps
+> `POST /v2/getconsentslist` and returns the live `status`
+> (`ACTIVE`/`PAUSED`/`REVOKED`/`EXPIRED`) and `consent_expiry`.
 
 ### Error Types & Recovery
 
@@ -1504,8 +1574,11 @@ Production recommendation: Integrate with Sentry/LogRocket for error tracking
 
 ### 6. User Control
 
-- Users can revoke consent anytime (via `deleteConsent`)
-- Clear consent status shown in UI
+- Users can revoke consent anytime via the card/modal Remove action, which
+  calls `revokeConsent` (`POST /revokeconsent`) to tear down the consent on
+  MoneyOne/the AA, then `deleteConsent` for local cleanup. Guarded by a
+  confirmation dialog; on revoke failure it removes locally and warns.
+- Clear consent status shown in UI (Connected / Expired)
 - Transparent data usage messaging
 
 ### 7. API Security
@@ -1568,10 +1641,12 @@ if (!validatedData.success) {
    // Prevent API abuse
    ```
 
-3. **Implement Consent Revocation API**:
+3. ~~**Implement Consent Revocation API**~~ ✅ **Done**:
    ```typescript
-   // POST /api/consent/revoke
-   // Properly clean up MoneyOne side as well
+   // revokeConsent(consentID) → POST /revokeconsent (moneyone.actions.ts)
+   // Called by the Remove action before deleteConsent; cleans up MoneyOne side.
+   // Treats "already revoked"/"does not exist" as success; warns on other
+   // failures while still removing locally.
    ```
 
 4. **Add Webhook Signature Verification**:
@@ -1711,6 +1786,20 @@ To integrate a new MoneyOne consent type (e.g., NPS, Insurance, Bonds), refer to
 
 ---
 
-**Document Version**: 3.0
-**Last Updated**: January 2025
+**Document Version**: 3.3
+**Last Updated**: June 2026
 **Maintained By**: FinSharpe Engineering Team
+
+> **Changelog 3.3**: Consent removal now revokes on MoneyOne (`revokeConsent` →
+> `POST /revokeconsent`) before local cleanup, guarded by a `ConfirmDialog`, with
+> a warning-on-failure policy. Removed the "implement revocation" production TODO.
+>
+> **Changelog 3.2**: Added the FinPro FI-data error catalogue (FP00xx codes) and
+> the frontend error-classification model (`consent-dead` / `data-missing` /
+> `transient`); documented the Expired card state, per-kind modal recovery
+> (`FiDataErrorState`), and the `getConsentStatus` authoritative status check.
+>
+> **Changelog 3.1**: `ConsentType` expanded to 5 AA types (added `SIP`);
+> `MoneyOneHoldingsCard` refactored to accept a generic `AnalysisModal` prop
+> instead of a hardcoded `HoldingsPreviewModal`; each consent type now wires its
+> own preview modal from `ImportDataPage`.

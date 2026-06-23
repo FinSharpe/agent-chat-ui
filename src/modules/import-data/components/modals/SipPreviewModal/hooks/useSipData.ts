@@ -21,7 +21,14 @@ export function useSipData(
   isDataReady: boolean,
 ) {
   // Fetch FI data - always enabled if consentID exists (for cache hydration)
-  const { data: fiData, isLoading } = useFiData(consentID, !!isDataReady);
+  const {
+    data: fiData,
+    isLoading,
+    isError,
+    isConsentError,
+    errorKind,
+    error,
+  } = useFiData(consentID, !!isDataReady);
 
   // Cast to SIP-specific type
   const sipData = fiData as SIPFiDataResponse | undefined;
@@ -37,6 +44,14 @@ export function useSipData(
     displayData,
     /** Whether data is currently loading */
     isLoading,
+    /** Whether the FI-data fetch failed */
+    isError,
+    /** Whether the failure is due to an expired/revoked consent */
+    isConsentError,
+    /** How to handle the failure: consent-dead | data-missing | transient */
+    errorKind,
+    /** Error message from the failed fetch, if any */
+    errorMessage: error?.message,
     /** Raw FI data response (SIP-specific type) */
     fiData: sipData,
   };

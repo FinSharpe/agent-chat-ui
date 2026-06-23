@@ -28,7 +28,14 @@ export function useBankAccountsData(
   isDataReady: boolean,
 ) {
   // Fetch FI data - always enabled if consentID exists (for cache hydration)
-  const { data: fiData, isLoading } = useFiData(consentID, !!isDataReady);
+  const {
+    data: fiData,
+    isLoading,
+    isError,
+    isConsentError,
+    errorKind,
+    error,
+  } = useFiData(consentID, !!isDataReady);
 
   // Cast to bank account-specific type
   const bankAccountsData = fiData as BankAccountsFiDataResponse | undefined;
@@ -52,6 +59,14 @@ export function useBankAccountsData(
     formDefaultValues,
     /** Whether data is currently loading */
     isLoading,
+    /** Whether the FI-data fetch failed */
+    isError,
+    /** Whether the failure is due to an expired/revoked consent */
+    isConsentError,
+    /** How to handle the failure: consent-dead | data-missing | transient */
+    errorKind,
+    /** Error message from the failed fetch, if any */
+    errorMessage: error?.message,
     /** Raw FI data response (bank account-specific type) */
     fiData: bankAccountsData,
   };

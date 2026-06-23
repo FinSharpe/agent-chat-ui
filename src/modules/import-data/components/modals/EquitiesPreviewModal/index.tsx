@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
+import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { EquitiesPreviewForm } from "./EquitiesPreviewForm";
 import { useEquitiesData } from "./hooks/useEquitiesData";
@@ -33,10 +34,14 @@ export function EquitiesPreviewModal({ consent }: BaseAnalysisModalProps) {
   const importMutation = useImportEquitiesMutation();
 
   // Fetch and transform equities data
-  const { formDefaultValues, isLoading, fiData } = useEquitiesData(
-    consentID,
-    !!isDataReady,
-  );
+  const {
+    formDefaultValues,
+    isLoading,
+    fiData,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useEquitiesData(consentID, !!isDataReady);
 
   const handleSubmit = (modifiedFiData: typeof fiData) => {
     if (!modifiedFiData) return;
@@ -71,14 +76,24 @@ export function EquitiesPreviewModal({ consent }: BaseAnalysisModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <EquitiesPreviewForm
-          defaultValues={formDefaultValues}
-          fiData={fiData}
-          isLoading={isLoading}
-          isImporting={importMutation.isPending}
-          onSubmit={handleSubmit}
-          onClose={handleClose}
-        />
+        {isError ? (
+          <FiDataErrorState
+            assetLabel="equity holdings"
+            errorKind={errorKind}
+            message={errorMessage}
+            consent={consent}
+            onClose={handleClose}
+          />
+        ) : (
+          <EquitiesPreviewForm
+            defaultValues={formDefaultValues}
+            fiData={fiData}
+            isLoading={isLoading}
+            isImporting={importMutation.isPending}
+            onSubmit={handleSubmit}
+            onClose={handleClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

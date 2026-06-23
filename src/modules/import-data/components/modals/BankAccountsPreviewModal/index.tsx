@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
+import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import { BarChart3, CreditCard } from "lucide-react";
 import { BankAccountsPreviewForm } from "./BankAccountsPreviewForm";
 import { useBankAccountsData } from "./hooks/useBankAccountsData";
@@ -33,10 +34,14 @@ export function BankAccountsPreviewModal({ consent }: BaseAnalysisModalProps) {
   const importMutation = useImportBankAccountsMutation();
 
   // Fetch and transform bank accounts data
-  const { formDefaultValues, isLoading, fiData } = useBankAccountsData(
-    consentID,
-    !!isDataReady,
-  );
+  const {
+    formDefaultValues,
+    isLoading,
+    fiData,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useBankAccountsData(consentID, !!isDataReady);
 
   const handleSubmit = (modifiedFiData: typeof fiData) => {
     if (!modifiedFiData) return;
@@ -74,14 +79,24 @@ export function BankAccountsPreviewModal({ consent }: BaseAnalysisModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <BankAccountsPreviewForm
-          defaultValues={formDefaultValues}
-          fiData={fiData}
-          isLoading={isLoading}
-          isImporting={importMutation.isPending}
-          onSubmit={handleSubmit}
-          onClose={handleClose}
-        />
+        {isError ? (
+          <FiDataErrorState
+            assetLabel="bank accounts"
+            errorKind={errorKind}
+            message={errorMessage}
+            consent={consent}
+            onClose={handleClose}
+          />
+        ) : (
+          <BankAccountsPreviewForm
+            defaultValues={formDefaultValues}
+            fiData={fiData}
+            isLoading={isLoading}
+            isImporting={importMutation.isPending}
+            onSubmit={handleSubmit}
+            onClose={handleClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

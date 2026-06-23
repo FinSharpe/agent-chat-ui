@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
+import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { EtfPreviewForm } from "./EtfPreviewForm";
 import { useEtfData } from "./hooks/useEtfData";
@@ -33,10 +34,15 @@ export function EtfPreviewModal({ consent }: BaseAnalysisModalProps) {
   const importMutation = useImportEtfMutation();
 
   // Fetch and transform ETF data
-  const { formDefaultValues, isLoading, fiData, currentValue } = useEtfData(
-    consentID,
-    !!isDataReady,
-  );
+  const {
+    formDefaultValues,
+    isLoading,
+    fiData,
+    currentValue,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useEtfData(consentID, !!isDataReady);
 
   const handleSubmit = (modifiedFiData: typeof fiData) => {
     if (!modifiedFiData) return;
@@ -74,15 +80,25 @@ export function EtfPreviewModal({ consent }: BaseAnalysisModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <EtfPreviewForm
-          defaultValues={formDefaultValues}
-          fiData={fiData}
-          isLoading={isLoading}
-          isImporting={importMutation.isPending}
-          currentValue={currentValue}
-          onSubmit={handleSubmit}
-          onClose={handleClose}
-        />
+        {isError ? (
+          <FiDataErrorState
+            assetLabel="ETF holdings"
+            errorKind={errorKind}
+            message={errorMessage}
+            consent={consent}
+            onClose={handleClose}
+          />
+        ) : (
+          <EtfPreviewForm
+            defaultValues={formDefaultValues}
+            fiData={fiData}
+            isLoading={isLoading}
+            isImporting={importMutation.isPending}
+            currentValue={currentValue}
+            onSubmit={handleSubmit}
+            onClose={handleClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

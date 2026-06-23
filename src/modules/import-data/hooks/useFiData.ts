@@ -5,12 +5,19 @@ import {
   completePendingConsent,
   updateConsent,
 } from "@/lib/moneyone/moneyone.storage";
+import {
+  classifyFiDataError,
+  isConsentInvalidError,
+} from "@/lib/moneyone/moneyone.utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 // Shared constants for FI data queries
 export const FI_DATA_QUERY_KEY = "fi-data";
+
+/** Error thrown by FI-data queries, carrying the MoneyOne error code. */
+export type FiDataError = Error & { errorCode?: string };
 // Cache settings (gcTime: 7 days, staleTime: Infinity) are configured in QueryProvider via setQueryDefaults
 
 /**
@@ -69,11 +76,13 @@ export function useFiDataConsentFlow() {
       const data = await getAllFiData(consentID, 3000);
 
       if ("error" in data) {
-        throw new Error(data.error);
+        const err = new Error(data.error) as FiDataError;
+        err.errorCode = data.errorCode;
+        throw err;
       }
 
-      // Mark data as ready after successful fetch
-      updateConsent(consentID, { isDataReady: true });
+      // Mark data as ready after successful fetch (clear any stale expiry flag)
+      updateConsent(consentID, { isDataReady: true, isExpired: false });
 
       // Remove search params from url
       const url = new URL(window.location.href);
@@ -132,7 +141,9 @@ export function useFiData(
       const data = await getAllFiData(consentID);
 
       if ("error" in data) {
-        throw new Error(data.error);
+        const err = new Error(data.error) as FiDataError;
+        err.errorCode = data.errorCode;
+        throw err;
       }
 
       return data;
@@ -141,7 +152,25 @@ export function useFiData(
     // gcTime and staleTime inherited from QueryProvider defaults for ['fi-data'] queries
   });
 
-  return query;
+  // Classify any failure: dead consent vs. missing-data (re-fetchable) vs.
+  // transient. Only a dead consent flips the card into the "Expired" state.
+  const error = query.error as FiDataError | null;
+  const errorKind = query.isError
+    ? classifyFiDataError(error?.errorCode, error?.message)
+    : null;
+  const isConsentError = errorKind === "consent-dead";
+
+  // When the consent is dead, flip it to an "expired" state so the card can
+  // offer Refresh/Delete instead of leaving a broken "Connected" card and a
+  // silent empty preview modal. Missing-data does NOT expire the consent —
+  // it's recoverable with a fresh fetch.
+  useEffect(() => {
+    if (isConsentError && consentID) {
+      updateConsent(consentID, { isDataReady: false, isExpired: true });
+    }
+  }, [isConsentError, consentID]);
+
+  return { ...query, errorKind, isConsentError };
 }
 
 /**
@@ -163,6 +192,11 @@ export function useRefreshFiData() {
       const requestResult = await requestFiData(consentID);
 
       if ("error" in requestResult) {
+        // A dead consent (expired/revoked) can't be refreshed — flag it so the
+        // card surfaces Delete + re-consent rather than retrying in vain.
+        if (isConsentInvalidError(requestResult.errorCode, requestResult.error)) {
+          updateConsent(consentID, { isDataReady: false, isExpired: true });
+        }
         throw new Error(requestResult.error);
       }
 
@@ -191,7 +225,13 @@ export function useRefreshFiData() {
         const data = await getAllFiData(consentID);
 
         if ("error" in data) {
-          // Retry if error (data not ready yet)
+          // Stop polling immediately if the consent itself is dead — retrying
+          // won't help. Flag it for the Expired card state.
+          if (isConsentInvalidError(data.errorCode, data.error)) {
+            updateConsent(consentID, { isDataReady: false, isExpired: true });
+            throw new Error(data.error);
+          }
+          // Otherwise it's just "data not ready yet" — keep polling.
           return pollData(retryCount + 1);
         }
 
@@ -205,9 +245,10 @@ export function useRefreshFiData() {
       // using useFiData(consentID) across the app
       queryClient.setQueryData([FI_DATA_QUERY_KEY, consentID], data);
 
-      // Update consent with fresh timestamp and ready state
+      // Update consent with fresh timestamp and ready state (clear expiry flag)
       updateConsent(consentID, {
         isDataReady: true,
+        isExpired: false,
         consentCreationData: new Date().toISOString(),
       });
       console.log("Marked consent data as ready after refresh:", consentID);

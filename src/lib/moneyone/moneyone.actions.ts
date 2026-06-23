@@ -12,7 +12,11 @@ import {
   FiDataResponse,
   FiRequestResponse,
 } from "./moneyone.types";
-import { extractErrorMessage, getErrMsgKey } from "./moneyone.utils";
+import {
+  extractErrorMessage,
+  getErrMsgKey,
+  isConsentInvalidError,
+} from "./moneyone.utils";
 
 const consentFormMap = {
   [ConsentType.EQUITIES]: process.env.MONEY_ONE_EQUITIES_CONSENT_FORM,
@@ -162,6 +166,58 @@ export const createConsentRequestV3 = async (
   }
 };
 
+/**
+ * Revoke a consent on MoneyOne / the Account Aggregator (POST /revokeconsent).
+ * This is the real, RBI-AA-compliant teardown — after this the FIP/AA stops
+ * sharing the user's data, unlike deleting the consent only from localStorage.
+ *
+ * If the consent is already gone (already REVOKED, or no longer exists), we
+ * return `{ error, alreadyGone: true }` so callers can treat it as a success
+ * for the user's intent (the data-sharing mandate is already stopped).
+ */
+export const revokeConsent = async (
+  consentID: string,
+): Promise<{ success: true } | { error: string; alreadyGone?: boolean }> => {
+  const url = `${process.env.MONEY_ONE_BASE_URL}/revokeconsent`;
+
+  try {
+    const body = JSON.stringify({ consentID });
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...moneyOneAuthHeaders },
+      body,
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (response.ok && data?.status === "success") {
+      if (process.env.NODE_ENV === "development")
+        console.log("---Consent revoked ~ /revokeconsent", data);
+      return { success: true };
+    }
+
+    const errorCode = getErrMsgKey(data, "errorCode");
+    const errorMsg =
+      getErrMsgKey(data, "errorMsg") ||
+      `Revoke failed with status ${response.status}`;
+
+    // "InvalidStatus" => already in REVOKED state; a dead consent => already gone.
+    const alreadyGone =
+      errorCode === "InvalidStatus" ||
+      isConsentInvalidError(errorCode, errorMsg);
+
+    return { error: errorMsg, alreadyGone };
+  } catch (e) {
+    console.error("---Error occurred while revoking consent", e);
+    const message =
+      e instanceof Error
+        ? e.message
+        : extractErrorMessage(e) || ReasonPhrases.INTERNAL_SERVER_ERROR;
+    return { error: message };
+  }
+};
+
 export const getEncryptedUrl = async (
   consentHandle: string,
   redirectUrl: string,
@@ -271,6 +327,67 @@ export const getConsentList = async (
   }
 };
 
+/**
+ * Live consent status straight from MoneyOne. Use this to authoritatively tell
+ * whether a consent is still ACTIVE vs PAUSED/REVOKED/EXPIRED, rather than
+ * trusting the locally-cached `consentExpiry` (which is only an estimate).
+ *
+ * Backed by POST /v2/getconsentslist, matched on consentID.
+ */
+export type ConsentStatusResult =
+  | { status: string; consentExpiry: string | null }
+  | { error: string };
+
+export const getConsentStatus = async (
+  consentID: string,
+  mobileNo: string,
+  consentType: ConsentType,
+  accountID: string,
+): Promise<ConsentStatusResult> => {
+  try {
+    const body = JSON.stringify({
+      partyIdentifierType: "MOBILE",
+      partyIdentifierValue: mobileNo,
+      productID: consentFormMap[consentType],
+      accountID,
+    });
+
+    const url = `${process.env.MONEY_ONE_BASE_URL}/v2/getconsentslist`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...moneyOneAuthHeaders },
+      body,
+    });
+
+    const response = await res.json().catch(() => null);
+
+    if (!res.ok || response?.status !== "success" || !Array.isArray(response.data)) {
+      return {
+        error:
+          getErrMsgKey(response, "errorMsg") ||
+          `Consent status API failed with status ${res.status}`,
+      };
+    }
+
+    const consent = response.data.find(
+      (c: { consentID?: string }) => c.consentID === consentID,
+    );
+    if (!consent) return { error: "Consent not found" };
+
+    return {
+      status: consent.status,
+      consentExpiry: consent.consent_expiry ?? null,
+    };
+  } catch (error) {
+    console.error("---Error occurred while fetching consent status", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : extractErrorMessage(error) || ReasonPhrases.INTERNAL_SERVER_ERROR;
+    return { error: message };
+  }
+};
+
 export type DecryptUrlResult =
   | { success: true; data: DecryptedUrlData }
   | { success: false; status: "rejected" | "failed"; data: DecryptedUrlData }
@@ -369,23 +486,39 @@ export const getAllFiData = async (consentID: string, waitTime?: number) => {
       body,
     });
 
+    // Always read the body so we can surface the real MoneyOne reason
+    // (e.g. errorCode "InvalidConsentId" for an expired/revoked consent)
+    // instead of a generic "status 400" that the frontend can't act on.
+    const response = await res.json().catch(() => null);
+
     if (!res.ok) {
-      throw new Error(`FI data API failed with status ${res.status}`);
+      return {
+        error:
+          getErrMsgKey(response, "errorMsg") ||
+          `FI data API failed with status ${res.status}`,
+        errorCode: getErrMsgKey(response, "errorCode") ?? undefined,
+      };
     }
 
-    const response = await res.json();
-
-    if (response?.errorCode === "NoDataFound") throw response;
+    if (response?.errorCode === "NoDataFound") {
+      return {
+        error: getErrMsgKey(response, "errorMsg") || "Data not ready!",
+        errorCode: "NoDataFound",
+      };
+    }
 
     if (response?.status === "success") {
       if (!response.data.some((item: any) => item.Summary || item.Profile))
-        throw new Error("NoDataFound");
+        return { error: "Data not ready!", errorCode: "NoDataFound" };
       if (process.env.NODE_ENV === "development")
         console.log("---Fetched fi data", response);
       return response.data as FiDataResponse;
     }
 
-    throw response;
+    return {
+      error: getErrMsgKey(response, "errorMsg") || "Failed to fetch FI data",
+      errorCode: getErrMsgKey(response, "errorCode") ?? undefined,
+    };
   } catch (e) {
     console.error("---Error occurred while fetching FI data for consent:", consentID, e);
     const message =
@@ -398,7 +531,7 @@ export const getAllFiData = async (consentID: string, waitTime?: number) => {
 
 export const requestFiData = async (
   consentId: string,
-): Promise<FiRequestResponse | { error: string }> => {
+): Promise<FiRequestResponse | { error: string; errorCode?: string }> => {
   const url = `${process.env.MONEY_ONE_BASE_URL}/fi/request`;
 
   try {
@@ -420,8 +553,16 @@ export const requestFiData = async (
 
     if (!response.ok) {
       if (response.status === 503)
-        throw new Error("503 Service Temporarily Unavailable");
-      throw await response.json();
+        return { error: "503 Service Temporarily Unavailable" };
+      // Capture the MoneyOne error code (e.g. "InvalidConsentId") so callers
+      // can tell an expired/revoked consent from a transient failure.
+      const errBody = await response.json().catch(() => null);
+      return {
+        error:
+          getErrMsgKey(errBody, "errorMsg") ||
+          `FI request failed with status ${response.status}`,
+        errorCode: getErrMsgKey(errBody, "errorCode") ?? undefined,
+      };
     }
 
     const res: FiRequestResponse = await response.json();

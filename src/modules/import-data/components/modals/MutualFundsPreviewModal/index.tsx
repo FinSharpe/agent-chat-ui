@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
+import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { useImportMutualFundsMutation } from "./hooks/useImportMutualFundsMutation";
 import { useMutualFundsData } from "./hooks/useMutualFundsData";
@@ -33,10 +34,14 @@ export function MutualFundsPreviewModal({ consent }: BaseAnalysisModalProps) {
   const importMutation = useImportMutualFundsMutation();
 
   // Fetch and transform mutual funds data
-  const { formDefaultValues, isLoading, fiData } = useMutualFundsData(
-    consentID,
-    !!isDataReady,
-  );
+  const {
+    formDefaultValues,
+    isLoading,
+    fiData,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useMutualFundsData(consentID, !!isDataReady);
 
   const handleSubmit = (modifiedFiData: typeof fiData) => {
     if (!modifiedFiData) return;
@@ -71,14 +76,24 @@ export function MutualFundsPreviewModal({ consent }: BaseAnalysisModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <MutualFundsPreviewForm
-          defaultValues={formDefaultValues}
-          fiData={fiData}
-          isLoading={isLoading}
-          isImporting={importMutation.isPending}
-          onSubmit={handleSubmit}
-          onClose={handleClose}
-        />
+        {isError ? (
+          <FiDataErrorState
+            assetLabel="mutual fund holdings"
+            errorKind={errorKind}
+            message={errorMessage}
+            consent={consent}
+            onClose={handleClose}
+          />
+        ) : (
+          <MutualFundsPreviewForm
+            defaultValues={formDefaultValues}
+            fiData={fiData}
+            isLoading={isLoading}
+            isImporting={importMutation.isPending}
+            onSubmit={handleSubmit}
+            onClose={handleClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

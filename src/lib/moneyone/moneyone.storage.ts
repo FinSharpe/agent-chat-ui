@@ -17,6 +17,13 @@ export interface ConsentData {
   type: ConsentType;
   name: string | null;
   mobileNo: string;
+  /**
+   * Set when an FI-data fetch/refresh fails because the consent is no longer
+   * usable (expired/revoked/invalid on MoneyOne's side, even if our locally
+   * stored `consentExpiry` date hasn't passed yet). Drives the "Expired" card
+   * state with Refresh/Delete actions. Cleared on a successful refresh.
+   */
+  isExpired?: boolean;
 }
 
 /**

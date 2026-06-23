@@ -489,6 +489,68 @@ html {
   animation: wave 1.2s infinite ease-in-out;
 }
 
+/* Thinking loader — "Indeterminate Shimmer": a full-chat-width brand hairline
+   with one soft glint gliding across. Teal stays the signature colour in both
+   themes; the second gradient stop lifts to --accent-blue on dark so it reads
+   on the neutral dark surface. */
+@keyframes thinking-shimmer {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(360%);
+  }
+}
+
+.thinking-shimmer {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(6, 59, 170, 0.08);
+}
+
+.thinking-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--brand-teal),
+    var(--primary-main-light),
+    transparent
+  );
+  filter: blur(0.2px);
+  will-change: transform;
+  animation: thinking-shimmer 1.9s ease-in-out infinite;
+}
+
+.dark .thinking-shimmer {
+  background: rgba(96, 165, 250, 0.14);
+}
+
+.dark .thinking-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--brand-teal),
+    var(--accent-blue),
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-shimmer::after {
+    animation: none;
+    transform: translateX(135%);
+    opacity: 0.55;
+  }
+}
+
 /* ==========================================================================
    9. INPUT FORM STYLES
    ========================================================================== */

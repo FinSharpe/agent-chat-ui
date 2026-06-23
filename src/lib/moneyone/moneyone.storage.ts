@@ -172,33 +172,37 @@ export function deleteConsent(consentID: string): void {
 }
 
 /**
- * Get all consents for the current user
+ * Get all consents stored in this browser.
+ *
+ * Source of truth is a direct scan of every `moneyone:consent:*` key, NOT the
+ * `moneyone:user:{userId}:consents` index. The index is fragile — it breaks if
+ * `moneyone:userId` drifts (e.g. consents copied between origins/devices, or the
+ * userId stored with stray quotes), which would orphan otherwise-valid consents.
+ * In a single-browser model every consent key already belongs to this user, so
+ * scanning is both correct and self-healing. The index is still maintained by
+ * `saveConsent`/`deleteConsent` for backwards compatibility.
  */
 export function getAllUserConsents(): ConsentData[] {
   if (typeof window === "undefined") return [];
 
-  const userId = getUserId();
-  const userConsentsKey = `${USER_CONSENTS_INDEX_PREFIX}${userId}:consents`;
-  const consentIdsData = localStorage.getItem(userConsentsKey);
+  const consents: ConsentData[] = [];
 
-  if (!consentIdsData) return [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    // Match real consents only — exclude "moneyone:pending-consent:" entries.
+    if (!key || !key.startsWith(CONSENT_KEY_PREFIX)) continue;
 
-  try {
-    const consentIds: string[] = JSON.parse(consentIdsData);
-    const consents: ConsentData[] = [];
+    const data = localStorage.getItem(key);
+    if (!data) continue;
 
-    for (const id of consentIds) {
-      const consent = getConsent(id);
-      if (consent) {
-        consents.push(consent);
-      }
+    try {
+      consents.push(JSON.parse(data) as ConsentData);
+    } catch (e) {
+      console.warn("Failed to parse consent from localStorage for key:", key, e);
     }
-
-    return consents;
-  } catch (e) {
-    console.warn("Failed to parse user consents index from localStorage:", e);
-    return [];
   }
+
+  return consents;
 }
 
 /**

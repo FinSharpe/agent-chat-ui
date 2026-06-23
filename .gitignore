@@ -30,6 +30,9 @@ dist-ssr
 .next/
 next-env.d.ts
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Generated OpenAPI specs
 openapi-*.json
 

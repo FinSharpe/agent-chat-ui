@@ -1320,8 +1320,8 @@ export function OtherInvestmentsForm({ onSubmit, onCancel, initialData }: OtherI
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
-        <Button type="submit" className="flex-1 bg-orange-600 hover:orange-700">
-          Add Investment
+        <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
+          {initialData ? "Update Investment" : "Add Investment"}
         </Button>
       </div>
     </form>

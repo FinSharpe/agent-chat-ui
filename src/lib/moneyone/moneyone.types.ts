@@ -42,15 +42,6 @@ export type CreateNewConsentFormValues = z.infer<
   typeof createNewConsentFormSchema
 >;
 
-export type ConsentRequestResponse = {
-  status: string;
-  ver: string;
-  data: {
-    status: string;
-    consent_handle: string;
-  };
-};
-
 export type ConsentRequestV3Response = {
   status: string;
   ver: string;

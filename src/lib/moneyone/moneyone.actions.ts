@@ -327,6 +327,178 @@ export const getConsentList = async (
   }
 };
 
+export type ListedConsentAccount = {
+  fipName?: string;
+  maskedAccountNumber?: string;
+  fiType?: string;
+  accountType?: string;
+};
+
+export type ListedConsent = {
+  /** Present for ACTIVE consents; null for PENDING (not yet approved). */
+  consentID: string | null;
+  /** Needed to resume a PENDING consent's approval; can be null. */
+  consentHandle: string | null;
+  /** The accountID the consent was created under (used in the resume redirect). */
+  accountID: string;
+  status: string;
+  consentCreationData: string;
+  consentExpiry: string | null;
+  accounts: ListedConsentAccount[];
+};
+
+/**
+ * List a user's existing consents for a given asset type, keyed by MOBILE NUMBER
+ * only (no browser accountID needed) — so it works even after localStorage is
+ * cleared or on a different device. Backed by POST /v1/accounts/getconsentslist.
+ *
+ * Returns non-expired, resumable consents:
+ *  - ACTIVE  → has a consentID; can be connected + fetched directly.
+ *  - PENDING → approval not completed (consentID is null); resumable only if it
+ *    still carries a consentHandle (used to regenerate the AA redirect URL).
+ */
+export const listConsents = async (
+  mobileNo: string,
+  consentType: ConsentType,
+  statuses: string[] = ["ACTIVE", "PENDING"],
+): Promise<ListedConsent[] | { error: string }> => {
+  try {
+    const body = JSON.stringify({
+      mobileNumber: mobileNo,
+      productID: consentFormMap[consentType],
+      status: statuses,
+    });
+
+    const url = `${process.env.MONEY_ONE_BASE_URL}/v1/accounts/getconsentslist`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...moneyOneAuthHeaders },
+      body,
+    });
+
+    const response = await res.json().catch(() => null);
+
+    if (!res.ok || response?.status !== "success" || !Array.isArray(response.data)) {
+      return {
+        error:
+          getErrMsgKey(response, "errorMsg") ||
+          `Consent list API failed with status ${res.status}`,
+      };
+    }
+
+    const now = Date.now();
+    // The /v1/accounts/getconsentslist response is NOT reliably scoped to the
+    // productID we send — it can return consents for OTHER asset types (e.g. a
+    // bank consent in an equity request). Guard client-side on each consent's
+    // own productID so we never resume the wrong asset type's consent.
+    const expectedProductID = consentFormMap[consentType];
+
+    if (process.env.NODE_ENV === "development") {
+      const returnedProductIDs = (response.data as { productID?: string }[]).map(
+        (c) => c.productID,
+      );
+      console.log(
+        `---listConsents[${consentType}] expected productID=${expectedProductID}; returned=`,
+        returnedProductIDs,
+      );
+    }
+
+    const consents: ListedConsent[] = response.data
+      .filter(
+        (c: { productID?: string }) =>
+          !expectedProductID || c.productID === expectedProductID,
+      )
+      .map(
+        (c: {
+          consentID?: string | null;
+          consentHandle?: string | null;
+          accountID?: string;
+          status: string;
+          consentCreationData: string;
+          consent_expiry?: string | null;
+          accounts?: ListedConsentAccount[];
+        }) => ({
+          consentID: c.consentID ?? null,
+          consentHandle: c.consentHandle ?? null,
+          accountID: c.accountID ?? "",
+          status: c.status,
+          consentCreationData: c.consentCreationData,
+          consentExpiry: c.consent_expiry ?? null,
+          accounts: Array.isArray(c.accounts) ? c.accounts : [],
+        }),
+      )
+      .filter((c: ListedConsent) => {
+        const notExpired =
+          !c.consentExpiry ||
+          new Date(c.consentExpiry.replace(" ", "T")).getTime() > now;
+        if (!notExpired) return false;
+        // ACTIVE needs a consentID; PENDING needs a handle to be resumable.
+        if (c.status === "ACTIVE") return Boolean(c.consentID);
+        if (c.status === "PENDING") return Boolean(c.consentHandle);
+        return false;
+      });
+
+    return consents;
+  } catch (error) {
+    console.error("---Error occurred while listing consents", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : extractErrorMessage(error) || ReasonPhrases.INTERNAL_SERVER_ERROR;
+    return { error: message };
+  }
+};
+
+/**
+ * Regenerate the AA web-redirection URL for an existing PENDING consent handle,
+ * so the user can return to the AA and finish approving the SAME consent (no
+ * duplicate). Backed by POST /webRedirection/getEncryptedUrl.
+ *
+ * Passes both fipID (so discovery is scoped to this asset type's FIPs, not the
+ * generic/bank picker) and pan (required for equity/MF account discovery).
+ */
+export const getPendingConsentRedirectUrl = async (
+  consentHandle: string,
+  redirectUrl: string,
+  consentType: ConsentType,
+  pan: string,
+): Promise<{ url: string } | { error: string }> => {
+  try {
+    const fipID = consentFipIdsMap[consentType];
+    const body = JSON.stringify({
+      consentHandle,
+      redirectUrl,
+      ...(Boolean(fipID) && { fipID }),
+      ...(pan && { pan }),
+    });
+    const url = `${process.env.MONEY_ONE_BASE_URL}/webRedirection/getEncryptedUrl`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...moneyOneAuthHeaders },
+      body,
+    });
+
+    const response = await res.json().catch(() => null);
+
+    if (!res.ok || response?.status !== "success" || !response?.data?.webRedirectionUrl) {
+      return {
+        error:
+          getErrMsgKey(response, "errorMsg") ||
+          `Failed to build redirect URL (status ${res.status})`,
+      };
+    }
+
+    return { url: response.data.webRedirectionUrl };
+  } catch (error) {
+    console.error("---Error occurred while building pending redirect URL", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : extractErrorMessage(error) || ReasonPhrases.INTERNAL_SERVER_ERROR;
+    return { error: message };
+  }
+};
+
 /**
  * Live consent status straight from MoneyOne. Use this to authoritatively tell
  * whether a consent is still ACTIVE vs PAUSED/REVOKED/EXPIRED, rather than

@@ -12,6 +12,7 @@
 9. [Configuration](#configuration)
 10. [Error Handling](#error-handling)
 11. [Security Considerations](#security-considerations)
+12. [Resuming Existing Consents](#resuming-existing-consents)
 
 ---
 
@@ -1275,6 +1276,78 @@ Response:
 
 **Usage**: Triggers fresh FI data fetch from MoneyOne
 
+#### 6. List Consents (mobile-keyed, for Resume)
+
+```typescript
+POST /v1/accounts/getconsentslist
+
+Request:
+{
+  "mobileNumber": "9876543210",
+  "productID": "EQSUMMARY",
+  "status": ["ACTIVE", "PENDING"]
+}
+
+Response:
+{
+  "status": "success",
+  "data": [
+    {
+      "consentID": "consent-id-456",   // null for PENDING
+      "consentHandle": "handle-123",
+      "status": "ACTIVE",              // ACTIVE | PENDING | REVOKED | EXPIRED
+      "productID": "EQSUMMARY",
+      "accountID": "browser-account-id",
+      "consent_expiry": "2026-03-17 10:23:52",
+      "accounts": [{ "fipName": "NSDL", "maskedAccountNumber": "XXXX1234", "fiType": "EQUITIES" }]
+    }
+  ]
+}
+```
+
+**Usage**: Powers the Resume flow. Keyed by mobile only (cross-device).
+Client-side guarded on each consent's own `productID`.
+
+#### 7. Get Encrypted URL (regenerate AA redirect for a PENDING handle)
+
+```typescript
+POST /webRedirection/getEncryptedUrl
+
+Request:
+{
+  "consentHandle": "handle-123",
+  "redirectUrl": "https://app.com/moneyone/EQUITIES~accountId",
+  "fipID": ["NSDL-FIP", "CDSL-FIP"],   // scope discovery to this asset type
+  "pan": "ABCDE1234F"                    // required for equity/MF discovery
+}
+
+Response:
+{ "status": "success", "data": { "webRedirectionUrl": "https://moneyone.in/auth?..." } }
+```
+
+**Usage**: PENDING in-place resume — finish the same consent without a duplicate.
+
+#### 8. Revoke Consent
+
+```typescript
+POST /revokeconsent
+
+Request:  { "consentID": "consent-id-456" }
+Response: { "status": "success", "message": "Successfully revoked." }
+```
+
+**Usage**: Real AA teardown on delete. "Already revoked / doesn't exist" is
+treated as success.
+
+#### 9. Consent Status (authoritative)
+
+```typescript
+POST /v2/getconsentslist   // matched by consentID
+```
+
+**Usage**: `getConsentStatus` returns the live `status` + `consent_expiry`
+instead of trusting the locally-cached `consentExpiry`.
+
 ---
 
 ## Code References
@@ -1732,6 +1805,93 @@ Check React Query cache:
 
 ---
 
+## Resuming Existing Consents
+
+A user may already have consents on MoneyOne — from a previous session, a
+different device, or cleared `localStorage`. The Connect flow surfaces these so
+the user can **reuse** or **finish** them instead of always creating duplicates.
+
+### Unified "Connect" flow
+
+The Connect button opens `CreateConsentModel`, which is now a single
+lookup-gated action (no separate "Resume" link):
+
+```
+User enters Mobile + PAN → "Continue"
+  ↓
+listConsents(mobile, consentType)            // POST /v1/accounts/getconsentslist
+  ↓
+┌─ no existing consents → createConsentAndRedirectMut (V3 → AA)   [straight through]
+└─ existing found       → "Your connections" chooser (ResumeConsents)
+```
+
+**Why mobile-keyed lookup**: `listConsents` queries by **mobile number only**
+(no browser `accountID`), so it recovers consents even after `localStorage` is
+cleared or on a different device — unlike `/v2/getconsentslist`, which the rest
+of the app uses scoped to the browser `accountID`.
+
+> **Product-scope guard**: `/v1/accounts/getconsentslist` does **not** reliably
+> honour the `productID` in the request — it can return consents for other asset
+> types. `listConsents` therefore filters each returned consent on its **own**
+> `productID`, so an equity Resume never lists (or resumes) a bank consent.
+
+### The chooser (`ResumeConsents`)
+
+Renders only non-expired, resumable consents for this asset type:
+
+| Status | Action | What it does |
+|--------|--------|--------------|
+| **ACTIVE** (`consentID` present) | **Continue** | `useResumeConsentMut`: persists the consent (only once data is confirmed), warms the FI-data cache via a fast `getAllFiData`, and if FinPro has no data yet, triggers `requestFiData` and **polls** until it lands. Terminal errors (e.g. "no accounts found") surface instead of leaving a broken Connected card. |
+| **ACTIVE** | **Delete** (trash) | `useRevokeListedConsentMut`: `revokeConsent` on MoneyOne, then local cleanup + list refetch. Guarded by `ConfirmDialog`. |
+| **PENDING** (`consentID` is null) | **Finish setup** | `useResumePendingMut`: completes the **same** consent in place (no duplicate). |
+| any | **Create a new connection** | Starts a fresh V3 consent. Always available so the user is never trapped. |
+
+PENDING consents have **no `consentID`**, so they can't be revoked
+(`/revokeconsent` requires one) — the delete button is hidden for them; they
+auto-expire on MoneyOne.
+
+### PENDING in-place resume — the PAN + fipID requirement
+
+A PENDING consent never finished approval, so it has no data and no `consentID`.
+To finish it, the user is sent back to the AA via a **regenerated redirect URL**
+for the existing `consentHandle`:
+
+```
+useResumePendingMut
+  ↓
+save moneyone:pending-consent:{consentHandle}   // so the return handler completes it
+  ↓
+getPendingConsentRedirectUrl(consentHandle, redirectUrl, consentType, pan)
+  → POST /webRedirection/getEncryptedUrl
+    body: { consentHandle, redirectUrl, fipID, pan }
+  ← { data: { webRedirectionUrl } }
+  ↓
+window.location.href = webRedirectionUrl        // back to the AA, same handle
+```
+
+**Both `fipID` and `pan` are required**, mirroring the V3 create flow:
+- Without **`fipID`**, the AA does generic discovery across all linked FIPs and
+  defaults to the **bank account picker** (wrong asset type).
+- Without **`pan`**, equity/MF **account discovery returns nothing** ("no accounts
+  found" on the AA page) — the FinPro docs state PAN is required for discovery of
+  PAN-gated FI types (Equity, Mutual Funds).
+
+The redirect path reuses the consent's **original `accountID`**
+(`/moneyone/{consentType}~{accountID}~{threadId?}`) so the `/moneyone/[slug]`
+return handler can resolve it via `getConsentList`. On return,
+`completePendingConsent` transitions that handle PENDING → ACTIVE — no duplicate.
+
+### Code references
+
+| Piece | File |
+|-------|------|
+| Connect modal (lookup-gated) | `src/components/moneyone/CreateConsentModel.tsx` |
+| Chooser UI | `src/components/moneyone/ResumeConsents.tsx` |
+| Resume hooks | `src/components/moneyone/useResumeConsents.ts` (`useListConsentsMut`, `useResumeConsentMut`, `useResumePendingMut`, `useRevokeListedConsentMut`) |
+| Server actions | `src/lib/moneyone/moneyone.actions.ts` (`listConsents`, `getPendingConsentRedirectUrl`, `getConsentStatus`, `revokeConsent`) |
+
+---
+
 ## Conclusion
 
 The import holdings feature provides a secure, user-friendly way to import financial data using India's Account Aggregator framework. The implementation leverages:
@@ -1786,10 +1946,17 @@ To integrate a new MoneyOne consent type (e.g., NPS, Insurance, Bonds), refer to
 
 ---
 
-**Document Version**: 3.3
+**Document Version**: 3.4
 **Last Updated**: June 2026
 **Maintained By**: FinSharpe Engineering Team
 
+> **Changelog 3.4**: Added the **Resuming Existing Consents** section — the
+> unified lookup-gated Connect flow (`listConsents`, mobile-keyed), the chooser
+> (ACTIVE continue / PENDING in-place resume / delete / create-new), and the
+> PAN + fipID requirement for PENDING resume via `getPendingConsentRedirectUrl`.
+> Documented endpoints 6–9 (list consents, getEncryptedUrl, revokeconsent,
+> consent status).
+>
 > **Changelog 3.3**: Consent removal now revokes on MoneyOne (`revokeConsent` →
 > `POST /revokeconsent`) before local cleanup, guarded by a `ConfirmDialog`, with
 > a warning-on-failure policy. Removed the "implement revocation" production TODO.

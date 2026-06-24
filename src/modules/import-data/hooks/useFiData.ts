@@ -66,9 +66,10 @@ export function useFiDataConsentFlow() {
 
   const query = useQuery({
     queryKey: consentID ? [FI_DATA_QUERY_KEY, consentID] : ["fi-data-disabled"],
+    // Pure fetch only — no setState/URL/timer side effects here, so React Query
+    // retries can't fire them more than once. Post-success work happens in the
+    // effect below.
     queryFn: async () => {
-      setModalOpen(true);
-
       if (!consentID || !consentType) {
         throw new Error("Invalid consent ID or consent type");
       }
@@ -81,26 +82,47 @@ export function useFiDataConsentFlow() {
         throw err;
       }
 
-      // Mark data as ready after successful fetch (clear any stale expiry flag)
-      updateConsent(consentID, { isDataReady: true, isExpired: false });
-
-      // Remove search params from url
-      const url = new URL(window.location.href);
-      url.searchParams.delete("consentID");
-      url.searchParams.delete("consentType");
-      url.searchParams.delete("mobileNo");
-      url.searchParams.delete("consentCreationData");
-      history.pushState(null, "", url.toString());
-
-      setTimeout(() => setModalOpen(false), 1500);
-
       return data;
     },
     enabled: isEnabled,
-    retry: true,
+    // Poll while the AA finishes preparing data ("data not ready yet" keeps
+    // failing), but cancel the poll on a dead/invalid consent (it'll never
+    // resolve) and cap it at ~60s so it can't retry forever.
+    retry: (failureCount, error) => {
+      const e = error as FiDataError;
+      if (classifyFiDataError(e.errorCode, e.message) === "consent-dead") {
+        return false;
+      }
+      return failureCount < 20;
+    },
     retryDelay: 3000,
     // gcTime (7 days), staleTime (Infinity), and refetchOnWindowFocus inherited from QueryProvider setQueryDefaults
   });
+
+  // Open the fetching modal while the consent-return request is in flight.
+  useEffect(() => {
+    if (isEnabled && query.isFetching) setModalOpen(true);
+  }, [isEnabled, query.isFetching]);
+
+  // Run the post-success side effects exactly once per successful fetch: mark
+  // the consent ready, strip the AA return params from the URL, then auto-close
+  // the modal. The close timer is cleared on unmount/re-run so it can't fire
+  // against an unmounted modal.
+  useEffect(() => {
+    if (!query.isSuccess || !consentID) return;
+
+    updateConsent(consentID, { isDataReady: true, isExpired: false });
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("consentID");
+    url.searchParams.delete("consentType");
+    url.searchParams.delete("mobileNo");
+    url.searchParams.delete("consentCreationData");
+    history.pushState(null, "", url.toString());
+
+    const timer = setTimeout(() => setModalOpen(false), 1500);
+    return () => clearTimeout(timer);
+  }, [query.isSuccess, consentID]);
 
   // Derive fetch status from query state
   const fetchStatus: "fetching" | "success" | "error" = query.isError

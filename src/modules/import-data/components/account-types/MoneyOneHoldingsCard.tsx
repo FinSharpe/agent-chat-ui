@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
 import { ConsentType } from "@/lib/moneyone/moneyone.enums";
 import { deleteConsent } from "@/lib/moneyone/moneyone.storage";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle,
@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { useConsentQuery } from "../../hooks/useConsentQuery";
 import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
@@ -49,8 +48,24 @@ export function MoneyOneHoldingsCard({
   const queryClient = useQueryClient();
   const { data: consent } = useConsentQuery(consentType);
   const { mutate: refreshData, isPending: isRefreshing } = useRefreshFiData();
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Revoke on MoneyOne first so the AA actually stops sharing data. If revoke
+  // fails (and the consent isn't already gone), still remove it locally but
+  // warn the user it may still be live on MoneyOne's side.
+  const { mutateAsync: deleteConnection, isPending: isDeleting } = useMutation({
+    mutationFn: (consentID: string) => revokeConsent(consentID),
+    onSuccess: (result, consentID) => {
+      if ("error" in result && !result.alreadyGone) {
+        toast.warning(
+          `${title} removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
+        );
+      } else {
+        toast.success(`${title} connection removed`);
+      }
+      deleteConsent(consentID);
+      queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, consentID] });
+    },
+  });
 
   const isExpired = consent?.isExpired;
   const isDataReady = consent?.isDataReady && !isExpired;
@@ -77,27 +92,7 @@ export function MoneyOneHoldingsCard({
   };
 
   const handleDelete = async () => {
-    const consentID = consent?.consentID;
-    if (!consentID || isDeleting) return;
-
-    setIsDeleting(true);
-    // Revoke on MoneyOne first so the AA actually stops sharing data. If revoke
-    // fails (and the consent isn't already gone), still remove it locally but
-    // warn the user it may still be live on MoneyOne's side.
-    const result = await revokeConsent(consentID);
-
-    if ("error" in result && !result.alreadyGone) {
-      toast.warning(
-        `${title} removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
-      );
-    } else {
-      toast.success(`${title} connection removed`);
-    }
-
-    deleteConsent(consentID);
-    queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, consentID] });
-    setIsDeleting(false);
-    setConfirmOpen(false);
+    if (consent?.consentID) await deleteConnection(consent.consentID);
   };
 
   return (
@@ -170,20 +165,12 @@ export function MoneyOneHoldingsCard({
                       className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`}
                     />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setConfirmOpen(true)}
+                  <RemoveConnectionButton
+                    title={title}
                     disabled={isRefreshing || isDeleting}
-                    className="text-xs p-1.5 text-red-500 hover:text-red-600"
-                    title="Remove connection"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3 h-3" />
-                    )}
-                  </Button>
+                    isDeleting={isDeleting}
+                    onConfirm={handleDelete}
+                  />
                 </div>
               ) : isDataReady && consent ? (
                 <div className="flex items-center gap-2">
@@ -206,20 +193,12 @@ export function MoneyOneHoldingsCard({
                       className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`}
                     />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setConfirmOpen(true)}
+                  <RemoveConnectionButton
+                    title={title}
                     disabled={isRefreshing || isDeleting}
-                    className="text-xs p-1.5 text-red-500 hover:text-red-600"
-                    title="Remove connection"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3 h-3" />
-                    )}
-                  </Button>
+                    isDeleting={isDeleting}
+                    onConfirm={handleDelete}
+                  />
                 </div>
               ) : (
                 <ImportHoldings consentType={consentType} />
@@ -231,17 +210,51 @@ export function MoneyOneHoldingsCard({
           </div>
         </div>
       </div>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={`Remove ${title}?`}
-        description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
-        confirmLabel="Remove"
-        destructive
-        confirming={isDeleting}
-        onConfirm={handleDelete}
-      />
     </Card>
+  );
+}
+
+/**
+ * Trash-icon button that confirms before revoking the connection. Co-locates the
+ * trigger with its ConfirmDialog so the confirm-open state lives inside the
+ * dialog (no useState here). `onConfirm` is awaited; the dialog closes itself
+ * once the revoke resolves.
+ */
+function RemoveConnectionButton({
+  title,
+  disabled,
+  isDeleting,
+  onConfirm,
+}: {
+  title: string;
+  disabled: boolean;
+  isDeleting: boolean;
+  onConfirm: () => Promise<void>;
+}) {
+  return (
+    <ConfirmDialog
+      title={`Remove ${title}?`}
+      description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
+      confirmLabel="Remove"
+      destructive
+      onConfirm={onConfirm}
+    >
+      {(_, setOpen) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setOpen(true)}
+          disabled={disabled}
+          className="text-xs p-1.5 text-red-500 hover:text-red-600"
+          title="Remove connection"
+        >
+          {isDeleting ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Trash2 className="w-3 h-3" />
+          )}
+        </Button>
+      )}
+    </ConfirmDialog>
   );
 }

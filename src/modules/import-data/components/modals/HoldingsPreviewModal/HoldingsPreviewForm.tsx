@@ -1,7 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
 import { FiDataResponse } from "@/lib/moneyone/moneyone.types";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,49 +10,54 @@ import { HoldingsTable } from "./components/HoldingsTable";
 import { HoldingFormData, useHoldingsForm } from "./hooks/useHoldingsForm";
 import {
   HoldingWithQuantity,
-  getAssetTypeName,
   transformFormDataToHoldings,
 } from "./utils/holdings-transformer";
+import type { EditableHoldingsConfig } from "./editable-configs";
 
 type HoldingsPreviewFormProps = {
-  /** Initial form values */
+  /** Per-asset configuration (labels, analytics panel). */
+  config: EditableHoldingsConfig;
+  /** Initial form values (holdings with quantity). */
   defaultValues: HoldingWithQuantity[];
-  /** Consent type */
-  consentType: ConsentType;
-  /** Raw FI data for creating modified payload */
+  /** Raw FI data for creating the modified payload. */
   fiData: FiDataResponse | undefined;
-  /** Whether data is currently loading */
+  /** Whether data is currently loading. */
   isLoading: boolean;
-  /** Whether import mutation is in progress */
+  /** Whether the import mutation is in progress. */
   isImporting: boolean;
-  /** Callback when form is submitted */
-  onSubmit: (holdings: ReturnType<typeof transformFormDataToHoldings>, fiData: FiDataResponse) => void;
-  /** Callback to close modal */
+  /** Total current value (shown when config.showCurrentValue). */
+  currentValue?: string | null;
+  /** Called with the edited FI-data payload on submit. */
+  onSubmit: (modifiedFiData: FiDataResponse) => void;
+  /** Close the modal. */
   onClose: () => void;
 };
 
 /**
- * Form component for holdings preview and editing
- * Manages form state and renders child components
+ * Generic editable-holdings form shared by Equities, ETF, and Mutual Funds.
+ * Differences between asset types live entirely in `config`.
  */
 export function HoldingsPreviewForm({
+  config,
   defaultValues,
-  consentType,
   fiData,
   isLoading,
   isImporting,
+  currentValue,
   onSubmit,
   onClose,
 }: HoldingsPreviewFormProps) {
+  const { consentType, assetType, assetLabel, showCurrentValue, AnalyticsPanel } =
+    config;
+
   const {
     control,
     handleSubmit,
     fields,
     handleAddSearchResult,
     handleRemoveHolding,
+    getValues,
   } = useHoldingsForm(defaultValues, consentType);
-
-  const assetType = getAssetTypeName(consentType);
 
   const handleFormSubmit = (data: HoldingFormData) => {
     if (!fiData) {
@@ -61,22 +65,23 @@ export function HoldingsPreviewForm({
       return;
     }
 
+    // Transform form data back to holdings (filters quantity = 0)
     const convertedHoldings = transformFormDataToHoldings(
       data.holdings,
       consentType,
     );
 
-    // Create consolidated account with all edited holdings
+    // Create a consolidated account carrying all edited holdings
     const firstAccountWithInvestment = fiData.find(
       (account) => account.Summary?.Investment,
     );
 
     if (!firstAccountWithInvestment?.Summary?.Investment) {
-      toast.error("Could not find investment data. Please refresh and try again.");
+      toast.error("No valid investment account found in holdings data.");
       return;
     }
 
-    const modifiedFiData = [
+    const modifiedFiData: FiDataResponse = [
       {
         ...firstAccountWithInvestment,
         Summary: {
@@ -92,7 +97,7 @@ export function HoldingsPreviewForm({
       },
     ];
 
-    onSubmit(convertedHoldings, modifiedFiData);
+    onSubmit(modifiedFiData);
   };
 
   return (
@@ -104,7 +109,7 @@ export function HoldingsPreviewForm({
         {isLoading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-600">Loading holdings...</span>
+            <span className="ml-2 text-gray-600">Loading {assetLabel}...</span>
           </div>
         )}
 
@@ -120,6 +125,7 @@ export function HoldingsPreviewForm({
             <HoldingsSummaryCard
               totalHoldings={fields.length}
               assetType={assetType}
+              currentValue={showCurrentValue ? currentValue : undefined}
             />
 
             {/* Holdings Table */}
@@ -129,11 +135,17 @@ export function HoldingsPreviewForm({
               consentType={consentType}
               onRemove={handleRemoveHolding}
             />
+
+            {/* Asset-specific analytics (Analyze button + results) */}
+            <AnalyticsPanel
+              holdingsCount={fields.length}
+              getHoldings={() => getValues("holdings")}
+            />
           </>
         )}
       </div>
 
-      <DialogFooter className="flex justify-between items-center mt-4">
+      <DialogFooter className="flex flex-row justify-between items-center mt-4 gap-2">
         <Button
           type="button"
           variant="outline"

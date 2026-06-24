@@ -19,6 +19,7 @@ import {
   FormValues,
   Row,
   Section,
+  SectionTone,
   isFieldArray,
 } from "./form-schema";
 
@@ -29,13 +30,26 @@ type SchemaFormProps = {
   initialData?: FormValues;
 };
 
-const TONE_CARD: Record<NonNullable<Section["tone"]>, string> = {
+// Tailwind needs literal class names, so each tone is enumerated.
+const TONE_CARD: Record<SectionTone, string> = {
   blue: "bg-blue-50 border-blue-200",
   orange: "bg-orange-50 border-orange-200",
+  green: "bg-green-50 border-green-200",
+  yellow: "bg-yellow-50 border-yellow-200",
+  purple: "bg-purple-50 border-purple-200",
+  gray: "bg-gray-50 border-gray-200",
+  red: "bg-red-50 border-red-200",
+  amber: "bg-amber-50 border-amber-200",
 };
-const TONE_TITLE: Record<NonNullable<Section["tone"]>, string> = {
+const TONE_TITLE: Record<SectionTone, string> = {
   blue: "text-blue-900",
   orange: "text-orange-900",
+  green: "text-green-900",
+  yellow: "text-yellow-900",
+  purple: "text-purple-900",
+  gray: "text-gray-900",
+  red: "text-red-900",
+  amber: "text-amber-900",
 };
 
 /**

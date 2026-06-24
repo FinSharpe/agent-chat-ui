@@ -39,11 +39,21 @@ export type FieldDef = {
 /** A single field, or an array of fields laid out as a grid row. */
 export type Row = FieldDef | FieldDef[];
 
+export type SectionTone =
+  | "blue"
+  | "orange"
+  | "green"
+  | "yellow"
+  | "purple"
+  | "gray"
+  | "red"
+  | "amber";
+
 export type Section = {
   /** Optional heading shown above the section. */
   title?: string;
   /** Card background tone; omit for no card wrapper. */
-  tone?: "blue" | "orange";
+  tone?: SectionTone;
   /** Render the section only when the predicate passes. */
   visibleWhen?: (values: FormValues) => boolean;
   rows: Row[];

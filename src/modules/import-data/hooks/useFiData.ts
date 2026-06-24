@@ -99,17 +99,29 @@ export function useFiDataConsentFlow() {
     // gcTime (7 days), staleTime (Infinity), and refetchOnWindowFocus inherited from QueryProvider setQueryDefaults
   });
 
-  // Open the fetching modal while the consent-return request is in flight.
-  useEffect(() => {
-    if (isEnabled && query.isFetching) setModalOpen(true);
-  }, [isEnabled, query.isFetching]);
+  const successHandledRef = useRef<string | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Run the post-success side effects exactly once per successful fetch: mark
-  // the consent ready, strip the AA return params from the URL, then auto-close
-  // the modal. The close timer is cleared on unmount/re-run so it can't fire
-  // against an unmounted modal.
+  // Open the fetching modal once a consent return is detected. It closes after
+  // success (below) or when the user dismisses it — we never force it shut here,
+  // so stripping the URL params later (which flips `isEnabled` false) can't
+  // re-trigger and reopen it.
+  useEffect(() => {
+    if (isEnabled) setModalOpen(true);
+  }, [isEnabled]);
+
+  // Run the post-success side effects exactly once per consent: mark it ready,
+  // strip the AA return params from the URL, then auto-close the modal.
+  //
+  // The close timer is held in a ref (NOT returned as effect cleanup) on
+  // purpose: stripping the params via history.pushState makes useSearchParams
+  // re-render with consentID=null, which would otherwise trip this effect's
+  // cleanup and cancel the timer before it fires — leaving the modal stuck open.
+  // It's cleared only on unmount.
   useEffect(() => {
     if (!query.isSuccess || !consentID) return;
+    if (successHandledRef.current === consentID) return;
+    successHandledRef.current = consentID;
 
     updateConsent(consentID, { isDataReady: true, isExpired: false });
 
@@ -120,9 +132,16 @@ export function useFiDataConsentFlow() {
     url.searchParams.delete("consentCreationData");
     history.pushState(null, "", url.toString());
 
-    const timer = setTimeout(() => setModalOpen(false), 1500);
-    return () => clearTimeout(timer);
+    closeTimerRef.current = setTimeout(() => setModalOpen(false), 1500);
   }, [query.isSuccess, consentID]);
+
+  // Cancel a pending close timer only when the hook unmounts.
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
   // Derive fetch status from query state
   const fetchStatus: "fetching" | "success" | "error" = query.isError

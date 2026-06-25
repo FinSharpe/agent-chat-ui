@@ -13,15 +13,21 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
 import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
 import { ConsentData, deleteConsent } from "@/lib/moneyone/moneyone.storage";
 import { FiDataErrorKind } from "@/lib/moneyone/moneyone.utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CircleSlash,
+  Loader2,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState, PreviewFooter } from "./ui";
 
 type FiDataErrorStateProps = {
   /** Human-readable asset label, e.g. "equity holdings". */
@@ -89,45 +95,40 @@ export function FiDataErrorState({
   const isConsentDead = errorKind === "consent-dead";
   const isDataMissing = errorKind === "data-missing";
 
+  const { icon, intent, title, description } = isConsentDead
+    ? {
+        icon: CircleSlash,
+        intent: "negative" as const,
+        title: "Connection expired",
+        description: `Your consent for these ${assetLabel} is no longer valid (expired or revoked). Remove this connection and reconnect to continue.`,
+      }
+    : isDataMissing
+      ? {
+          icon: RefreshCw,
+          intent: "info" as const,
+          title: "No data to show yet",
+          description: `This connection is valid, but there's no ${assetLabel} data available right now — it may not have been fetched yet, or it was cleared after the retention period. Fetch the latest data to continue.`,
+        }
+      : {
+          icon: AlertTriangle,
+          intent: "warning" as const,
+          title: `Couldn't load your ${assetLabel}`,
+          description:
+            message ||
+            "Something went wrong while fetching your data. Please try again in a moment.",
+        };
+
   return (
-    <>
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-        <div className="rounded-full bg-amber-50 p-3">
-          <AlertTriangle className="h-7 w-7 text-amber-500" />
-        </div>
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <EmptyState
+        icon={icon}
+        intent={intent}
+        title={title}
+        description={description}
+        className="flex-1"
+      />
 
-        {isConsentDead ? (
-          <>
-            <h3 className="font-medium text-gray-900">Connection expired</h3>
-            <p className="max-w-md text-sm text-gray-600">
-              Your consent for these {assetLabel} is no longer valid (expired or
-              revoked). Remove this connection and reconnect to continue.
-            </p>
-          </>
-        ) : isDataMissing ? (
-          <>
-            <h3 className="font-medium text-gray-900">No data to show yet</h3>
-            <p className="max-w-md text-sm text-gray-600">
-              This connection is valid, but there&apos;s no {assetLabel} data
-              available right now — it may not have been fetched yet, or it was
-              cleared after the retention period. Fetch the latest data to
-              continue.
-            </p>
-          </>
-        ) : (
-          <>
-            <h3 className="font-medium text-gray-900">
-              Couldn&apos;t load your {assetLabel}
-            </h3>
-            <p className="max-w-md text-sm text-gray-600">
-              {message ||
-                "Something went wrong while fetching your data. Please try again in a moment."}
-            </p>
-          </>
-        )}
-      </div>
-
-      <DialogFooter className="gap-2 sm:gap-0">
+      <PreviewFooter>
         <Button
           variant="outline"
           onClick={onClose}
@@ -165,7 +166,10 @@ export function FiDataErrorState({
             )}
           </ConfirmDialog>
         ) : (
-          <Button onClick={handleRefresh} disabled={isRefreshing}>
+          <Button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
             {isRefreshing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -179,7 +183,7 @@ export function FiDataErrorState({
             )}
           </Button>
         )}
-      </DialogFooter>
-    </>
+      </PreviewFooter>
+    </div>
   );
 }

@@ -4,7 +4,15 @@
  */
 
 import { Transaction } from "@/modules/import-data/types/bank-accounts";
-import { format, parseISO, startOfMonth, isWithinInterval, differenceInDays, differenceInMonths, differenceInYears } from "date-fns";
+import {
+  format,
+  parseISO,
+  startOfMonth,
+  isWithinInterval,
+  differenceInDays,
+  differenceInMonths,
+  differenceInYears,
+} from "date-fns";
 
 /**
  * Balance data point for trend chart

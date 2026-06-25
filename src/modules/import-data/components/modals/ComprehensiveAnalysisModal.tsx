@@ -18,7 +18,15 @@ import {
 import useModalState from "@/hooks/useModalState";
 import { ConsentType } from "@/lib/moneyone/moneyone.enums";
 import { getAllUserConsents } from "@/lib/moneyone/moneyone.storage";
-import { Activity, BarChart3, CheckCircle, CreditCard, PieChart, TrendingUp, XCircle } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  CheckCircle,
+  CreditCard,
+  PieChart,
+  TrendingUp,
+  XCircle,
+} from "lucide-react";
 import { useMemo } from "react";
 import { useComprehensiveAnalysisMutation } from "../../hooks/useComprehensiveAnalysisMutation";
 
@@ -39,7 +47,7 @@ export function ComprehensiveAnalysisModal() {
 
   // Group consents by type
   const consentsByType = useMemo(() => {
-    const grouped: Record<ConsentType, typeof allConsents[0] | null> = {
+    const grouped: Record<ConsentType, (typeof allConsents)[0] | null> = {
       [ConsentType.EQUITIES]: null,
       [ConsentType.MUTUAL_FUNDS]: null,
       [ConsentType.ETF]: null,
@@ -109,7 +117,10 @@ export function ComprehensiveAnalysisModal() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <DialogTrigger asChild>
         <Button
           size="lg"
@@ -120,21 +131,24 @@ export function ComprehensiveAnalysisModal() {
           Run Comprehensive Analysis
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-blue-600" />
+            <Activity className="h-5 w-5 text-blue-600" />
             Comprehensive Portfolio Analysis
           </DialogTitle>
           <DialogDescription>
-            Review your connected accounts and run a comprehensive analysis across all your holdings
+            Review your connected accounts and run a comprehensive analysis
+            across all your holdings
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto">
           {/* Connected Accounts Overview */}
           <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Connected Accounts</h3>
+            <h3 className="mb-3 text-sm font-medium text-gray-900">
+              Connected Accounts
+            </h3>
             <div className="space-y-2">
               {Object.entries(consentsByType).map(([type, consent]) => {
                 const Icon = getConsentIcon(type as ConsentType);
@@ -143,36 +157,50 @@ export function ComprehensiveAnalysisModal() {
                 const isReady = consent?.isDataReady ?? false;
 
                 return (
-                  <Card key={type} className="p-3">
+                  <Card
+                    key={type}
+                    className="p-3"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${isReady ? 'bg-blue-50' : 'bg-gray-50'}`}>
-                          <Icon className={`w-5 h-5 ${isReady ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <div
+                          className={`rounded-lg p-2 ${isReady ? "bg-blue-50" : "bg-gray-50"}`}
+                        >
+                          <Icon
+                            className={`h-5 w-5 ${isReady ? "text-blue-600" : "text-gray-400"}`}
+                          />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{label}</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {label}
+                          </p>
                           <p className="text-xs text-gray-500">
                             {!isConnected && "Not connected"}
-                            {isConnected && !isReady && "Connected, fetching data..."}
+                            {isConnected &&
+                              !isReady &&
+                              "Connected, fetching data..."}
                             {isReady && "Ready for analysis"}
                           </p>
                         </div>
                       </div>
                       <div>
                         {isReady && (
-                          <Badge className="bg-green-50 text-green-700 border-green-200">
-                            <CheckCircle className="w-3 h-3 mr-1" />
+                          <Badge className="border-green-200 bg-green-50 text-green-700">
+                            <CheckCircle className="mr-1 h-3 w-3" />
                             Ready
                           </Badge>
                         )}
                         {isConnected && !isReady && (
-                          <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                          <Badge className="border-yellow-200 bg-yellow-50 text-yellow-700">
                             Syncing
                           </Badge>
                         )}
                         {!isConnected && (
-                          <Badge variant="outline" className="text-gray-500">
-                            <XCircle className="w-3 h-3 mr-1" />
+                          <Badge
+                            variant="outline"
+                            className="text-gray-500"
+                          >
+                            <XCircle className="mr-1 h-3 w-3" />
                             Not Connected
                           </Badge>
                         )}
@@ -185,38 +213,51 @@ export function ComprehensiveAnalysisModal() {
           </div>
 
           {/* Analysis Information */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-blue-900 mb-2">What You'll Get</h4>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <h4 className="mb-2 text-sm font-medium text-blue-900">
+              What You'll Get
+            </h4>
             <ul className="space-y-1 text-sm text-blue-800">
               <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Holistic view of your entire portfolio across all connected accounts</span>
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>
+                  Holistic view of your entire portfolio across all connected
+                  accounts
+                </span>
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>AI-powered insights on asset allocation and diversification</span>
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>
+                  AI-powered insights on asset allocation and diversification
+                </span>
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Personalized recommendations based on your complete financial picture</span>
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>
+                  Personalized recommendations based on your complete financial
+                  picture
+                </span>
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Cross-asset correlation analysis and risk assessment</span>
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>
+                  Cross-asset correlation analysis and risk assessment
+                </span>
               </li>
             </ul>
           </div>
 
           {!hasReadyConsents && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
               <p className="text-sm text-yellow-800">
-                Please connect at least one account and wait for the data to sync before running a comprehensive analysis.
+                Please connect at least one account and wait for the data to
+                sync before running a comprehensive analysis.
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2 pt-4 border-t">
+        <div className="flex gap-2 border-t pt-4">
           <Button
             variant="outline"
             size="default"
@@ -229,10 +270,14 @@ export function ComprehensiveAnalysisModal() {
             size="default"
             className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700 text-white hover:from-slate-950 hover:via-blue-950 hover:to-blue-800"
             onClick={handleAnalyze}
-            disabled={!hasReadyConsents || comprehensiveAnalysisMutation.isPending}
+            disabled={
+              !hasReadyConsents || comprehensiveAnalysisMutation.isPending
+            }
           >
             <Activity className="mr-2 h-5 w-5" />
-            {comprehensiveAnalysisMutation.isPending ? "Analyzing..." : "Run Comprehensive Analysis"}
+            {comprehensiveAnalysisMutation.isPending
+              ? "Analyzing..."
+              : "Run Comprehensive Analysis"}
           </Button>
         </div>
       </DialogContent>

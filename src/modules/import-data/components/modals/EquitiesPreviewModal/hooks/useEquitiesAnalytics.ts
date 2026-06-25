@@ -18,7 +18,9 @@ export function useEquitiesAnalytics() {
     const items = transformEquitiesToPortfolioItems(holdings);
 
     if (items.length === 0) {
-      toast.error("No valid holdings to analyze. Ensure at least one holding has quantity greater than zero.");
+      toast.error(
+        "No valid holdings to analyze. Ensure at least one holding has quantity greater than zero.",
+      );
       return;
     }
 

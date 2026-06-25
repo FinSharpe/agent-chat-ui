@@ -18,7 +18,9 @@ export function useMutualFundsAnalytics() {
     const items = transformMutualFundsToPortfolioItems(holdings);
 
     if (items.length === 0) {
-      toast.error("No valid holdings to analyze. Ensure at least one holding has quantity greater than zero.");
+      toast.error(
+        "No valid holdings to analyze. Ensure at least one holding has quantity greater than zero.",
+      );
       return;
     }
 
@@ -34,7 +36,9 @@ export function useMutualFundsAnalytics() {
   const response = mutation.data;
   const analytics =
     response?.status === 200
-      ? (response as getMfPortfolioAnalyticsApiMfPortfoliosAnalyticsPostResponse200).data
+      ? (
+          response as getMfPortfolioAnalyticsApiMfPortfoliosAnalyticsPostResponse200
+        ).data
       : null;
 
   return {

@@ -1,25 +1,25 @@
 /**
  * Balance Trend Chart Component
- * Displays account balance over time using a line chart
+ * Displays account balance over time using a soft area chart
  */
 
 "use client";
 import {
-  LineChart,
-  Line,
+  Area,
+  AreaChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
 import {
-  BalanceDataPoint,
-  formatCurrency,
-} from "../utils/transaction-analytics";
+  DataPanel,
+  formatINR,
+  formatINRCompact,
+} from "@/modules/import-data/components/shared/ui";
+import { BalanceDataPoint } from "../utils/transaction-analytics";
 
 interface BalanceTrendChartProps {
   data: BalanceDataPoint[];
@@ -28,59 +28,26 @@ interface BalanceTrendChartProps {
   className?: string;
 }
 
-/**
- * Custom tooltip for balance trend chart
- */
-function CustomTooltip({ active, payload, startDate, endDate }: any) {
+/** Token-styled tooltip card. */
+function CustomTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: BalanceDataPoint }>;
+}) {
   if (!active || !payload || !payload.length) return null;
-
-  const data = payload[0].payload as BalanceDataPoint;
+  const point = payload[0].payload;
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 max-w-xs">
-      <div className="space-y-2">
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Transaction Date
-          </p>
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {data.formattedDate}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Account Balance
-          </p>
-          <p className="text-base text-blue-600 dark:text-blue-400 font-semibold">
-            {formatCurrency(data.balance)}
-          </p>
-        </div>
-        {startDate && endDate && (
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Showing balance trend from {startDate} to {endDate}
-            </p>
-          </div>
-        )}
-      </div>
+    <div className="border-border bg-popover max-w-xs rounded-lg border p-3 shadow-lg">
+      <p className="text-text-tertiary text-xs">{point.formattedDate}</p>
+      <p className="text-text-primary mt-0.5 text-base font-semibold tabular-nums">
+        {formatINR(point.balance)}
+      </p>
+      <p className="text-text-tertiary mt-0.5 text-[11px]">Account balance</p>
     </div>
   );
-}
-
-/**
- * Format Y-axis values to compact currency format
- */
-function formatYAxis(value: number): string {
-  if (value >= 10000000) {
-    return `₹${(value / 10000000).toFixed(1)}Cr`;
-  }
-  if (value >= 100000) {
-    return `₹${(value / 100000).toFixed(1)}L`;
-  }
-  if (value >= 1000) {
-    return `₹${(value / 1000).toFixed(1)}K`;
-  }
-  return `₹${value}`;
 }
 
 /**
@@ -94,22 +61,15 @@ export function BalanceTrendChart({
 }: BalanceTrendChartProps) {
   if (!data || data.length === 0) {
     return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2 pt-2 md:pt-4">
-            <TrendingUp className="w-4 h-4" />
-            Balance Trend
-          </CardTitle>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Track how your account balance changes over time
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-[250px] text-gray-500 text-sm">
-            No transaction data available
-          </div>
-        </CardContent>
-      </Card>
+      <DataPanel
+        title="Balance Trend"
+        icon={TrendingUp}
+        className={className}
+      >
+        <div className="text-text-tertiary flex h-[250px] items-center justify-center text-sm">
+          No transaction data available
+        </div>
+      </DataPanel>
     );
   }
 
@@ -119,56 +79,91 @@ export function BalanceTrendChart({
   if (data.length > MAX_POINTS) {
     const step = Math.ceil(data.length / MAX_POINTS);
     displayData = data.filter((_, index) => index % step === 0);
-    // Always include the last point
     if (displayData[displayData.length - 1] !== data[data.length - 1]) {
       displayData.push(data[data.length - 1]);
     }
   }
 
   return (
-    <Card className={className}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2 pt-2 md:pt-4">
-          <TrendingUp className="w-4 h-4 text-blue-600" />
-          Balance Trend
-        </CardTitle>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          Track how your account balance changes over time based on
-          transactions
-        </p>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart
+    <DataPanel
+      title="Balance Trend"
+      icon={TrendingUp}
+      className={className}
+    >
+      <p className="text-text-tertiary mb-3 text-xs">
+        How your balance moved
+        {startDate && endDate ? ` from ${startDate} to ${endDate}` : ""}
+      </p>
+      <div
+        role="img"
+        aria-label={`Account balance trend${startDate && endDate ? ` from ${startDate} to ${endDate}` : ""}. Figures are summarised in the stat tiles above.`}
+      >
+        <ResponsiveContainer
+          width="100%"
+          height={260}
+        >
+          <AreaChart
             data={displayData}
-            margin={{ top: 5, right: 20, left: -15, bottom: 5 }}
+            margin={{ top: 5, right: 12, left: -12, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+            <defs>
+              <linearGradient
+                id="balanceFill"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="var(--brand-teal)"
+                  stopOpacity={0.28}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--brand-teal)"
+                  stopOpacity={0}
+                />
+              </linearGradient>
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--chart-grid)"
+            />
             <XAxis
               dataKey="formattedDate"
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 11, fill: "var(--text-tertiary)" }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
               interval="preserveStartEnd"
-              angle={-45}
+              angle={-40}
               textAnchor="end"
-              height={80}
+              height={70}
             />
-            <YAxis tick={{ fontSize: 12 }} tickFormatter={formatYAxis} />
+            <YAxis
+              tick={{ fontSize: 11, fill: "var(--text-tertiary)" }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              tickFormatter={(v) => formatINRCompact(v)}
+              width={64}
+            />
             <Tooltip
-              content={<CustomTooltip startDate={startDate} endDate={endDate} />}
+              content={<CustomTooltip />}
+              cursor={{ stroke: "var(--brand-teal)", strokeOpacity: 0.4 }}
             />
-            <Legend />
-            <Line
+            <Area
               type="monotone"
               dataKey="balance"
-              stroke="#2563eb"
+              stroke="var(--brand-teal)"
               strokeWidth={2}
+              fill="url(#balanceFill)"
               dot={false}
-              activeDot={{ r: 6 }}
+              activeDot={{ r: 5, strokeWidth: 0, fill: "var(--brand-teal)" }}
               name="Balance"
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
-      </CardContent>
-    </Card>
+      </div>
+    </DataPanel>
   );
 }

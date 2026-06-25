@@ -24,18 +24,18 @@ export function MissingHoldingsWarning({
 
   const totalWeight = missingHoldings.reduce(
     (sum, holding) => sum + holding.weight,
-    0
+    0,
   );
 
   return (
     <div className="bg-warning-bg border-warning-border mx-6 my-4 rounded-lg border p-4">
       <div className="mb-3 flex items-start gap-3">
-        <AlertTriangle className="text-warning-icon mt-0.5 h-5 w-5 flex-shrink-0" />
+        <AlertTriangle className="text-warning-fg mt-0.5 h-5 w-5 flex-shrink-0" />
         <div>
-          <h3 className="text-warning-text mb-1 font-semibold">
+          <h3 className="text-warning-fg mb-1 font-semibold">
             Incomplete Analytics Data
           </h3>
-          <p className="text-warning-text text-sm">
+          <p className="text-warning-fg text-sm">
             The following holdings ({missingHoldings.length} ticker
             {missingHoldings.length > 1 ? "s" : ""}, {totalWeight.toFixed(1)}%
             of portfolio) could not be included in the analytics due to missing

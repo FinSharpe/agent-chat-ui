@@ -3,6 +3,7 @@ import { Control, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ConsentType } from "@/lib/moneyone/moneyone.enums";
 import { HoldingFormData } from "../hooks/useHoldingsForm";
 import { HoldingWithQuantity } from "../utils/holdings-transformer";
@@ -22,9 +23,35 @@ type HoldingTableRowProps = {
   onRemove: (index: number) => void;
 };
 
+const cellClass = "border-b border-border-subtle px-3 py-2.5 align-middle";
+
+/** Subtle monospace chip used for ISIN / account-number identifiers. */
+function IdentifierChip({ value }: { value: string }) {
+  return (
+    <span className="bg-bg-subtle text-text-tertiary inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[11px]">
+      {value}
+    </span>
+  );
+}
+
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={onClick}
+      aria-label="Remove holding"
+      className="text-text-tertiary hover:bg-error-bg hover:text-error-fg h-8 w-8"
+    >
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
+}
+
 /**
- * Single row in the holdings table
- * Memoized to prevent unnecessary re-renders
+ * Single row in the holdings table. Memoized to keep quantity edits from
+ * re-rendering the whole list.
  */
 export const HoldingTableRow = memo(function HoldingTableRow({
   field,
@@ -33,62 +60,46 @@ export const HoldingTableRow = memo(function HoldingTableRow({
   consentType,
   onRemove,
 }: HoldingTableRowProps) {
-  // Bank accounts have different columns structure
+  // Bank accounts have a different column structure (read-only display fields).
   if (consentType === ConsentType.BANK_ACCOUNTS) {
     const bankAccount = field as unknown as BankAccountWithFormData;
     return (
-      <tr className="hover:bg-gray-50">
-        {/* Bank Name Column */}
-        <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-gray-900">
-          {bankAccount.displayBank || "-"}
+      <tr className="hover:bg-bg-hover transition-colors">
+        <td className={cn(cellClass, "text-text-primary font-medium")}>
+          {bankAccount.displayBank || "—"}
         </td>
-
-        {/* Account Type Column */}
-        <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-gray-600">
-          {bankAccount.displayAccountType || "-"}
+        <td className={cn(cellClass, "text-text-secondary")}>
+          {bankAccount.displayAccountType || "—"}
         </td>
-
-        {/* Account Number Column */}
-        <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-gray-600 font-mono text-[10px] md:text-xs">
-          {bankAccount.displayAccountNumber || "-"}
+        <td className={cellClass}>
+          {bankAccount.displayAccountNumber ? (
+            <IdentifierChip value={bankAccount.displayAccountNumber} />
+          ) : (
+            "—"
+          )}
         </td>
-
-        {/* Balance Column */}
-        <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-right text-gray-900 font-medium">
-          {bankAccount.displayBalance || "-"}
+        <td
+          className={cn(
+            cellClass,
+            "text-text-primary text-right font-semibold tabular-nums",
+          )}
+        >
+          {bankAccount.displayBalance || "—"}
         </td>
-
-        {/* Remove Button */}
-        <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-center">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onRemove(index)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-0.5 md:p-2"
-          >
-            <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
-          </Button>
+        <td className={cn(cellClass, "text-center")}>
+          <RemoveButton onClick={() => onRemove(index)} />
         </td>
       </tr>
     );
   }
 
-  // Default rendering for equity, mutual funds, ETF
+  // Default rendering for equity, mutual funds, ETF.
   return (
-    <tr className="hover:bg-gray-50">
-      {/* Name/Description Column */}
-      <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-gray-900">
+    <tr className="hover:bg-bg-hover transition-colors">
+      <td className={cn(cellClass, "text-text-primary font-medium")}>
         {getHoldingName(field, consentType)}
       </td>
-
-      {/* ISIN Column */}
-      <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-gray-600 font-mono text-[10px] md:text-xs">
-        {field.isin || "-"}
-      </td>
-
-      {/* Quantity Input */}
-      <td className="px-1.5 py-1.5 md:px-4 md:py-3">
+      <td className={cn(cellClass, "px-2 text-center")}>
         <Controller
           control={control}
           name={`holdings.${index}.quantity`}
@@ -99,7 +110,8 @@ export const HoldingTableRow = memo(function HoldingTableRow({
               type="number"
               min="0"
               step="any"
-              className="w-14 md:w-28 text-right ml-auto text-[10px] md:text-sm h-6 md:h-10 px-1 md:px-3"
+              aria-label="Quantity"
+              className="mx-auto h-9 w-20 px-2 text-center tabular-nums"
               onChange={(e) => {
                 const value = parseFloat(e.target.value);
                 inputField.onChange(isNaN(value) ? 0 : value);
@@ -108,18 +120,8 @@ export const HoldingTableRow = memo(function HoldingTableRow({
           )}
         />
       </td>
-
-      {/* Remove Button */}
-      <td className="px-1.5 py-1.5 md:px-4 md:py-3 text-center">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onRemove(index)}
-          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-0.5 md:p-2"
-        >
-          <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
-        </Button>
+      <td className={cn(cellClass, "px-2 text-center")}>
+        <RemoveButton onClick={() => onRemove(index)} />
       </td>
     </tr>
   );

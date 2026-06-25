@@ -9,20 +9,20 @@ import {
 import { useHoldingsSearch } from "../hooks/useHoldingsSearch";
 import { getAssetTypeName } from "../utils/holdings-transformer";
 
+type SearchResult =
+  | StockSearchResponse["results"][0]
+  | MutualFundSearchResponse["results"][0];
+
 type HoldingsSearchProps = {
   /** Consent type to determine search endpoint and display */
   consentType: ConsentType;
   /** Callback when a search result is selected */
-  onSelectResult: (
-    result:
-      | StockSearchResponse["results"][0]
-      | MutualFundSearchResponse["results"][0],
-  ) => void;
+  onSelectResult: (result: SearchResult) => void;
 };
 
 /**
- * Search component for adding new holdings
- * Uses React Query for automatic caching and loading states
+ * Search-and-add control for holdings. The results render as an absolutely
+ * positioned overlay so opening them never reflows the table beneath.
  */
 export function HoldingsSearch({
   consentType,
@@ -33,88 +33,90 @@ export function HoldingsSearch({
 
   const assetType = getAssetTypeName(consentType).toLowerCase();
 
-  const handleSelectResult = (
-    result:
-      | StockSearchResponse["results"][0]
-      | MutualFundSearchResponse["results"][0],
-  ) => {
+  const handleSelectResult = (result: SearchResult) => {
     onSelectResult(result);
     setSearchQuery("");
   };
 
+  const showOverlay =
+    searchQuery.trim().length > 0 &&
+    (!!searchResults || (!!error && !isSearching));
+
   return (
-    <div className="sticky top-0 bg-white pt-2 pb-4 z-10 space-y-2">
-      {/* Search Input */}
+    <div className="relative">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="text-text-muted pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
         <Input
-          placeholder={`Search for ${assetType}s to add...`}
+          aria-label={`Search ${assetType}s to add`}
+          placeholder={`Search ${assetType}s to add…`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 pr-10"
+          className="h-10 pr-10 pl-10"
         />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-        {isSearching && (
-          <div className="absolute right-10 top-1/2 -translate-y-1/2">
-            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-          </div>
+        {isSearching ? (
+          <Loader2 className="text-text-muted absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin" />
+        ) : (
+          searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label="Clear search"
+              className="text-text-muted hover:text-text-secondary focus-visible:ring-ring absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )
         )}
       </div>
 
-      {/* Search Results Dropdown */}
-      {searchResults && searchResults.length > 0 && (
-        <div className="border rounded-lg shadow-lg bg-white max-h-60 overflow-y-auto">
-          {searchResults.map((result, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleSelectResult(result)}
-              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between border-b last:border-b-0"
-            >
-              <div className="flex-1">
-                {"symbol" in result ? (
-                  <>
-                    <div className="font-medium text-gray-900">
-                      {result.symbol}
+      {showOverlay && (
+        <div className="border-border bg-popover absolute top-[calc(100%+0.375rem)] right-0 left-0 z-20 overflow-hidden rounded-xl border shadow-lg">
+          {searchResults && searchResults.length > 0 ? (
+            <ul className="scrollbar-thin max-h-64 overflow-y-auto">
+              {searchResults.map((result, idx) => (
+                <li key={idx}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectResult(result)}
+                    className="group border-border-subtle hover:bg-bg-hover focus-visible:bg-bg-hover flex w-full items-center gap-3 border-b px-3 py-2.5 text-left transition-colors last:border-b-0 focus-visible:outline-none"
+                  >
+                    <div className="min-w-0 flex-1">
+                      {"symbol" in result ? (
+                        <>
+                          <div className="text-text-primary truncate text-sm font-medium">
+                            {result.symbol}
+                          </div>
+                          <div className="text-text-tertiary truncate text-xs">
+                            {result.compname}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-text-primary truncate text-sm font-medium">
+                            {result.sName}
+                          </div>
+                          <div className="text-text-tertiary truncate text-xs">
+                            {result.legalNames}
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="text-sm text-gray-600">{result.compname}</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-medium text-gray-900">
-                      {result.sName}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {result.legalNames}
-                    </div>
-                  </>
-                )}
-              </div>
-              <Plus className="w-4 h-4 text-blue-600" />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {error && searchQuery.trim() && (
-        <div className="text-center py-4 text-red-500 text-sm border border-red-200 rounded-lg bg-red-50">
-          Search failed. Please try again.
-        </div>
-      )}
-
-      {/* No Results Message */}
-      {!error && searchResults && searchResults.length === 0 && (
-        <div className="text-center py-4 text-gray-500 text-sm border rounded-lg">
-          No results found for &quot;{searchQuery}&quot;
+                    <span className="bg-secondary text-secondary-foreground group-hover:bg-brand-teal inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors group-hover:text-white">
+                      <Plus className="h-4 w-4" />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : error ? (
+            <div className="text-error-fg px-4 py-6 text-center text-sm">
+              Search failed. Please try again.
+            </div>
+          ) : (
+            <div className="text-text-tertiary px-4 py-6 text-center text-sm">
+              No results for &ldquo;{searchQuery}&rdquo;
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -20,14 +20,14 @@ interface MFHoldingsTabProps {
 export function MFHoldingsTab({ holdings }: MFHoldingsTabProps) {
   // Check if all weights are null or zero - if so, display quantity instead
   const allWeightsEmpty = holdings.every(
-    (h) => h.weight === null || h.weight === 0
+    (h) => h.weight === null || h.weight === 0,
   );
   const showQuantity = allWeightsEmpty;
 
   return (
     <div className="space-y-6 pb-28">
       <Card className="p-4">
-        <h3 className="font-medium text-text-primary mb-4">
+        <h3 className="text-text-primary mb-4 font-medium">
           Portfolio Holdings
         </h3>
         <div className="overflow-x-auto">
@@ -35,16 +35,16 @@ export function MFHoldingsTab({ holdings }: MFHoldingsTabProps) {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-left">Scheme Name</TableHead>
-                <TableHead className="hidden md:table-cell text-left">
+                <TableHead className="hidden text-left md:table-cell">
                   SEBI Category
                 </TableHead>
                 <TableHead className="text-right">
                   {showQuantity ? "Quantity" : "Weight"}
                 </TableHead>
-                <TableHead className="hidden md:table-cell text-right">
+                <TableHead className="hidden text-right md:table-cell">
                   Performance
                 </TableHead>
-                <TableHead className="hidden md:table-cell text-right">
+                <TableHead className="hidden text-right md:table-cell">
                   Risk
                 </TableHead>
               </TableRow>
@@ -54,30 +54,33 @@ export function MFHoldingsTab({ holdings }: MFHoldingsTabProps) {
                 <TableRow key={holding.ISIN || index}>
                   <TableCell>
                     <div>
-                      <div className="font-medium text-text-primary line-clamp-2">
+                      <div className="text-text-primary line-clamp-2 font-medium">
                         {holding.Scheme_Name}
                       </div>
-                      <div className="text-xs text-text-tertiary md:hidden">
+                      <div className="text-text-tertiary text-xs md:hidden">
                         {holding.Sebi_Category}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-text-secondary">
+                  <TableCell className="text-text-secondary hidden md:table-cell">
                     {holding.Sebi_Category}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {showQuantity
-                      ? holding.quantity ?? "-"
+                      ? (holding.quantity ?? "-")
                       : `${holding.weight?.toFixed(2) ?? "-"}%`}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-right">
+                  <TableCell className="hidden text-right md:table-cell">
                     <ScoreBadge
                       score={holding.PerformanceScore}
                       type="performance"
                     />
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-right">
-                    <ScoreBadge score={holding.RiskScore} type="risk" />
+                  <TableCell className="hidden text-right md:table-cell">
+                    <ScoreBadge
+                      score={holding.RiskScore}
+                      type="risk"
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -98,20 +101,20 @@ function ScoreBadge({ score, type }: ScoreBadgeProps) {
   const getColor = () => {
     if (type === "performance") {
       // Higher is better for performance
-      if (score >= 60) return "bg-green-100 text-green-700";
-      if (score >= 30) return "bg-amber-100 text-amber-700";
-      return "bg-red-100 text-red-700";
+      if (score >= 60) return "bg-risk-low-bg text-risk-low-fg";
+      if (score >= 30) return "bg-risk-medium-bg text-risk-medium-fg";
+      return "bg-risk-high-bg text-risk-high-fg";
     } else {
       // Lower is better for risk
-      if (score <= 30) return "bg-green-100 text-green-700";
-      if (score <= 60) return "bg-amber-100 text-amber-700";
-      return "bg-red-100 text-red-700";
+      if (score <= 30) return "bg-risk-low-bg text-risk-low-fg";
+      if (score <= 60) return "bg-risk-medium-bg text-risk-medium-fg";
+      return "bg-risk-high-bg text-risk-high-fg";
     }
   };
 
   return (
     <span
-      className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getColor()}`}
+      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${getColor()}`}
     >
       {score.toFixed(0)}
     </span>

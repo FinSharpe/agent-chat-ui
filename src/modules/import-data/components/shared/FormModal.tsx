@@ -31,11 +31,15 @@ export function FormModal({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="text-xs">
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs"
+        >
           {triggerText}
         </Button>
       </DialogTrigger>
-      <DialogContent className="!max-w-[min(96vw,80rem)] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] !max-w-[min(96vw,80rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>{icon}</span>

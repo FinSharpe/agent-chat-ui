@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en" class="">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Import · Analysis Workspace — Redesign Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ===== Theme tokens (mirrored from src/app/globals.css) ===== */
+:root{
+  --radius:0.625rem;
+  --background:#ffffff; --foreground:#262626;
+  --card:#ffffff; --primary:#2563eb; --primary-foreground:#fff;
+  --secondary:#f0fdfa; --secondary-foreground:#134e4a;
+  --muted:#ececf0; --muted-foreground:#717182;
+  --border:rgba(0,0,0,.1);
+  --brand-teal:#42d4a3; --primary-main-dark:#00004f; --primary-main-light:#063baa; --primary-paper:#ebf1ff;
+  --text-primary:#111827; --text-secondary:#4b5563; --text-tertiary:#6b7280; --text-muted:#9ca3af;
+  --bg-subtle:#f9fafb; --bg-hover:#f3f4f6; --bg-card:#fff;
+  --border-default:#e5e7eb; --border-subtle:#f3f4f6;
+  --success-fg:#16a34a; --success-bg:#f0fdf4; --success-border:#bbf7d0;
+  --error-fg:#dc2626; --error-bg:#fef2f2; --error-border:#fecaca;
+  --warning-fg:#d97706;
+  --accent-amber:#f59e0b;
+  --chart-1:#2563eb; --chart-2:#14b8a6; --chart-3:#6366f1; --chart-4:#f59e0b; --chart-5:#a855f7; --chart-6:#0ea5e9;
+  --chart-grid:rgba(15,23,42,.08); --chart-positive:#16a34a; --chart-negative:#dc2626;
+  --g-low:#ec4899; --g-med:#f59e0b; --g-high:#22c55e; --benchmark:#94a3b8;
+  --brand-gradient-from:#f8fafc; --brand-gradient-via:#eff6ff; --brand-gradient-to:#dbeafe;
+  --shadow-soft:0 1px 2px rgba(15,23,42,.04),0 8px 24px -12px rgba(15,23,42,.12);
+  --shadow-pop:0 24px 60px -24px rgba(15,23,42,.35);
+}
+.dark{
+  --background:#0b1220; --foreground:#fafafa;
+  --card:#111827; --primary:#3b82f6;
+  --secondary:#1a3a3a; --secondary-foreground:#ccfbf1;
+  --muted:#1f2937; --muted-foreground:#9aa6b8;
+  --border:#26303f;
+  --text-primary:#f9fafb; --text-secondary:#cbd5e1; --text-tertiary:#94a3b8; --text-muted:#64748b;
+  --bg-subtle:#0b1220; --bg-hover:#1e293b; --bg-card:#111827;
+  --border-default:#1f2a3a; --border-subtle:#172033;
+  --success-fg:#4ade80; --success-bg:#0f2a1c; --success-border:#14532d;
+  --error-fg:#f87171; --error-bg:#2a1414; --error-border:#7f1d1d;
+  --chart-1:#60a5fa; --chart-2:#5eead4; --chart-3:#818cf8; --chart-4:#fbbf24; --chart-5:#c084fc; --chart-6:#38bdf8;
+  --chart-grid:rgba(255,255,255,.08); --chart-positive:#4ade80; --chart-negative:#f87171;
+  --brand-gradient-from:#0e1626; --brand-gradient-via:#0f1c34; --brand-gradient-to:#102347;
+  --shadow-soft:0 1px 2px rgba(0,0,0,.4),0 10px 30px -16px rgba(0,0,0,.7);
+  --shadow-pop:0 30px 70px -28px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg-subtle); color:var(--text-primary);
+  -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.5;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1}
+
+/* ===== Prototype harness bar (not part of the design) ===== */
+.proto{
+  flex:0 0 auto; height:46px; display:flex; align-items:center; gap:14px; padding:0 14px;
+  background:#0b1220; color:#cbd5e1; border-bottom:1px solid #1e293b; font-size:12px; z-index:60;
+}
+.proto b{color:#fff; font-weight:700; letter-spacing:.3px}
+.proto .group{display:flex; align-items:center; gap:6px}
+.proto .seg{display:flex; background:#111827; border:1px solid #1f2a3a; border-radius:8px; overflow:hidden}
+.proto .seg button{appearance:none; border:0; background:transparent; color:#94a3b8; padding:5px 10px; font-size:12px; cursor:pointer; font-weight:600}
+.proto .seg button.on{background:linear-gradient(180deg,#2563eb,#1d4ed8); color:#fff}
+.proto .spacer{flex:1}
+.proto .hint{color:#64748b}
+
+/* ===== Stage ===== */
+.stage{flex:1; position:relative; overflow:hidden; background:
+  radial-gradient(120% 80% at 80% -10%, color-mix(in srgb, var(--brand-teal) 8%, transparent), transparent 60%),
+  var(--bg-subtle);
+}
+.backdrop{position:absolute; inset:0; background:rgba(8,12,20,.55); backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity .25s}
+body[data-frame="dialog"] .backdrop{opacity:1}
+
+/* Workspace shell */
+.ws{position:absolute; inset:0; display:none; flex-direction:column; background:var(--background);
+   container-type:inline-size;
+   animation:wsIn .32s cubic-bezier(.2,.8,.2,1) both}
+.ws.active{display:flex}
+@keyframes wsIn{from{opacity:0; transform:translateY(8px) scale(.992)} to{opacity:1; transform:none}}
+body[data-frame="dialog"] .ws{
+  inset:auto; position:relative; margin:auto; width:min(1160px,94%); height:min(90%,860px);
+  border-radius:18px; box-shadow:var(--shadow-pop); overflow:hidden; border:1px solid var(--border);
+}
+body[data-frame="dialog"] .stage{display:flex}
+
+/* Sheet frame — desktop: right rail ~60vw; mobile: bottom sheet ~80dvh.
+   Both ride the same @radix-ui/react-dialog primitive as the real Sheet. */
+body[data-frame="sheet"] .backdrop{opacity:1}
+body[data-frame="sheet"] .ws{
+  inset:0 0 0 auto; width:60%; min-width:0;
+  border-left:1px solid var(--border); border-radius:20px 0 0 20px;
+  box-shadow:-30px 0 80px -40px rgba(8,12,20,.55), var(--shadow-pop); overflow:hidden;
+  animation:sheetInRight .36s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes sheetInRight{from{transform:translateX(100%)} to{transform:none}}
+@media (max-width:680px){
+  body[data-frame="sheet"] .ws{
+    inset:auto 0 0 0; width:100%; height:82%;
+    border-left:0; border-top:1px solid var(--border); border-radius:20px 20px 0 0;
+    box-shadow:0 -30px 80px -40px rgba(8,12,20,.55), var(--shadow-pop);
+    animation:sheetInUp .36s cubic-bezier(.2,.8,.2,1) both;
+  }
+}
+@keyframes sheetInUp{from{transform:translateY(100%)} to{transform:none}}
+
+/* Header */
+.ws-head{position:relative; flex:0 0 auto; padding:18px 24px 16px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, var(--brand-gradient-from), transparent 140%);
+}
+.ws-head::after{content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, color-mix(in srgb,var(--brand-teal) 55%, transparent), transparent)}
+.head-top{display:flex; align-items:flex-start; justify-content:space-between; gap:16px}
+.eyebrow{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-tertiary)}
+.eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--brand-teal); box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-teal) 22%, transparent)}
+.title{margin:8px 0 2px; font-size:26px; font-weight:800; letter-spacing:-.02em; color:var(--text-primary)}
+.title-ico{display:inline-flex; width:34px; height:34px; border-radius:11px; align-items:center; justify-content:center;
+  background:color-mix(in srgb,var(--primary) 12%, transparent); color:var(--primary); margin-right:10px; vertical-align:-8px}
+.metricstrip{display:flex; align-items:center; gap:18px; margin-top:12px; flex-wrap:wrap}
+.metric{display:flex; flex-direction:column; gap:1px}
+.metric .k{font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--text-muted)}
+.metric .v{font-size:18px; font-weight:700; color:var(--text-primary)}
+.metric .v small{font-size:12px; font-weight:600; color:var(--text-tertiary)}
+.metric .v .up{color:var(--success-fg)} .metric .v .down{color:var(--error-fg)}
+.msep{width:1px; height:30px; background:var(--border-default)}
+.head-actions{display:flex; align-items:center; gap:10px}
+
+/* Buttons */
+.btn{appearance:none; border:1px solid transparent; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:600;
+  cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:transform .12s, box-shadow .2s, background .2s, border-color .2s; white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:linear-gradient(180deg, var(--primary), color-mix(in srgb,var(--primary) 82%, #000)); color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.15) inset, 0 8px 20px -10px color-mix(in srgb,var(--primary) 75%, transparent)}
+.btn-primary:hover{box-shadow:0 1px 0 rgba(255,255,255,.2) inset, 0 12px 26px -10px color-mix(in srgb,var(--primary) 85%, transparent)}
+.btn-ghost{background:transparent; color:var(--text-secondary); border-color:var(--border-default)}
+.btn-ghost:hover{background:var(--bg-hover)}
+.btn-icon{width:38px; height:38px; padding:0; justify-content:center; border-radius:11px; background:transparent; color:var(--text-tertiary); border-color:var(--border-default)}
+.btn-icon:hover{background:var(--bg-hover); color:var(--text-primary)}
+.cta-gradient{background:linear-gradient(120deg, var(--primary), var(--brand-teal)); color:#fff; border:0;
+  box-shadow:0 14px 34px -14px color-mix(in srgb,var(--primary) 80%, transparent)}
+.cta-gradient:hover{filter:brightness(1.04)}
+
+/* Body */
+/* Single column by default; the two-pane split unlocks on CONTAINER width
+   (the workspace's own width), not the viewport — so a 60vw sheet that is wide
+   enough still gets the side-by-side ledger + canvas, and a narrow sheet does not. */
+.ws-body{flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr);
+  gap:18px; padding:18px 24px; overflow:hidden}
+@container (min-width:720px){
+  /* Ledger is intentionally narrow (it only holds a name + a centred stepper);
+     the analysis canvas gets the lion's share of the width. */
+  .ws-body:not(.single){grid-template-columns:minmax(248px,0.6fr) minmax(0,1.4fr)}
+}
+/* Below the split threshold the body stacks and scrolls as one column.
+   (The real app swaps this for a segmented Holdings⇄Analysis toggle — already built + verified.) */
+@container (max-width:719.98px){
+  .ws-body{display:flex; flex-direction:column; overflow:auto}
+  .ws-body > .col{min-height:auto}
+  .ws-body .ledger,.ws-body .tbl-wrap{min-height:260px}
+}
+.ws-body.single{grid-template-columns:minmax(0,1fr); max-width:980px; margin:0 auto; width:100%}
+.col{min-height:0; display:flex; flex-direction:column; container-type:inline-size}
+.colhead{display:flex; align-items:center; justify-content:space-between; margin:0 2px 10px}
+.colhead .lbl{font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--text-tertiary); display:flex; align-items:center; gap:8px}
+.colhead .sub{font-size:12px; color:var(--text-muted)}
+
+/* Panel / card */
+.panel{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-soft)}
+.scroll{overflow:auto; scrollbar-width:thin; scrollbar-color:rgba(148,163,184,.6) transparent}
+.scroll::-webkit-scrollbar{width:8px;height:8px}
+.scroll::-webkit-scrollbar-thumb{background:rgba(148,163,184,.5); border-radius:8px}
+
+/* Search */
+.search{position:relative; margin-bottom:12px}
+.search input{width:100%; height:44px; border-radius:12px; border:1px solid var(--border-default); background:var(--card);
+  padding:0 14px 0 42px; font-size:14px; color:var(--text-primary); box-shadow:var(--shadow-soft); outline:none; transition:border-color .2s, box-shadow .2s}
+.search input::placeholder{color:var(--text-muted)}
+.search input:focus{border-color:color-mix(in srgb,var(--primary) 55%, transparent); box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 14%, transparent)}
+.search svg{position:absolute; left:13px; top:12px; color:var(--text-muted)}
+
+/* Ledger table */
+.ledger{flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden}
+.tbl-wrap{flex:1; min-height:0; overflow-x:hidden; overflow-y:auto}
+table{width:100%; border-collapse:separate; border-spacing:0; font-size:13px}
+/* Fixed layout so the narrow ledger fits Company + centred Units + Remove with
+   no horizontal scroll — Remove stays visible at all widths. */
+.ledger table{table-layout:fixed}
+.ledger thead th,.ledger tbody td{padding:9px 10px}
+.ledger thead th:nth-child(2),.ledger tbody td:nth-child(2){width:118px}
+.ledger thead th:nth-child(3),.ledger tbody td:nth-child(3){width:38px; padding-left:0; padding-right:6px}
+thead th{position:sticky; top:0; z-index:2; background:color-mix(in srgb,var(--bg-subtle) 70%, var(--card));
+  backdrop-filter:blur(6px); text-align:left; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-tertiary); padding:11px 14px; border-bottom:1px solid var(--border)}
+thead th.r{text-align:right} thead th.c{text-align:center}
+tbody td{padding:11px 14px; border-bottom:1px solid var(--border-subtle); color:var(--text-secondary)}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:var(--bg-hover)}
+tbody tr:hover .rm{opacity:1}
+.firm{color:var(--text-primary); font-weight:600}
+.isin{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--text-tertiary);
+  background:var(--bg-subtle); border:1px solid var(--border-subtle); padding:2px 7px; border-radius:6px}
+.qty{display:inline-flex; align-items:center; gap:0; border:1px solid var(--border-default); border-radius:9px; overflow:hidden; background:var(--card)}
+.qty button{appearance:none; border:0; background:transparent; color:var(--text-tertiary); width:24px; height:30px; cursor:pointer; font-size:15px; font-weight:600}
+.qty button:hover{background:var(--bg-hover); color:var(--text-primary)}
+.qty input{width:44px; height:30px; border:0; border-left:1px solid var(--border-subtle); border-right:1px solid var(--border-subtle);
+  text-align:center; background:transparent; color:var(--text-primary); font-weight:600; font-variant-numeric:tabular-nums; outline:none}
+/* Remove is always present but muted; it only gains colour on hover. */
+.rm{opacity:1; transition:color .15s, background .15s; appearance:none; border:0; background:transparent; color:var(--text-muted); cursor:pointer; padding:4px; border-radius:7px}
+.rm:hover{color:var(--error-fg); background:var(--error-bg)}
+.right{text-align:right} .center{text-align:center}
+.ledger-foot{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-top:1px solid var(--border); color:var(--text-tertiary); font-size:12px}
+
+/* Canvas — empty state */
+.canvas{flex:1; min-height:0; display:flex; flex-direction:column}
+.canvas-empty{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:28px; gap:6px}
+.ghost-donut{width:148px; height:148px; border-radius:50%;
+  background:conic-gradient(color-mix(in srgb,var(--primary) 22%, transparent) 0 32%, color-mix(in srgb,var(--brand-teal) 22%, transparent) 32% 58%, color-mix(in srgb,var(--chart-3) 18%, transparent) 58% 78%, color-mix(in srgb,var(--text-muted) 16%, transparent) 78% 100%);
+  -webkit-mask:radial-gradient(farthest-side, transparent 60%, #000 61%); mask:radial-gradient(farthest-side, transparent 60%, #000 61%);
+  position:relative; margin-bottom:14px; animation:spinIn .9s ease both}
+.ghost-donut::after{content:""; position:absolute; inset:0; border-radius:50%; border:2px dashed var(--border-default);
+  -webkit-mask:radial-gradient(farthest-side, transparent 60%, #000 61%); mask:radial-gradient(farthest-side, transparent 60%, #000 61%)}
+@keyframes spinIn{from{transform:rotate(-25deg) scale(.9); opacity:0} to{transform:none; opacity:1}}
+.canvas-empty h3{margin:2px 0 0; font-size:18px; font-weight:700; color:var(--text-primary)}
+.canvas-empty p{margin:0; color:var(--text-tertiary); max-width:340px}
+.willget{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin-top:14px}
+.chip{font-size:11.5px; font-weight:600; color:var(--text-secondary); background:var(--bg-subtle); border:1px solid var(--border-subtle); padding:5px 10px; border-radius:999px}
+.canvas-empty .btn{margin-top:18px; padding:12px 20px; font-size:14px}
+
+/* Canvas — analyzed dashboard */
+/* minmax(0,1fr) — columns share the pane exactly and never grow to fit content,
+   so the dashboard can never scroll/clip horizontally inside the sheet. */
+.dash{flex:1; min-height:0; overflow-x:hidden; overflow-y:auto; padding-right:4px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; grid-auto-rows:min-content}
+.dash.dash3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.dash .span2{grid-column:1 / -1}
+/* Cards stay multi-column whenever the CANVAS pane is roomy enough, and never
+   scroll horizontally; they only stack when the pane is genuinely narrow. */
+@container (max-width:440px){
+  .dash,.dash.dash3{grid-template-columns:1fr}
+}
+.card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-soft); animation:fadeUp .5s ease both}
+@keyframes fadeUp{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+.card .ch{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px}
+.card .ch .t{font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-tertiary)}
+.kpis{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.kpi{padding:12px 13px; border-radius:12px; background:var(--bg-subtle); border:1px solid var(--border-subtle)}
+.kpi .k{font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted)}
+.kpi .v{font-size:22px; font-weight:800; margin-top:3px; letter-spacing:-.01em}
+.kpi .v.pos{color:var(--success-fg)} .kpi .v.neg{color:var(--error-fg)}
+.kpi .d{font-size:11px; font-weight:600; margin-top:1px; color:var(--text-tertiary)}
+.donut-wrap{display:flex; gap:16px; align-items:center}
+.donut{width:104px; height:104px; flex:0 0 auto; border-radius:50%; position:relative; animation:spinIn .8s ease both}
+.donut::after{content:""; position:absolute; inset:21%; border-radius:50%; background:var(--card); z-index:1}
+.donut-c{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center}
+.legend{display:flex; flex-direction:column; gap:7px; flex:1}
+.legend .row{display:flex; align-items:center; gap:8px; font-size:12.5px}
+.legend .sw{width:10px; height:10px; border-radius:3px; flex:0 0 auto}
+.legend .nm{color:var(--text-secondary); flex:1}
+.legend .pc{color:var(--text-primary); font-weight:700; font-variant-numeric:tabular-nums}
+.bars{display:flex; flex-direction:column; gap:11px}
+.bar{display:grid; grid-template-columns:96px 1fr 44px; align-items:center; gap:10px; font-size:12.5px}
+.bar .nm{color:var(--text-secondary)}
+.bar .track{display:block; height:9px; border-radius:6px; background:var(--bg-subtle); overflow:hidden}
+.bar .fill{display:block; height:100%; border-radius:6px; transform-origin:left; animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes grow{from{transform:scaleX(.02)} to{transform:scaleX(1)}}
+.bar .pc{text-align:right; color:var(--text-primary); font-weight:700; font-variant-numeric:tabular-nums}
+
+/* FinSharpe score gauges */
+.score-card{display:flex; gap:15px; align-items:center}
+.gauge{width:96px; height:96px; flex:0 0 auto; border-radius:50%; position:relative;
+  background:conic-gradient(var(--c) calc(var(--p)*1%), var(--bg-subtle) 0);
+  animation:spinIn .7s ease both}
+.gauge::after{content:""; position:absolute; inset:18%; border-radius:50%; background:var(--card); z-index:1}
+.gauge-c{position:absolute; inset:0; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center}
+.gauge-c .gv{font-size:25px; font-weight:800; letter-spacing:-.02em; line-height:1; color:var(--text-primary)}
+.gauge-c .gl{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin-top:3px}
+.score-meta{flex:1; min-width:0}
+.score-meta .factors{font-size:12px; color:var(--text-tertiary); margin:0; line-height:1.55}
+.score-meta .factors b{color:var(--text-secondary); font-weight:600}
+.band{display:flex; gap:11px; margin-top:9px}
+.band span{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-tertiary)}
+.band i{width:9px; height:9px; border-radius:3px; display:inline-block}
+/* returns line chart */
+.rchart{width:100%; height:130px; display:block}
+.legend-inline{display:flex; gap:16px; margin:2px 0 6px}
+.legend-inline span{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-secondary)}
+.legend-inline i{width:16px; height:3px; border-radius:2px; display:inline-block}
+
+/* Footer action bar */
+.ws-foot{flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:13px 24px; border-top:1px solid var(--border); background:color-mix(in srgb,var(--bg-subtle) 60%, var(--card))}
+.ws-foot .run{display:flex; align-items:center; gap:10px; color:var(--text-tertiary); font-size:13px}
+.ws-foot .run b{color:var(--text-primary)}
+
+/* Bank specifics */
+.acct{display:flex; align-items:center; gap:12px; padding:13px 14px; border-bottom:1px solid var(--border-subtle); cursor:pointer; transition:background .15s}
+.acct:hover{background:var(--bg-hover)}
+.acct.sel{background:color-mix(in srgb,var(--primary) 8%, transparent); box-shadow:inset 3px 0 0 var(--primary)}
+.acct .ic{width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:var(--secondary); color:var(--secondary-foreground); flex:0 0 auto}
+.acct .nm{font-weight:600; color:var(--text-primary)}
+.acct .meta{font-size:12px; color:var(--text-muted)}
+.acct .bal{margin-left:auto; text-align:right}
+.acct .bal .b{font-weight:700; color:var(--text-primary); font-variant-numeric:tabular-nums}
+.acct .bal .t{font-size:11px; color:var(--text-muted)}
+.area{height:150px; width:100%}
+.txn{display:flex; align-items:center; gap:11px; padding:9px 4px; border-bottom:1px solid var(--border-subtle)}
+.txn .ti{width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex:0 0 auto}
+.txn .ti.cr{background:var(--success-bg); color:var(--success-fg)} .txn .ti.db{background:var(--error-bg); color:var(--error-fg)}
+.txn .tn{flex:1; min-width:0} .txn .tn .p{font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.txn .tn .s{font-size:11.5px; color:var(--text-muted)}
+.txn .amt{font-weight:700; font-variant-numeric:tabular-nums} .txn .amt.cr{color:var(--success-fg)} .txn .amt.db{color:var(--error-fg)}
+
+/* Info banner */
+.banner{display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border:1px solid var(--border-subtle);
+  border-radius:12px; background:var(--bg-subtle); color:var(--text-secondary); font-size:13px; margin-bottom:14px}
+.banner svg{color:var(--primary); flex:0 0 auto; margin-top:1px}
+
+/* state visibility */
+body[data-state="curate"] .canvas-analyzed{display:none}
+body[data-state="analyzed"] .canvas-empty{display:none}
+
+@media (max-width:1040px){
+  .ws-body{grid-template-columns:1fr; overflow:auto}
+  .dash{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</head>
+<body data-surface="equity" data-state="curate" data-frame="sheet">
+
+<!-- Prototype harness -->
+<div class="proto">
+  <b>PREVIEW</b>
+  <span class="hint">Import · Analysis Workspace</span>
+  <div class="group"><span class="hint">Surface</span>
+    <div class="seg" id="seg-surface">
+      <button data-v="equity" class="on">Equity</button>
+      <button data-v="mf">Mutual Funds</button>
+      <button data-v="bank">Bank</button>
+      <button data-v="sip">SIP</button>
+    </div>
+  </div>
+  <div class="group"><span class="hint">State</span>
+    <div class="seg" id="seg-state">
+      <button data-v="curate" class="on">Curate</button>
+      <button data-v="analyzed">Analyzed</button>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="group"><span class="hint">Frame</span>
+    <div class="seg" id="seg-frame">
+      <button data-v="sheet" class="on">Sheet</button>
+      <button data-v="full">Full-screen</button>
+      <button data-v="dialog">Dialog</button>
+    </div>
+  </div>
+  <div class="group">
+    <div class="seg" id="seg-theme">
+      <button data-v="light" class="on">Light</button>
+      <button data-v="dark">Dark</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="backdrop"></div>
+
+  <!-- ============ EQUITY ============ -->
+  <section class="ws active" data-s="equity">
+    <header class="ws-head">
+      <div class="head-top">
+        <div>
+          <div class="eyebrow"><span class="dot"></span> Import · Demat Holdings</div>
+          <h1 class="title"><span class="title-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg></span>Equity Holdings</h1>
+          <div class="metricstrip">
+            <div class="metric"><span class="k">Holdings</span><span class="v num">8</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Total units</span><span class="v num">740</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Est. value</span><span class="v num">₹14.2L <small>1Y</small></span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Coverage</span><span class="v num">100% <small>ISIN matched</small></span></div>
+          </div>
+        </div>
+        <div class="head-actions">
+          <button class="btn-icon" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+      </div>
+    </header>
+    <div class="ws-body">
+      <!-- LEDGER -->
+      <div class="col">
+        <div class="colhead"><span class="lbl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h12"/></svg> Holdings Ledger</span><span class="sub">edit units · add · remove</span></div>
+        <div class="search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+          <input placeholder="Search NSE/BSE to add a stock…" />
+        </div>
+        <div class="panel ledger">
+          <div class="tbl-wrap scroll">
+            <table>
+              <thead><tr><th>Company</th><th class="c">Units</th><th class="c"></th></tr></thead>
+              <tbody id="eq-rows"></tbody>
+            </table>
+          </div>
+          <div class="ledger-foot"><span>8 holdings</span><span class="num">740 units</span></div>
+        </div>
+      </div>
+      <!-- CANVAS -->
+      <div class="col">
+        <div class="colhead"><span class="lbl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><circle cx="9" cy="9" r="2"/><path d="m13 15 3-3 4 4"/></svg> Portfolio Analysis</span><span class="sub state-analyzed-only" style="display:none">duration · 1Y</span></div>
+        <div class="panel canvas">
+          <!-- empty -->
+          <div class="canvas-empty">
+            <div class="ghost-donut"></div>
+            <h3>Reveal your portfolio's shape</h3>
+            <p>Run analysis to see allocation, risk &amp; return, sector exposure and concentration — recomputed whenever you edit holdings.</p>
+            <div class="willget">
+              <span class="chip">Cumulative returns</span><span class="chip">FinSharpe Score</span><span class="chip">Risk Score</span><span class="chip">Industry mix</span><span class="chip">Market cap</span>
+            </div>
+            <button class="btn cta-gradient" onclick="setState('analyzed')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg> Run Analysis</button>
+          </div>
+          <!-- analyzed -->
+          <div class="canvas-analyzed" style="height:100%">
+            <div class="dash scroll" style="padding:16px">
+              <div class="card span2">
+                <div class="ch"><span class="t">Cumulative Returns · Portfolio vs Nifty 500</span><span class="t" style="color:var(--success-fg)">+18.2% · 1Y</span></div>
+                <div class="legend-inline"><span><i style="background:var(--chart-1)"></i>Your portfolio</span><span><i style="background:var(--benchmark)"></i>Nifty 500</span></div>
+                <svg class="rchart" viewBox="0 0 600 160" preserveAspectRatio="none">
+                  <defs><linearGradient id="pfE" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-1)" stop-opacity=".22"/><stop offset="1" stop-color="var(--chart-1)" stop-opacity="0"/></linearGradient></defs>
+                  <line x1="0" y1="146" x2="600" y2="146" stroke="var(--chart-grid)" stroke-dasharray="4 4"/>
+                  <path d="M0,135 C80,128 120,110 180,112 C240,114 270,78 330,80 C390,82 430,60 490,48 C540,38 570,30 600,26 L600,160 L0,160 Z" fill="url(#pfE)"/>
+                  <path d="M0,138 C90,134 140,122 200,124 C260,126 300,100 360,104 C420,108 470,92 520,86 C560,82 580,76 600,70" fill="none" stroke="var(--benchmark)" stroke-width="2" stroke-dasharray="5 4"/>
+                  <path d="M0,135 C80,128 120,110 180,112 C240,114 270,78 330,80 C390,82 430,60 490,48 C540,38 570,30 600,26" fill="none" stroke="var(--chart-1)" stroke-width="2.5"/>
+                </svg>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">FinSharpe Score</span><span class="t" style="color:var(--text-muted)">0–100</span></div>
+                <div class="score-card">
+                  <div class="gauge" style="--p:72; --c:var(--g-high)"><div class="gauge-c"><span class="gv num">72</span><span class="gl">High</span></div></div>
+                  <div class="score-meta">
+                    <p class="factors">Weighted blend of <b>Momentum</b>, <b>Quality</b>, <b>Value</b> &amp; <b>Risk</b>. Higher is better.</p>
+                    <div class="band"><span><i style="background:var(--g-low)"></i>Low</span><span><i style="background:var(--g-med)"></i>Med</span><span><i style="background:var(--g-high)"></i>High</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">Risk Score</span><span class="t" style="color:var(--text-muted)">lower = safer</span></div>
+                <div class="score-card">
+                  <div class="gauge" style="--p:38; --c:var(--g-med)"><div class="gauge-c"><span class="gv num">38</span><span class="gl">Medium</span></div></div>
+                  <div class="score-meta">
+                    <p class="factors">From <b>Volatility</b>, <b>Max Drawdown</b>, <b>Volumes</b> &amp; <b>Consistency</b>.</p>
+                    <div class="band"><span><i style="background:var(--g-high)"></i>Low</span><span><i style="background:var(--g-med)"></i>Med</span><span><i style="background:var(--g-low)"></i>High</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">Industry allocation</span></div>
+                <div class="donut-wrap">
+                  <div class="donut" style="background:conic-gradient(var(--chart-1) 0 32%,var(--chart-2) 32% 56%,var(--chart-3) 56% 74%,var(--chart-4) 74% 86%,var(--chart-5) 86% 94%,var(--chart-6) 94% 100%)">
+                    <div class="donut-c"><span class="num" style="font-size:18px;font-weight:800">8</span><span style="font-size:10px;color:var(--text-muted)">stocks</span></div>
+                  </div>
+                  <div class="legend">
+                    <div class="row"><span class="sw" style="background:var(--chart-1)"></span><span class="nm">Financials</span><span class="pc">32%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-2)"></span><span class="nm">IT</span><span class="pc">24%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-3)"></span><span class="nm">Energy</span><span class="pc">18%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-4)"></span><span class="nm">Industrials</span><span class="pc">12%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-5)"></span><span class="nm">Telecom</span><span class="pc">8%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-6)"></span><span class="nm">Materials</span><span class="pc">6%</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">Market cap</span><span class="t" style="color:var(--text-muted)">% of portfolio</span></div>
+                <div class="bars">
+                  <div class="bar"><span class="nm">Large cap</span><span class="track"><span class="fill" style="width:62%;background:var(--chart-1)"></span></span><span class="pc num">62%</span></div>
+                  <div class="bar"><span class="nm">Mid cap</span><span class="track"><span class="fill" style="width:26%;background:var(--chart-3)"></span></span><span class="pc num">26%</span></div>
+                  <div class="bar"><span class="nm">Small cap</span><span class="track"><span class="fill" style="width:12%;background:var(--chart-4)"></span></span><span class="pc num">12%</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="ws-foot">
+      <span class="run"><b class="num">8</b> holdings · <b class="num">740</b> units selected for import</span>
+      <div class="head-actions">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary">Add to Chat &amp; Analyze <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ MUTUAL FUNDS ============ -->
+  <section class="ws" data-s="mf">
+    <header class="ws-head">
+      <div class="head-top">
+        <div>
+          <div class="eyebrow"><span class="dot"></span> Import · Mutual Fund Holdings</div>
+          <h1 class="title"><span class="title-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M12 3a9 9 0 0 1 9 9h-9z" fill="currentColor" opacity=".25"/></svg></span>Mutual Fund Holdings</h1>
+          <div class="metricstrip">
+            <div class="metric"><span class="k">Schemes</span><span class="v num">5</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Total units</span><span class="v num">4,296.7</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Est. value</span><span class="v num">₹9.8L</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Asset mix</span><span class="v num">72% <small>equity</small></span></div>
+          </div>
+        </div>
+        <button class="btn-icon" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </header>
+    <div class="ws-body">
+      <div class="col">
+        <div class="colhead"><span class="lbl">Holdings Ledger</span><span class="sub">edit closing units · add · remove</span></div>
+        <div class="search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input placeholder="Search a scheme to add…" /></div>
+        <div class="panel ledger">
+          <div class="tbl-wrap scroll">
+            <table><thead><tr><th>Scheme</th><th class="c">Closing units</th><th class="c"></th></tr></thead><tbody id="mf-rows"></tbody></table>
+          </div>
+          <div class="ledger-foot"><span>5 schemes</span><span class="num">4,296.7 units</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="colhead"><span class="lbl">Portfolio Analysis</span></div>
+        <div class="panel canvas">
+          <div class="canvas-empty">
+            <div class="ghost-donut"></div>
+            <h3>See how your funds blend</h3>
+            <p>Run analysis for asset-class split, rolling returns, expense drag and overlap across your schemes.</p>
+            <div class="willget"><span class="chip">Cumulative returns</span><span class="chip">Performance Score</span><span class="chip">Risk Score</span><span class="chip">SEBI category</span><span class="chip">Expense ratio</span></div>
+            <button class="btn cta-gradient" onclick="setState('analyzed')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg> Run Analysis</button>
+          </div>
+          <div class="canvas-analyzed" style="height:100%">
+            <div class="dash scroll" style="padding:16px">
+              <div class="card span2">
+                <div class="ch"><span class="t">Cumulative Returns · Portfolio vs Nifty 500</span><span class="t" style="color:var(--success-fg)">+21.1% · 1Y</span></div>
+                <div class="legend-inline"><span><i style="background:var(--chart-2)"></i>Your funds</span><span><i style="background:var(--benchmark)"></i>Nifty 500</span></div>
+                <svg class="rchart" viewBox="0 0 600 160" preserveAspectRatio="none">
+                  <defs><linearGradient id="pfM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-2)" stop-opacity=".22"/><stop offset="1" stop-color="var(--chart-2)" stop-opacity="0"/></linearGradient></defs>
+                  <line x1="0" y1="146" x2="600" y2="146" stroke="var(--chart-grid)" stroke-dasharray="4 4"/>
+                  <path d="M0,138 C70,132 110,118 170,116 C230,114 260,84 320,82 C380,80 420,52 480,42 C540,32 575,24 600,20 L600,160 L0,160 Z" fill="url(#pfM)"/>
+                  <path d="M0,140 C90,136 140,124 200,126 C260,128 300,102 360,106 C420,110 470,94 520,88 C560,84 580,78 600,72" fill="none" stroke="var(--benchmark)" stroke-width="2" stroke-dasharray="5 4"/>
+                  <path d="M0,138 C70,132 110,118 170,116 C230,114 260,84 320,82 C380,80 420,52 480,42 C540,32 575,24 600,20" fill="none" stroke="var(--chart-2)" stroke-width="2.5"/>
+                </svg>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">Performance Score</span><span class="t" style="color:var(--text-muted)">vs peers</span></div>
+                <div class="score-card">
+                  <div class="gauge" style="--p:76; --c:var(--g-high)"><div class="gauge-c"><span class="gv num">76</span><span class="gl">High</span></div></div>
+                  <div class="score-meta">
+                    <p class="factors">Returns consistency, <b>alpha</b> &amp; risk-adjusted returns vs category peers. Higher is better.</p>
+                    <div class="band"><span><i style="background:var(--g-low)"></i>Low</span><span><i style="background:var(--g-med)"></i>Med</span><span><i style="background:var(--g-high)"></i>High</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">Risk Score</span><span class="t" style="color:var(--text-muted)">lower = safer</span></div>
+                <div class="score-card">
+                  <div class="gauge" style="--p:34; --c:var(--g-med)"><div class="gauge-c"><span class="gv num">34</span><span class="gl">Medium</span></div></div>
+                  <div class="score-meta">
+                    <p class="factors">Std deviation, <b>max drawdown</b> &amp; downside deviation vs category average.</p>
+                    <div class="band"><span><i style="background:var(--g-high)"></i>Low</span><span><i style="background:var(--g-med)"></i>Med</span><span><i style="background:var(--g-low)"></i>High</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">SEBI category mix</span></div>
+                <div class="donut-wrap">
+                  <div class="donut" style="background:conic-gradient(var(--chart-1) 0 34%,var(--chart-2) 34% 62%,var(--chart-3) 62% 84%,var(--chart-4) 84% 100%)"><div class="donut-c"><span class="num" style="font-size:18px;font-weight:800">5</span><span style="font-size:10px;color:var(--text-muted)">funds</span></div></div>
+                  <div class="legend">
+                    <div class="row"><span class="sw" style="background:var(--chart-1)"></span><span class="nm">Flexi Cap</span><span class="pc">34%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-2)"></span><span class="nm">Large Cap</span><span class="pc">28%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-3)"></span><span class="nm">Balanced Adv.</span><span class="pc">22%</span></div>
+                    <div class="row"><span class="sw" style="background:var(--chart-4)"></span><span class="nm">Small Cap</span><span class="pc">16%</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="ch"><span class="t">Cost analysis</span></div>
+                <div class="kpi" style="margin-bottom:11px">
+                  <div class="k">Weighted expense ratio</div><div class="v num">0.62%</div>
+                  <span class="track" style="display:block;margin-top:9px"><span class="fill" style="width:25%;background:var(--g-high)"></span></span>
+                  <div class="d" style="margin-top:7px">Low · direct plans · cap 2.5%</div>
+                </div>
+                <div class="kpi"><div class="k">Est. annual cost</div><div class="v num">₹6,200</div><div class="d">on ₹9.8L invested</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="ws-foot">
+      <span class="run"><b class="num">5</b> schemes selected for import</span>
+      <div class="head-actions"><button class="btn btn-ghost">Cancel</button><button class="btn btn-primary">Add to Chat &amp; Analyze <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </footer>
+  </section>
+
+  <!-- ============ BANK ============ -->
+  <section class="ws" data-s="bank">
+    <header class="ws-head">
+      <div class="head-top">
+        <div>
+          <div class="eyebrow"><span class="dot"></span> Import · Bank &amp; Spending</div>
+          <h1 class="title"><span class="title-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span>Bank Accounts</h1>
+          <div class="metricstrip">
+            <div class="metric"><span class="k">Accounts</span><span class="v num">3</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Total balance</span><span class="v num">₹4,82,100</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">History</span><span class="v num">18 <small>months</small></span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Net flow</span><span class="v num"><span class="up">+₹51,500</span> <small>/mo avg</small></span></div>
+          </div>
+        </div>
+        <button class="btn-icon" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </header>
+    <div class="ws-body">
+      <div class="col">
+        <div class="colhead"><span class="lbl">Accounts</span><span class="sub">select to inspect</span></div>
+        <div class="panel ledger">
+          <div class="scroll" style="flex:1">
+            <div class="acct sel" onclick="selAcct(this,'HDFC Bank','Savings · ••3421')">
+              <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span>
+              <div><div class="nm">HDFC Bank</div><div class="meta">Savings · ••3421</div></div>
+              <div class="bal"><div class="b num">₹2,10,400</div><div class="t">412 txns</div></div>
+            </div>
+            <div class="acct" onclick="selAcct(this,'ICICI Bank','Current · ••8890')">
+              <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span>
+              <div><div class="nm">ICICI Bank</div><div class="meta">Current · ••8890</div></div>
+              <div class="bal"><div class="b num">₹1,80,000</div><div class="t">289 txns</div></div>
+            </div>
+            <div class="acct" onclick="selAcct(this,'Axis Bank','Salary · ••1102')">
+              <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span>
+              <div><div class="nm">Axis Bank</div><div class="meta">Salary · ••1102</div></div>
+              <div class="bal"><div class="b num">₹91,700</div><div class="t">156 txns</div></div>
+            </div>
+          </div>
+          <div class="ledger-foot"><span>3 accounts</span><span class="num">₹4,82,100</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="colhead"><span class="lbl" id="bank-sel-lbl">HDFC Bank · Savings ••3421</span><span class="sub">Jan 2024 – Jun 2025</span></div>
+        <div class="panel canvas">
+          <div class="dash dash3 scroll" style="padding:16px">
+            <div class="kpi"><div class="k">Total income</div><div class="v pos num">+₹3,42,000</div><div class="d">credits</div></div>
+            <div class="kpi"><div class="k">Total expenses</div><div class="v neg num">−₹2,90,500</div><div class="d">debits</div></div>
+            <div class="kpi"><div class="k">Net cash flow</div><div class="v pos num">+₹51,500</div><div class="d">18 months</div></div>
+            <div class="card span2" style="grid-column:1/-1">
+              <div class="ch"><span class="t">Balance trend</span><span class="t" style="color:var(--text-muted)">daily</span></div>
+              <svg class="area" viewBox="0 0 600 150" preserveAspectRatio="none">
+                <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--brand-teal)" stop-opacity=".30"/><stop offset="1" stop-color="var(--brand-teal)" stop-opacity="0"/></linearGradient></defs>
+                <path d="M0,110 C60,100 90,70 140,80 C190,90 220,40 280,55 C340,70 370,30 430,45 C490,60 520,35 600,25 L600,150 L0,150 Z" fill="url(#g1)"/>
+                <path d="M0,110 C60,100 90,70 140,80 C190,90 220,40 280,55 C340,70 370,30 430,45 C490,60 520,35 600,25" fill="none" stroke="var(--brand-teal)" stroke-width="2.5"/>
+              </svg>
+            </div>
+            <div class="card span2" style="grid-column:1/-1">
+              <div class="ch"><span class="t">Recent transactions</span></div>
+              <div class="txn"><span class="ti cr"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 7l10 10M17 7v10H7"/></svg></span><div class="tn"><div class="p">Salary credit · ACME Corp</div><div class="s">02 Jun · NEFT</div></div><span class="amt cr num">+₹1,20,000</span></div>
+              <div class="txn"><span class="ti db"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 17 7 7M7 17V7h10"/></svg></span><div class="tn"><div class="p">Rent · landlord UPI</div><div class="s">03 Jun · UPI</div></div><span class="amt db num">−₹35,000</span></div>
+              <div class="txn"><span class="ti db"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 17 7 7M7 17V7h10"/></svg></span><div class="tn"><div class="p">SIP · Parag Parikh Flexi</div><div class="s">05 Jun · Mandate</div></div><span class="amt db num">−₹15,000</span></div>
+              <div class="txn"><span class="ti db"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 17 7 7M7 17V7h10"/></svg></span><div class="tn"><div class="p">Amazon · marketplace</div><div class="s">08 Jun · Card</div></div><span class="amt db num">−₹4,250</span></div>
+              <div class="txn"><span class="ti cr"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 7l10 10M17 7v10H7"/></svg></span><div class="tn"><div class="p">Savings interest</div><div class="s">10 Jun · Interest</div></div><span class="amt cr num">+₹820</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="ws-foot">
+      <span class="run"><b class="num">3</b> accounts · <b class="num">₹4,82,100</b> total balance</span>
+      <div class="head-actions"><button class="btn btn-ghost">Cancel</button><button class="btn btn-primary">Add to Chat &amp; Analyze <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </footer>
+  </section>
+
+  <!-- ============ SIP (light variant) ============ -->
+  <section class="ws" data-s="sip">
+    <header class="ws-head">
+      <div class="head-top">
+        <div>
+          <div class="eyebrow"><span class="dot"></span> Import · SIP Registry</div>
+          <h1 class="title"><span class="title-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>SIP Accounts</h1>
+          <div class="metricstrip">
+            <div class="metric"><span class="k">Registrations</span><span class="v num">4</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Fund houses</span><span class="v num">4</span></div>
+            <div class="msep"></div>
+            <div class="metric"><span class="k">Registrars</span><span class="v num">2 <small>CAMS · KFintech</small></span></div>
+          </div>
+        </div>
+        <button class="btn-icon" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </header>
+    <div class="ws-body single">
+      <div class="col">
+        <div class="banner">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+          <span>SIP registrations show your active Systematic Investment Plans across fund houses. This is a read-only registry — import it so the assistant can factor your recurring commitments into planning.</span>
+        </div>
+        <div class="panel ledger">
+          <div class="tbl-wrap scroll">
+            <table>
+              <thead><tr><th>Fund House</th><th>Account</th><th>Registrar</th><th>Holder</th></tr></thead>
+              <tbody>
+                <tr><td class="firm">TATA Mutual Fund</td><td><span class="isin">TATA-••••3111</span></td><td>CAMS</td><td>Shoeb Merchant</td></tr>
+                <tr><td class="firm">SBI Mutual Fund</td><td><span class="isin">SBIMF-••••7782</span></td><td>KFintech</td><td>Shoeb Merchant</td></tr>
+                <tr><td class="firm">HDFC Mutual Fund</td><td><span class="isin">HDFC-••••2290</span></td><td>CAMS</td><td>Shoeb Merchant</td></tr>
+                <tr><td class="firm">Axis Mutual Fund</td><td><span class="isin">AXIS-••••5567</span></td><td>KFintech</td><td>Shoeb Merchant</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="ledger-foot"><span>4 registrations</span><span>read-only</span></div>
+        </div>
+      </div>
+    </div>
+    <footer class="ws-foot">
+      <span class="run"><b class="num">4</b> registrations</span>
+      <div class="head-actions"><button class="btn btn-ghost">Close</button><button class="btn btn-primary">Import to Chat <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </footer>
+  </section>
+
+</div>
+
+<script>
+// ----- sample ledger data -----
+const EQ = [
+  ["Reliance Industries","INE002A01018",120],
+  ["HDFC Bank","INE040A01034",80],
+  ["Infosys","INE009A01021",200],
+  ["Tata Consultancy Svcs","INE467B01029",45],
+  ["ICICI Bank","INE090A01021",150],
+  ["Larsen &amp; Toubro","INE018A01030",30],
+  ["Bharti Airtel","INE397D01024",90],
+  ["Asian Paints","INE021A01026",25],
+];
+const MF = [
+  ["Parag Parikh Flexi Cap — Direct","INF879O01027","1,240.5"],
+  ["Mirae Asset Large Cap — Direct","INF769K01010","880.2"],
+  ["Axis Small Cap — Direct Growth","INF846K01EW2","410.0"],
+  ["HDFC Balanced Advantage — Direct","INF179K01XQ0","1,005.7"],
+  ["ICICI Pru Bluechip — Direct","INF109K012B0","760.3"],
+];
+const rmSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+function qtyCell(v){return '<span class="qty"><button>−</button><input class="num" value="'+v+'"/><button>+</button></span>';}
+document.getElementById('eq-rows').innerHTML = EQ.map(r=>
+  '<tr><td class="firm">'+r[0]+'</td><td class="center">'+qtyCell(r[2])+'</td><td class="center"><button class="rm">'+rmSvg+'</button></td></tr>').join('');
+document.getElementById('mf-rows').innerHTML = MF.map(r=>
+  '<tr><td class="firm">'+r[0]+'</td><td class="center">'+qtyCell(r[2])+'</td><td class="center"><button class="rm">'+rmSvg+'</button></td></tr>').join('');
+
+// ----- harness wiring -----
+const body=document.body;
+function activate(seg,val,attr){
+  document.querySelectorAll('#'+seg+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===val));
+}
+function setSurface(v){ activate('seg-surface',v); body.dataset.surface=v;
+  document.querySelectorAll('.ws').forEach(s=>s.classList.toggle('active',s.dataset.s===v)); }
+function setState(v){ activate('seg-state',v); body.dataset.state=v; }
+function setFrame(v){ activate('seg-frame',v); body.dataset.frame=v; }
+function setTheme(v){ activate('seg-theme',v); document.documentElement.classList.toggle('dark',v==='dark'); }
+document.querySelectorAll('#seg-surface button').forEach(b=>b.onclick=()=>setSurface(b.dataset.v));
+document.querySelectorAll('#seg-state button').forEach(b=>b.onclick=()=>setState(b.dataset.v));
+document.querySelectorAll('#seg-frame button').forEach(b=>b.onclick=()=>setFrame(b.dataset.v));
+document.querySelectorAll('#seg-theme button').forEach(b=>b.onclick=()=>setTheme(b.dataset.v));
+function selAcct(el,nm,meta){ document.querySelectorAll('[data-s="bank"] .acct').forEach(a=>a.classList.remove('sel')); el.classList.add('sel');
+  document.getElementById('bank-sel-lbl').textContent=nm+' · '+meta; }
+</script>
+</body>
+</html>

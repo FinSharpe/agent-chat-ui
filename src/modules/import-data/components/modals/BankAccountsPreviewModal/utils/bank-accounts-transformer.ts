@@ -154,8 +154,12 @@ function calculateTransactionInsights(account: BankAccount): {
   const months = Math.max(monthsDiff, 1);
 
   // Calculate averages
-  const avgMonthlySpending = formatCurrency((totalDebitAmount / months).toFixed(2));
-  const avgMonthlyIncome = formatCurrency((totalCreditAmount / months).toFixed(2));
+  const avgMonthlySpending = formatCurrency(
+    (totalDebitAmount / months).toFixed(2),
+  );
+  const avgMonthlyIncome = formatCurrency(
+    (totalCreditAmount / months).toFixed(2),
+  );
 
   // Calculate average monthly balance
   let totalBalanceSum = 0;
@@ -163,17 +167,22 @@ function calculateTransactionInsights(account: BankAccount): {
 
   balancesByMonth.forEach((balances) => {
     // Average balance for this month
-    const monthAvg = balances.reduce((sum, bal) => sum + bal, 0) / balances.length;
+    const monthAvg =
+      balances.reduce((sum, bal) => sum + bal, 0) / balances.length;
     totalBalanceSum += monthAvg;
     totalBalanceCount++;
   });
 
-  const avgMonthlyBalance = totalBalanceCount > 0
-    ? formatCurrency((totalBalanceSum / totalBalanceCount).toFixed(2))
-    : formatCurrency(account.Summary.currentBalance || "0");
+  const avgMonthlyBalance =
+    totalBalanceCount > 0
+      ? formatCurrency((totalBalanceSum / totalBalanceCount).toFixed(2))
+      : formatCurrency(account.Summary.currentBalance || "0");
 
   // Determine balance trend
-  const avgBalance = totalBalanceCount > 0 ? totalBalanceSum / totalBalanceCount : currentBalance;
+  const avgBalance =
+    totalBalanceCount > 0
+      ? totalBalanceSum / totalBalanceCount
+      : currentBalance;
   const trendThreshold = avgBalance * 0.05; // 5% threshold for stability
 
   let balanceTrend: "Positive" | "Negative" | "Stable";
@@ -255,7 +264,9 @@ export function formatAccountsAsText(insights: AccountInsights[]): string {
     lines.push(`  Avg Monthly Balance: ${account.avgMonthlyBalance}`);
     lines.push(`  Balance Trend: ${account.balanceTrend}`);
     lines.push(`  Transaction Period: ${account.transactionPeriod}`);
-    lines.push(`  Total Transactions: ${account.totalTransactions} (${account.totalDebits} debits, ${account.totalCredits} credits)`);
+    lines.push(
+      `  Total Transactions: ${account.totalTransactions} (${account.totalDebits} debits, ${account.totalCredits} credits)`,
+    );
     lines.push(`  Avg Monthly Spending: ${account.avgMonthlySpending}`);
     lines.push(`  Avg Monthly Income: ${account.avgMonthlyIncome}`);
     lines.push(`  Last Transaction: ${account.lastTransactionDate}`);

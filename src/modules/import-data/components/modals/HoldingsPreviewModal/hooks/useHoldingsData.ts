@@ -32,10 +32,7 @@ export function useHoldingsData(
   } = useFiData(consentID, !!isDataReady);
 
   // Extract holdings from FI data (memoized)
-  const holdings = useMemo(
-    () => extractHoldingsFromFiData(fiData),
-    [fiData],
-  );
+  const holdings = useMemo(() => extractHoldingsFromFiData(fiData), [fiData]);
 
   // Transform to form data with quantity field (memoized)
   const formDefaultValues = useMemo(

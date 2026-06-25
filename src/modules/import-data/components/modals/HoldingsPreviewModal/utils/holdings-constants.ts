@@ -1,5 +1,9 @@
 import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import { EquityHolding, MutualFundHolding, ETFHolding } from "@/lib/moneyone/moneyone.types";
+import {
+  EquityHolding,
+  MutualFundHolding,
+  ETFHolding,
+} from "@/lib/moneyone/moneyone.types";
 import { BankAccountWithFormData } from "@/modules/import-data/types/bank-accounts";
 
 /**
@@ -7,8 +11,7 @@ import { BankAccountWithFormData } from "@/modules/import-data/types/bank-accoun
  */
 export const EQUITY_COLUMNS = [
   { key: "issuerName", label: "Company Name", align: "left" as const },
-  { key: "isin", label: "ISIN", align: "left" as const },
-  { key: "quantity", label: "Units", align: "right" as const },
+  { key: "quantity", label: "Units", align: "center" as const },
   { key: "action", label: "Action", align: "center" as const },
 ] as const;
 
@@ -17,8 +20,7 @@ export const EQUITY_COLUMNS = [
  */
 export const MUTUAL_FUND_COLUMNS = [
   { key: "description", label: "Description", align: "left" as const },
-  { key: "isin", label: "ISIN", align: "left" as const },
-  { key: "quantity", label: "Closing Units", align: "right" as const },
+  { key: "quantity", label: "Closing Units", align: "center" as const },
   { key: "action", label: "Action", align: "center" as const },
 ] as const;
 
@@ -27,8 +29,7 @@ export const MUTUAL_FUND_COLUMNS = [
  */
 export const ETF_COLUMNS = [
   { key: "isinDescription", label: "ETF Name", align: "left" as const },
-  { key: "isin", label: "ISIN", align: "left" as const },
-  { key: "quantity", label: "Units", align: "right" as const },
+  { key: "quantity", label: "Units", align: "center" as const },
   { key: "action", label: "Action", align: "center" as const },
 ] as const;
 
@@ -38,7 +39,11 @@ export const ETF_COLUMNS = [
 export const BANK_ACCOUNT_COLUMNS = [
   { key: "displayBank", label: "Bank Name", align: "left" as const },
   { key: "displayAccountType", label: "Account Type", align: "left" as const },
-  { key: "displayAccountNumber", label: "Account Number", align: "left" as const },
+  {
+    key: "displayAccountNumber",
+    label: "Account Number",
+    align: "left" as const,
+  },
   { key: "displayBalance", label: "Balance (INR)", align: "right" as const },
   { key: "action", label: "Action", align: "center" as const },
 ] as const;
@@ -78,14 +83,22 @@ export const SEARCH_CONFIG = {
  * Helper function to get the display name/description for a holding based on consent type
  */
 export function getHoldingName(
-  holding: EquityHolding | MutualFundHolding | ETFHolding | BankAccountWithFormData,
-  consentType: ConsentType
+  holding:
+    | EquityHolding
+    | MutualFundHolding
+    | ETFHolding
+    | BankAccountWithFormData,
+  consentType: ConsentType,
 ): string {
   switch (consentType) {
     case ConsentType.EQUITIES:
       return (holding as EquityHolding).issuerName || "-";
     case ConsentType.MUTUAL_FUNDS:
-      return (holding as MutualFundHolding).isinDescription || (holding as MutualFundHolding).schemeTypes || "-";
+      return (
+        (holding as MutualFundHolding).isinDescription ||
+        (holding as MutualFundHolding).schemeTypes ||
+        "-"
+      );
     case ConsentType.ETF:
       return (holding as ETFHolding).isinDescription || "-";
     case ConsentType.BANK_ACCOUNTS:

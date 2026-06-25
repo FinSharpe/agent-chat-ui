@@ -1,11 +1,21 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FiDataResponse } from "@/lib/moneyone/moneyone.types";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { type Control, useWatch } from "react-hook-form";
+import {
+  WorkspaceHeader,
+  WorkspaceSplit,
+  WorkspaceColumn,
+  WorkspaceFooter,
+  TableSkeleton,
+  formatCount,
+  formatINR,
+  type WorkspaceMetric,
+} from "@/modules/import-data/components/shared/ui";
 import { HoldingsSearch } from "./components/HoldingsSearch";
-import { HoldingsSummaryCard } from "./components/HoldingsSummaryCard";
 import { HoldingsTable } from "./components/HoldingsTable";
 import { HoldingFormData, useHoldingsForm } from "./hooks/useHoldingsForm";
 import {
@@ -35,7 +45,23 @@ type HoldingsPreviewFormProps = {
 };
 
 /**
- * Generic editable-holdings form shared by Equities, ETF, and Mutual Funds.
+ * Live sum of holding quantities. Isolated into its own subscriber so the
+ * heavy analysis canvas doesn't re-render on every quantity keystroke.
+ */
+function LiveUnits({ control }: { control: Control<HoldingFormData> }) {
+  const holdings = useWatch({ control, name: "holdings" }) as
+    | HoldingWithQuantity[]
+    | undefined;
+  const total = (holdings ?? []).reduce(
+    (sum, h) => sum + (Number(h?.quantity) || 0),
+    0,
+  );
+  return <>{formatCount(total)}</>;
+}
+
+/**
+ * Editable-holdings workspace shared by Equities, ETF, and Mutual Funds. The
+ * left "ledger" curates holdings; the right "canvas" runs and renders analysis.
  * Differences between asset types live entirely in `config`.
  */
 export function HoldingsPreviewForm({
@@ -48,8 +74,7 @@ export function HoldingsPreviewForm({
   onSubmit,
   onClose,
 }: HoldingsPreviewFormProps) {
-  const { consentType, assetLabel, showCurrentValue, AnalyticsPanel } = config;
-  // Display name comes from the single ASSET_TYPE_MAP source of truth.
+  const { consentType, showCurrentValue, AnalyticsPanel } = config;
   const assetType = getAssetTypeName(consentType);
 
   const {
@@ -67,13 +92,11 @@ export function HoldingsPreviewForm({
       return;
     }
 
-    // Transform form data back to holdings (filters quantity = 0)
     const convertedHoldings = transformFormDataToHoldings(
       data.holdings,
       consentType,
     );
 
-    // Create a consolidated account carrying all edited holdings
     const firstAccountWithInvestment = fiData.find(
       (account) => account.Summary?.Investment,
     );
@@ -102,52 +125,96 @@ export function HoldingsPreviewForm({
     onSubmit(modifiedFiData);
   };
 
+  const count = fields.length;
+
+  const metrics: WorkspaceMetric[] = [
+    { label: "Holdings", value: count },
+    { label: "Total units", value: <LiveUnits control={control} /> },
+  ];
+  if (showCurrentValue && currentValue) {
+    metrics.push({ label: "Est. value", value: formatINR(currentValue) });
+  }
+
   return (
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
-      className="flex-1 overflow-hidden flex flex-col"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <div className="flex-1 overflow-y-auto space-y-4 px-1">
-        {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-600">Loading {assetLabel}...</span>
-          </div>
-        )}
+      <WorkspaceHeader
+        icon={config.icon}
+        eyebrow={config.eyebrow}
+        title={config.title}
+        metrics={metrics}
+        srDescription={config.description}
+      />
 
-        {!isLoading && (
-          <>
-            {/* Search Bar */}
-            <HoldingsSearch
-              consentType={consentType}
-              onSelectResult={handleAddSearchResult}
-            />
+      <WorkspaceSplit
+        ledger={
+          <WorkspaceColumn
+            label="Holdings Ledger"
+            addon={
+              <span className="text-text-muted text-xs">
+                edit · add · remove
+              </span>
+            }
+          >
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-11 w-full rounded-xl" />
+                <TableSkeleton rows={7} />
+              </div>
+            ) : (
+              <>
+                <HoldingsSearch
+                  consentType={consentType}
+                  onSelectResult={handleAddSearchResult}
+                />
+                <div className="mt-3 flex min-h-0 flex-1 flex-col">
+                  <HoldingsTable
+                    fields={fields}
+                    control={control}
+                    consentType={consentType}
+                    onRemove={handleRemoveHolding}
+                  />
+                  <div className="text-text-tertiary mt-2 flex items-center justify-between px-1 text-xs">
+                    <span>
+                      {formatCount(count)} holding{count === 1 ? "" : "s"}
+                    </span>
+                    <span className="tabular-nums">
+                      <LiveUnits control={control} /> units
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </WorkspaceColumn>
+        }
+        canvas={
+          <WorkspaceColumn
+            label="Portfolio Analysis"
+            className="@container/canvas"
+          >
+            {isLoading ? (
+              <div className="border-border bg-card/40 flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed">
+                <p className="text-text-muted text-sm">Loading holdings…</p>
+              </div>
+            ) : (
+              <AnalyticsPanel
+                holdingsCount={count}
+                getHoldings={() => getValues("holdings")}
+              />
+            )}
+          </WorkspaceColumn>
+        }
+      />
 
-            {/* Summary Card */}
-            <HoldingsSummaryCard
-              totalHoldings={fields.length}
-              assetType={assetType}
-              currentValue={showCurrentValue ? currentValue : undefined}
-            />
-
-            {/* Holdings Table */}
-            <HoldingsTable
-              fields={fields}
-              control={control}
-              consentType={consentType}
-              onRemove={handleRemoveHolding}
-            />
-
-            {/* Asset-specific analytics (Analyze button + results) */}
-            <AnalyticsPanel
-              holdingsCount={fields.length}
-              getHoldings={() => getValues("holdings")}
-            />
-          </>
-        )}
-      </div>
-
-      <DialogFooter className="flex flex-row justify-between items-center mt-4 gap-2">
+      <WorkspaceFooter
+        start={
+          !isLoading && count > 0
+            ? `${formatCount(count)} ${assetType.toLowerCase()} holding${count === 1 ? "" : "s"} selected for import`
+            : null
+        }
+      >
         <Button
           type="button"
           variant="outline"
@@ -158,18 +225,18 @@ export function HoldingsPreviewForm({
         </Button>
         <Button
           type="submit"
-          disabled={isLoading || fields.length === 0 || isImporting}
+          disabled={isLoading || count === 0 || isImporting}
         >
           {isImporting ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Adding to Chat...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Adding to Chat…
             </>
           ) : (
             "Add to Chat & Analyze"
           )}
         </Button>
-      </DialogFooter>
+      </WorkspaceFooter>
     </form>
   );
 }

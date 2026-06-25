@@ -112,6 +112,18 @@
   --brand-border-from: #e2e8f0;
   --brand-border-via: #bfdbfe;
   --brand-border-to: #93c5fd;
+
+  /* Data-viz series — calm, distinct, brand-aligned. Used by recharts and
+     distribution pies across import-data and portfolio analytics. */
+  --chart-1: #2563eb;
+  --chart-2: #14b8a6;
+  --chart-3: #6366f1;
+  --chart-4: #f59e0b;
+  --chart-5: #a855f7;
+  --chart-6: #0ea5e9;
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-positive: #16a34a;
+  --chart-negative: #dc2626;
 }
 
 /* ==========================================================================
@@ -196,6 +208,17 @@
   --accent-orange-bg: #7c2d12;
   --accent-orange-border: #c2410c;
   --accent-green: #34d399;
+
+  /* Data-viz series — lifted for contrast on the dark neutral surface. */
+  --chart-1: #60a5fa;
+  --chart-2: #5eead4;
+  --chart-3: #818cf8;
+  --chart-4: #fbbf24;
+  --chart-5: #c084fc;
+  --chart-6: #38bdf8;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-positive: #4ade80;
+  --chart-negative: #f87171;
 }
 
 /* ==========================================================================
@@ -279,6 +302,15 @@
   --color-accent-orange-bg: var(--accent-orange-bg);
   --color-accent-orange-border: var(--accent-orange-border);
   --color-accent-green: var(--accent-green);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-positive: var(--chart-positive);
+  --color-chart-negative: var(--chart-negative);
 }
 
 /* ==========================================================================

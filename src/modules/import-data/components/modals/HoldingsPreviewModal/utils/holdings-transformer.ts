@@ -123,7 +123,10 @@ export function transformSearchResultToHolding(
       FatcaStatus: "",
       lockinUnits: "0",
     } as EquityHolding & { quantity: number };
-  } else if (consentType === ConsentType.MUTUAL_FUNDS && "schemeCode" in result) {
+  } else if (
+    consentType === ConsentType.MUTUAL_FUNDS &&
+    "schemeCode" in result
+  ) {
     // Add mutual fund
     return {
       schemeTypes: result.sName,

@@ -5,5 +5,10 @@ import { MUTUAL_FUNDS_CONFIG } from "../HoldingsPreviewModal/editable-configs";
 
 /** Mutual fund holdings preview — the generic editable modal bound to the MF config. */
 export function MutualFundsPreviewModal(props: BaseAnalysisModalProps) {
-  return <HoldingsPreviewModal {...props} config={MUTUAL_FUNDS_CONFIG} />;
+  return (
+    <HoldingsPreviewModal
+      {...props}
+      config={MUTUAL_FUNDS_CONFIG}
+    />
+  );
 }

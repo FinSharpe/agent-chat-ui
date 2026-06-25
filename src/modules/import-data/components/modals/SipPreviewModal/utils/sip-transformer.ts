@@ -51,7 +51,7 @@ export function transformSipAccountsToMarkdownFormat(
     return {
       "Fund House": extractFundHouseName(account.maskedAccountNumber),
       "Account Number": account.maskedAccountNumber,
-      "Registrar": account.bank || "-",
+      Registrar: account.bank || "-",
       "Holder Name": holder?.name || "-",
     };
   });

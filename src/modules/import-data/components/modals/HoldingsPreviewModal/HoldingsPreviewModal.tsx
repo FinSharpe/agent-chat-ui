@@ -1,17 +1,14 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
 import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
+import {
+  WorkspaceHeader,
+  workspaceDialogContentClass,
+} from "@/modules/import-data/components/shared/ui";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
-import { BarChart3, TrendingUp } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useImportHoldingsMutation } from "../../../hooks/useImportHoldingsMutation";
 import { HoldingsPreviewForm } from "./HoldingsPreviewForm";
 import { useHoldingsData } from "./hooks/useHoldingsData";
@@ -23,9 +20,9 @@ type HoldingsPreviewModalProps = BaseAnalysisModalProps & {
 };
 
 /**
- * Generic editable-holdings preview modal shared by Equities, ETF, and Mutual
- * Funds. Handles modal state, data fetching, error state, and submission;
- * everything asset-specific is supplied via `config`.
+ * Generic editable-holdings workspace shared by Equities, ETF, and Mutual
+ * Funds. Opens as a full-screen "Analysis Workspace" (ledger + live analysis
+ * canvas); everything asset-specific is supplied via `config`.
  */
 export function HoldingsPreviewModal({
   consent,
@@ -59,7 +56,10 @@ export function HoldingsPreviewModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <DialogTrigger asChild>
         <Button
           size="sm"
@@ -67,27 +67,29 @@ export function HoldingsPreviewModal({
           className="text-xs"
           disabled={!isDataReady}
         >
-          <BarChart3 className="w-3 h-3 mr-1" />
+          <BarChart3 className="mr-1 h-3 w-3" />
           Analyse
         </Button>
       </DialogTrigger>
-      <DialogContent className="!max-w-[min(96vw,80rem)] max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
-            {config.title}
-          </DialogTitle>
-          <DialogDescription>{config.description}</DialogDescription>
-        </DialogHeader>
-
+      <DialogContent className={workspaceDialogContentClass}>
         {isError ? (
-          <FiDataErrorState
-            assetLabel={config.assetLabel}
-            errorKind={errorKind}
-            message={errorMessage}
-            consent={consent}
-            onClose={handleClose}
-          />
+          <>
+            <WorkspaceHeader
+              icon={config.icon}
+              eyebrow={config.eyebrow}
+              title={config.title}
+              srDescription={config.description}
+            />
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
+              <FiDataErrorState
+                assetLabel={config.assetLabel}
+                errorKind={errorKind}
+                message={errorMessage}
+                consent={consent}
+                onClose={handleClose}
+              />
+            </div>
+          </>
         ) : (
           <HoldingsPreviewForm
             config={config}

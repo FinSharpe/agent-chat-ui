@@ -1,12 +1,13 @@
 "use client";
-import { PortfolioAnalyticsTabs } from "@/modules/core/portfolio/components/PortfolioAnalyticsTabs";
 import { useEquitiesAnalytics } from "../../EquitiesPreviewModal/hooks/useEquitiesAnalytics";
 import { createAnalyticsPanel } from "./AnalyticsPanel";
+import { EquityAnalysisDashboard } from "./EquityAnalysisDashboard";
 
 /**
- * "Analyze Portfolio" panel for equity holdings (Portfolio Analytics API).
+ * Analysis canvas for equity holdings (Portfolio Analytics API) — a flat
+ * dashboard leading with returns + FinSharpe/Risk scores.
  */
 export const EquitiesAnalyticsPanel = createAnalyticsPanel(
   useEquitiesAnalytics,
-  PortfolioAnalyticsTabs,
+  EquityAnalysisDashboard,
 );

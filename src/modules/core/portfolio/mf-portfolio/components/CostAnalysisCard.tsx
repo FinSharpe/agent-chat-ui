@@ -28,15 +28,15 @@ export function CostAnalysisCard({ costAnalysis }: CostAnalysisCardProps) {
   };
 
   const getExpenseRatioTextColor = (ratio: number) => {
-    if (ratio <= 0.5) return "text-success-text";
-    if (ratio <= 1.0) return "text-warning-text";
-    return "text-error-text";
+    if (ratio <= 0.5) return "text-success-fg";
+    if (ratio <= 1.0) return "text-warning-fg";
+    return "text-error-fg";
   };
 
   const getExpenseRatioBarColor = (ratio: number) => {
-    if (ratio <= 0.5) return "bg-green-500";
-    if (ratio <= 1.0) return "bg-amber-500";
-    return "bg-red-500";
+    if (ratio <= 0.5) return "bg-success-fg";
+    if (ratio <= 1.0) return "bg-warning-fg";
+    return "bg-error-fg";
   };
 
   // Scale for progress bar (assuming max 2.5% expense ratio for visualization)
@@ -44,14 +44,14 @@ export function CostAnalysisCard({ costAnalysis }: CostAnalysisCardProps) {
 
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-text-primary">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-text-primary text-lg font-semibold">
           Cost Analysis
         </h3>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="p-1 hover:bg-bg-hover rounded-full transition-colors">
-              <Info className="h-4 w-4 text-text-tertiary" />
+            <button className="hover:bg-bg-hover rounded-full p-1 transition-colors">
+              <Info className="text-text-tertiary h-4 w-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent className="max-w-xs">
@@ -66,8 +66,8 @@ export function CostAnalysisCard({ costAnalysis }: CostAnalysisCardProps) {
       <div className="space-y-6">
         {/* Expense Ratio */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-text-secondary">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-text-secondary text-sm">
               Weighted Avg. Expense Ratio
             </span>
             <span
@@ -76,34 +76,32 @@ export function CostAnalysisCard({ costAnalysis }: CostAnalysisCardProps) {
               {expenseRatio.toFixed(2)}%
             </span>
           </div>
-          <div className="w-full h-2 bg-border-default rounded-full overflow-hidden">
+          <div className="bg-border-default h-2 w-full overflow-hidden rounded-full">
             <div
               className={`h-full rounded-full transition-all ${getExpenseRatioBarColor(expenseRatio)}`}
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
-          <div className="flex justify-between mt-1 text-xs text-text-tertiary">
+          <div className="text-text-tertiary mt-1 flex justify-between text-xs">
             <span>0%</span>
             <span>2.5%</span>
           </div>
         </div>
 
         {/* Estimated Annual Cost */}
-        <div
-          className={`p-4 rounded-lg ${getExpenseRatioColor(expenseRatio)}`}
-        >
-          <div className="text-sm text-text-secondary mb-1">
+        <div className={`rounded-lg p-4 ${getExpenseRatioColor(expenseRatio)}`}>
+          <div className="text-text-secondary mb-1 text-sm">
             Estimated Annual Cost
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-text-primary">
+            <span className="text-text-primary text-2xl font-bold">
               {annualCost.toLocaleString("en-IN", {
                 style: "currency",
                 currency: "INR",
                 maximumFractionDigits: 0,
               })}
             </span>
-            <span className="text-sm text-text-tertiary">
+            <span className="text-text-tertiary text-sm">
               on{" "}
               {portfolioValue.toLocaleString("en-IN", {
                 style: "currency",
@@ -116,17 +114,17 @@ export function CostAnalysisCard({ costAnalysis }: CostAnalysisCardProps) {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 text-xs text-text-tertiary">
+        <div className="text-text-tertiary flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <div className="bg-success-fg h-2 w-2 rounded-full" />
             <span>Low (&lt;0.5%)</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-amber-500" />
+            <div className="bg-warning-fg h-2 w-2 rounded-full" />
             <span>Medium (0.5-1%)</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <div className="bg-error-fg h-2 w-2 rounded-full" />
             <span>High (&gt;1%)</span>
           </div>
         </div>

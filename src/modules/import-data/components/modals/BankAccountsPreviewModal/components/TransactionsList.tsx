@@ -1,16 +1,17 @@
 /**
  * Transactions List Component
- * Displays recent transactions in a scrollable table format
+ * Displays recent transactions in a scrollable list
  */
 
 "use client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowDownLeft, ArrowUpRight, Receipt } from "lucide-react";
-import {
-  ProcessedTransaction,
-  formatCurrency,
-} from "../utils/transaction-analytics";
 import { cn } from "@/lib/utils";
+import {
+  DataPanel,
+  formatINR,
+  formatCount,
+} from "@/modules/import-data/components/shared/ui";
+import { ProcessedTransaction } from "../utils/transaction-analytics";
 
 interface TransactionsListProps {
   transactions: ProcessedTransaction[];
@@ -21,39 +22,41 @@ interface TransactionsListProps {
 /**
  * Transaction row component
  */
-function TransactionRow({ transaction }: { transaction: ProcessedTransaction }) {
+function TransactionRow({
+  transaction,
+}: {
+  transaction: ProcessedTransaction;
+}) {
   const isCredit = transaction.type === "CREDIT";
 
   return (
-    <div className="flex items-start gap-3 py-3 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors">
+    <div className="hover:bg-bg-hover flex items-start gap-3 px-3 py-3 transition-colors">
       {/* Icon */}
       <div
         className={cn(
-          "mt-1 p-2 rounded-full",
-          isCredit
-            ? "bg-green-100 dark:bg-green-900/30"
-            : "bg-red-100 dark:bg-red-900/30",
+          "mt-0.5 rounded-full p-2",
+          isCredit ? "bg-success-bg" : "bg-error-bg",
         )}
       >
         {isCredit ? (
-          <ArrowDownLeft className="w-4 h-4 text-green-600 dark:text-green-400" />
+          <ArrowDownLeft className="text-success-fg h-4 w-4" />
         ) : (
-          <ArrowUpRight className="w-4 h-4 text-red-600 dark:text-red-400" />
+          <ArrowUpRight className="text-error-fg h-4 w-4" />
         )}
       </div>
 
       {/* Transaction details */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+          <div className="min-w-0 flex-1">
+            <p className="text-text-primary truncate text-sm font-medium">
               {transaction.narration || "No description"}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-text-tertiary mt-0.5 text-xs">
               {transaction.formattedDate} • {transaction.formattedTime}
             </p>
             {transaction.mode && (
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              <p className="text-text-muted mt-0.5 text-xs">
                 via {transaction.mode}
               </p>
             )}
@@ -63,24 +66,22 @@ function TransactionRow({ transaction }: { transaction: ProcessedTransaction }) 
           <div className="text-right">
             <p
               className={cn(
-                "text-sm font-semibold",
-                isCredit
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400",
+                "text-sm font-semibold tabular-nums",
+                isCredit ? "text-success-fg" : "text-error-fg",
               )}
             >
               {isCredit ? "+" : "-"}
-              {formatCurrency(transaction.parsedAmount)}
+              {formatINR(transaction.parsedAmount, { maxDecimals: 2 })}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Bal: {formatCurrency(transaction.parsedBalance)}
+            <p className="text-text-tertiary mt-0.5 text-xs tabular-nums">
+              Bal: {formatINR(transaction.parsedBalance, { maxDecimals: 2 })}
             </p>
           </div>
         </div>
 
         {/* Reference (if available) */}
         {transaction.reference && (
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+          <p className="text-text-muted mt-1 truncate text-xs">
             Ref: {transaction.reference}
           </p>
         )}
@@ -99,45 +100,43 @@ export function TransactionsList({
 }: TransactionsListProps) {
   if (!transactions || transactions.length === 0) {
     return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2 pt-2 md:pt-4">
-            <Receipt className="w-4 h-4" />
-            Recent Transactions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-[200px] text-gray-500 text-sm">
-            No transactions available
-          </div>
-        </CardContent>
-      </Card>
+      <DataPanel
+        title="Recent Transactions"
+        icon={Receipt}
+        className={className}
+      >
+        <div className="text-text-tertiary flex h-[160px] items-center justify-center text-sm">
+          No transactions available
+        </div>
+      </DataPanel>
     );
   }
 
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2 pt-2 md:pt-4">
-          <Receipt className="w-4 h-4 text-indigo-600" />
-          Recent Transactions
-          <span className="ml-auto text-xs font-normal text-gray-500">
-            {transactions.length} transactions
-          </span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div
-          style={{ maxHeight }}
-          className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-700 dark:scrollbar-track-gray-900 pr-2"
-        >
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {transactions.map((transaction, index) => (
-              <TransactionRow key={`${transaction.txnId}-${index}`} transaction={transaction} />
-            ))}
-          </div>
+    <DataPanel
+      title="Recent Transactions"
+      icon={Receipt}
+      className={className}
+      noPadding
+      addon={
+        <span className="text-text-tertiary text-xs">
+          {formatCount(transactions.length)} shown
+        </span>
+      }
+    >
+      <div
+        style={{ maxHeight }}
+        className="scrollbar-thin overflow-y-auto"
+      >
+        <div className="divide-border-subtle divide-y">
+          {transactions.map((transaction, index) => (
+            <TransactionRow
+              key={`${transaction.txnId}-${index}`}
+              transaction={transaction}
+            />
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </DataPanel>
   );
 }

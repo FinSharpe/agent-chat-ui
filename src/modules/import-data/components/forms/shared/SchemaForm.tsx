@@ -13,6 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { FormProps } from "../../../types/import-data.types";
 import {
   FieldDef,
   FormSchema,
@@ -76,6 +77,18 @@ export function SchemaForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Fields owned by sections that are currently visible. Hidden-section
+    // values are pruned from the payload so a discriminator change (e.g.
+    // switching insuranceType) can't leak stale fields from a now-hidden
+    // section into the submission.
+    const visibleFieldNames = new Set(
+      visibleSections.flatMap((section) =>
+        section.rows
+          .flatMap((r) => (isFieldArray(r) ? r : [r]))
+          .map((field) => field.name),
+      ),
+    );
+
     // Required-field validation (visible fields only), focusing the first gap.
     for (const section of visibleSections) {
       for (const field of section.rows.flatMap((r) => (isFieldArray(r) ? r : [r]))) {
@@ -96,7 +109,11 @@ export function SchemaForm({
       return;
     }
 
-    onSubmit(values);
+    const visibleValues: FormValues = Object.fromEntries(
+      Object.entries(values).filter(([name]) => visibleFieldNames.has(name)),
+    );
+
+    onSubmit(visibleValues);
     setValues(schema.initialValues);
   };
 
@@ -121,6 +138,28 @@ export function SchemaForm({
       </div>
     </form>
   );
+}
+
+/**
+ * Bind a schema into a named form component with the shared `FormProps`
+ * contract, so each manual form is a one-line export instead of a duplicated
+ * pass-through wrapper.
+ */
+export function createSchemaForm(schema: FormSchema) {
+  return function BoundSchemaForm({
+    onSubmit,
+    onCancel,
+    initialData,
+  }: FormProps<FormValues>) {
+    return (
+      <SchemaForm
+        schema={schema}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+        initialData={initialData}
+      />
+    );
+  };
 }
 
 function SectionView({

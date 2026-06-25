@@ -87,13 +87,13 @@ export function useFiDataConsentFlow() {
     enabled: isEnabled,
     // Poll while the AA finishes preparing data ("data not ready yet" keeps
     // failing), but cancel the poll on a dead/invalid consent (it'll never
-    // resolve) and cap it at ~60s so it can't retry forever.
+    // resolve) and cap it at ~120s so it can't retry forever.
     retry: (failureCount, error) => {
       const e = error as FiDataError;
       if (classifyFiDataError(e.errorCode, e.message) === "consent-dead") {
         return false;
       }
-      return failureCount < 20;
+      return failureCount < 40;
     },
     retryDelay: 3000,
     // gcTime (7 days), staleTime (Infinity), and refetchOnWindowFocus inherited from QueryProvider setQueryDefaults

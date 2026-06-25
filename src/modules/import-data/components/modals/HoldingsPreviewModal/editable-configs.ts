@@ -15,8 +15,6 @@ export type EditableHoldingsConfig = {
   title: string;
   /** Dialog description shown under the title. */
   description: string;
-  /** Display name for the summary card, e.g. "Equity". */
-  assetType: string;
   /** Lowercase label for the loading text + error state, e.g. "equity holdings". */
   assetLabel: string;
   /** Show the summed current value in the summary card (ETF only). */
@@ -30,7 +28,6 @@ export const EQUITIES_CONFIG: EditableHoldingsConfig = {
   title: "Equity Holdings Preview",
   description:
     "Review, edit quantities, or add new equity holdings before analysis",
-  assetType: "Equity",
   assetLabel: "equity holdings",
   AnalyticsPanel: EquitiesAnalyticsPanel,
 };
@@ -40,7 +37,6 @@ export const ETF_CONFIG: EditableHoldingsConfig = {
   title: "ETF Holdings Preview",
   description:
     "Review, edit quantities, or add new ETF holdings before analysis",
-  assetType: "ETF",
   assetLabel: "ETF holdings",
   showCurrentValue: true,
   // The MF Portfolio Analytics API works on isin + quantity, so ETF reuses it.
@@ -52,7 +48,6 @@ export const MUTUAL_FUNDS_CONFIG: EditableHoldingsConfig = {
   title: "Mutual Fund Holdings Preview",
   description:
     "Review, edit quantities, or add new mutual fund holdings before analysis",
-  assetType: "Mutual Fund",
   assetLabel: "mutual fund holdings",
   AnalyticsPanel: MfAnalyticsPanel,
 };

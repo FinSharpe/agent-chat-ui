@@ -268,9 +268,10 @@ export const getConsentList = async (
       if (expectedProductID && consent.productID !== expectedProductID) {
         throw new Error("Resolved consent does not match the requested type");
       }
-      // accountID mismatch is anomalous but its echo semantics aren't yet
-      // verified against live traffic — warn (dev) rather than hard-fail. See
-      // IMPORT_HOLDINGS_DOCUMENTATION.md Appendix B.
+      // TODO(security): once accountID echo semantics are confirmed against
+      // live traffic, hard-fail on mismatch like the productID check above.
+      // It's a dev-only warn for now so an unverified echo can't block real
+      // returns — tracked in IMPORT_HOLDINGS_DOCUMENTATION.md Appendix B.
       if (
         process.env.NODE_ENV === "development" &&
         consent.accountID !== accountID

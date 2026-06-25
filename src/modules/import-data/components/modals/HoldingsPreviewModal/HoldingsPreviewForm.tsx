@@ -10,6 +10,7 @@ import { HoldingsTable } from "./components/HoldingsTable";
 import { HoldingFormData, useHoldingsForm } from "./hooks/useHoldingsForm";
 import {
   HoldingWithQuantity,
+  getAssetTypeName,
   transformFormDataToHoldings,
 } from "./utils/holdings-transformer";
 import type { EditableHoldingsConfig } from "./editable-configs";
@@ -47,8 +48,9 @@ export function HoldingsPreviewForm({
   onSubmit,
   onClose,
 }: HoldingsPreviewFormProps) {
-  const { consentType, assetType, assetLabel, showCurrentValue, AnalyticsPanel } =
-    config;
+  const { consentType, assetLabel, showCurrentValue, AnalyticsPanel } = config;
+  // Display name comes from the single ASSET_TYPE_MAP source of truth.
+  const assetType = getAssetTypeName(consentType);
 
   const {
     control,

@@ -1,1972 +1,423 @@
-# Import Holdings via MoneyOne Account Aggregator - Technical Documentation
+# MoneyOne Import — Architecture Reference
 
-## Table of Contents
-1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Complete User Flow](#complete-user-flow)
-4. [Technical Implementation](#technical-implementation)
-5. [Data Models](#data-models)
-6. [Storage Strategy](#storage-strategy)
-7. [API Integration](#api-integration)
-8. [Code References](#code-references)
-9. [Configuration](#configuration)
-10. [Error Handling](#error-handling)
-11. [Security Considerations](#security-considerations)
-12. [Resuming Existing Consents](#resuming-existing-consents)
+How the **Import Data** feature connects a user's financial accounts through the
+RBI Account Aggregator (AA) framework via **MoneyOne / FinPro**, fetches their
+holdings, and imports them into a chat thread.
 
----
-
-## Overview
-
-The import holdings feature enables users to securely import their financial data (Equities, Mutual Funds, ETFs, and Bank Accounts) from their financial institutions through India's RBI-approved Account Aggregator (AA) framework, powered by MoneyOne.
-
-### Key Features
-- **RBI-Approved**: Uses Account Aggregator framework for secure data access
-- **Bank-Level Security**: 256-bit encryption and read-only access
-- **No Credential Storage**: Never stores user login credentials
-- **Interactive Preview**: Review and edit holdings before importing to chat
-- **Manual Refresh**: Refresh data on-demand with cache invalidation
-- **Persistent Consent**: Stores consent data in browser localStorage with reactive updates
-- **AI Analysis**: Import holdings as markdown table for portfolio insights
-
-### Supported Asset Types
-- **Equities (EQSUMMARY)**: Stock holdings with ISIN, units, last traded price - *Editable form*
-- **Mutual Funds (WM101)**: MF holdings with scheme details, NAV, folio numbers - *Editable form*
-- **ETF**: Exchange Traded Fund holdings - *Editable form (Placeholder, pending API response)*
-- **Bank Accounts (DEPOSITDETAILS)**: Bank account statements and transactions - *Read-only with analytics*
-- **SIP**: Systematic Investment Plan registrations - *Read-only preview (SipPreviewModal)*
+> **Conventions in this doc**
+> - References are written as `file` or `file → function`, **never line numbers**
+>   (they rot). When in doubt, grep the symbol.
+> - Code is summarized as **contracts** (inputs → outputs → responsibility). No
+>   block is a verbatim copy of source — read the file for the body.
+> - Companion doc: **`ADDING_NEW_MONEYONE_CONSENT_TYPE.md`** (the runbook for
+>   adding a new asset type). This file is the source of truth for *how the
+>   feature works*; the runbook never re-explains the machinery here.
 
 ---
 
-## Architecture
+## 1. Overview
 
-### Component Hierarchy
+The feature lives at the dedicated route `src/app/(main)/import/page.tsx`, which
+renders `modules/import-data → ImportDataPage`. There is **no `importViewOpen`
+URL toggle** — import is its own page.
 
-```
-Thread (Main Chat UI)
-├─ FetchingFiDataModal (OAuth callback & data fetching)
-├─ ImportDataPage (Import view)
-│   └─ MoneyOneHoldingsCard (Reusable for all MoneyOne consent types)
-│       ├─ ImportHoldings (Connect button)
-│       │   ├─ useCheckConsentMut (check existing consent)
-│       │   └─ CreateConsentModel (new consent form)
-│       │       └─ useCreateConsentAndRedirectMut
-│       ├─ useConsentQuery (real-time consent status)
-│       ├─ useRefreshFiData (manual refresh button)
-│       └─ AnalysisModal (Passed as prop - varies by consent type)
-│           │
-│           ├─ EquitiesPreviewModal (Editable form)
-│           │   ├─ useEquitiesData
-│           │   └─ useImportEquitiesMutation
-│           │
-│           ├─ MutualFundsPreviewModal (Editable form)
-│           │   ├─ useMutualFundsData
-│           │   └─ useImportMutualFundsMutation
-│           │
-│           ├─ EtfPreviewModal (Editable form - Placeholder)
-│           │   ├─ useEtfData
-│           │   └─ useImportEtfMutation
-│           │
-│           └─ BankAccountsPreviewModal (Read-only with analytics)
-│               ├─ useBankAccountsData
-│               ├─ useImportBankAccountsMutation
-│               └─ Analytics Components (charts, transaction list)
-└─ ThreadHistory
-    └─ Import Button (opens ImportDataPage)
-```
+One pass through the feature:
 
-### State Management Flow
+1. **Connect** — the user authorizes an AA consent for an asset type (mobile +
+   PAN), and is redirected to the AA approval page.
+2. **Return** — the AA sends the user back to `/moneyone/[slug]`, which resolves
+   the real `consentID` and redirects to `/import?consentID=…`.
+3. **Fetch** — `/import` detects those params, completes the pending consent in
+   `localStorage`, fetches FI data from FinPro, and marks the consent ready.
+4. **Use** — each asset card shows Connected/Expired state with Refresh / Remove,
+   and an **Analyse** preview modal that reads the fetched holdings.
+
+**Source of truth for "is this consent connected?" is the browser's
+`localStorage`** — the server never holds per-user consent state. This is the
+single most important fact about the architecture and the reason the data-ready
+webhook was removed (see **Appendix A**).
 
 ```
-URL Query State (nuqs)
-├─ importViewOpen: boolean (toggles import view)
-├─ threadId: string | null (current thread)
-├─ consentID: string (temporary after OAuth redirect)
-├─ consentType: ConsentType (temporary after OAuth)
-├─ mobileNo: string (temporary after OAuth)
-└─ consentCreationData: string (temporary after OAuth)
-
-localStorage (moneyone.storage.ts)
-├─ moneyone:userId (browser-unique user ID)
-├─ moneyone:consent:{consentID} (consent data)
-├─ moneyone:user:{userId}:consents (user's consent index)
-└─ moneyone:pending-consent:{consentHandle} (temporary during OAuth)
-
-React Query Cache
-├─ ["consent", consentType] (consent status, 1s staleTime)
-└─ ["fi-data", consentID] (FI data, 7-day gcTime, infinite staleTime)
-
-Custom Events
-└─ "moneyone:consent-updated" (localStorage changes broadcast)
+Connect ─▶ AA approval ─▶ /moneyone/[slug] ─▶ /import?consentID=… ─▶ FI fetch ─▶ card "Connected" ─▶ Analyse
+  (client)     (MoneyOne)     (server route)        (client)         (client)        (client)        (client)
 ```
+
+Supported asset types (`ConsentType` enum, `lib/moneyone/moneyone.enums.ts`):
+`EQUITIES`, `MUTUAL_FUNDS`, `ETF`, `BANK_ACCOUNTS`, `SIP`.
 
 ---
 
-## Complete User Flow
+## 2. End-to-End Flow
 
-### Visual Flow Diagram
+Each step lists the **file → function** that owns it.
+
+### 2.1 Create consent + redirect to the AA
+
+1. `ImportDataPage` renders a `MoneyOneHoldingsCard` per asset type. With no
+   ready consent, the card renders `components/moneyone/import-holdings →
+   ImportHoldings`, whose **Connect** button runs `useCheckConsentMut`.
+2. `useCheckConsentMut` reads `getUserConsent(type)` from `localStorage`. If a
+   ready consent exists it short-circuits; otherwise it opens
+   `CreateConsentModel`.
+3. `CreateConsentModel` collects **mobile (10-digit)** and **PAN (10-char)**. On
+   submit it first calls `useListConsentsMut` → `listConsents(mobile, type)`:
+   - **Existing consents found** → switch to the **Resume** view
+     (`ResumeConsents`, see §2.5).
+   - **None** → create a new one via `useCreateConsentAndRedirectMut`.
+4. `useCreateConsentAndRedirectMut → createConsentRequestV3` (server action)
+   creates the consent **and** returns the AA `webRedirectionUrl` in one call.
+   Before redirecting, it writes a **pending** record to
+   `localStorage["moneyone:pending-consent:{consentHandle}"]` (so the return
+   handler can complete it), then sets `window.location.href = webRedirectionUrl`.
+
+`accountID` sent to MoneyOne is the **browser's `moneyone:userId`** (a generated
+UUID) — see `moneyone.storage → getUserId`.
+
+### 2.2 Return from the AA
+
+The AA redirects the browser to a slug route registered with MoneyOne:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        IMPORT HOLDINGS COMPLETE FLOW                         │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────┐
-│     USER     │
-│  clicks      │
-│  "Import"    │
-└──────┬───────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 1: INITIATE IMPORT                                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • importViewOpen = true (URL state)                                         │
-│  • ImportDataPage renders                                                    │
-│  • MoneyOneHoldingsCard checks localStorage                                  │
-│  • useConsentQuery → getUserConsent(consentType)                            │
-│                                                                              │
-│  [localStorage]                                                              │
-│  ┌─────────────────────────────────────┐                                    │
-│  │ moneyone:userId = abc123            │ ◄── Get or create browser ID       │
-│  │ moneyone:consent:{id}? = null       │     (First time: No consent)       │
-│  └─────────────────────────────────────┘                                    │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-                ┌────────────────┴────────────────┐
-                │ Consent Exists?                 │
-                └────┬─────────────────────┬──────┘
-                     │ NO                  │ YES (isDataReady=true)
-                     │                     │
-                     ▼                     ▼
-         ┌───────────────────┐   ┌──────────────────────┐
-         │ Show "Connect"    │   │ Show "Connected"     │
-         │ Button            │   │ + Refresh button     │
-         └─────────┬─────────┘   │ + "Analyse" button   │
-                   │             └──────────┬───────────┘
-                   │                        │
-                   │                        └────────────────┐
-                   │                                         │
-                   ▼                                         │
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 2: CONSENT CREATION                                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • User clicks "Connect"                                                     │
-│  • useCheckConsentMut checks localStorage (finds nothing)                   │
-│  • CreateConsentModal opens                                                  │
-│  • User enters: Mobile (10 digits), PAN (10 chars)                          │
-│                                                                              │
-│  ┌─────────────────────────────────────┐                                    │
-│  │  CreateConsentModal                 │                                    │
-│  │  ┌──────────────────────────────┐   │                                    │
-│  │  │ Mobile: [__________]         │   │                                    │
-│  │  │ PAN:    [__________]         │   │                                    │
-│  │  │        [Create Consent]      │   │                                    │
-│  │  └──────────────────────────────┘   │                                    │
-│  └─────────────────────────────────────┘                                    │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 3: CONSENT REQUEST & REDIRECT (V3 API)                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • useCreateConsentAndRedirectMut.mutate()                                  │
-│  • Generate userId from localStorage                                         │
-│  • Construct redirect URL: /moneyone/{type}~{userId}~{threadId?}           │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │ POST /v3/requestconsent (MoneyOne API)                               │   │
-│  │ ────────────────────────────────────────────────────────────────►    │   │
-│  │                                                                       │   │
-│  │ ◄──────────────────────────────────────────────────────────────────  │   │
-│  │ Response: {                                                           │   │
-│  │   webRedirectionUrl,                                                 │   │
-│  │   consent_handle,                                                    │   │
-│  │   status: "PENDING"                                                  │   │
-│  │ }                                                                     │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  [localStorage] Save pending consent:                                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ moneyone:pending-consent:{handle} = {                               │   │
-│  │   consentHandle, mobileNo, consentType, userId,                     │   │
-│  │   consentCreationData, consentExpiry, name                          │   │
-│  │ }                                                                    │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  • Redirect user to webRedirectionUrl (MoneyOne OAuth)                      │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 4: OAUTH FLOW (External - MoneyOne)                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │                     MoneyOne OAuth Page                            │     │
-│  │                                                                     │     │
-│  │  1. User authenticates (Broker/AMC login)                          │     │
-│  │  2. User grants consent for data access                            │     │
-│  │  3. MoneyOne redirects back with encrypted params                  │     │
-│  │                                                                     │     │
-│  │     /?ecres=...&fi=...&resdate=...                                 │     │
-│  └────────────────────────────────────────────────────────────────────┘     │
-│                                                                              │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 5: CONSENT VERIFICATION & REDIRECT                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • /moneyone/[slug]/page.tsx (Server-side)                                  │
-│  • Parse slug: {consentType}~{accountID}~{threadId?}                        │
-│                                                                             │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │ POST /webRedirection/decryptUrl                                      │   │
-│  │ ────────────────────────────────────────────────────────────────►    │   │
-│  │ ◄──────────────────────────────────────────────────────────────────  │   │
-│  │ Response: { userid, srcref (consentHandle) }                         │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │ POST /v2/getconsentslist                                             │   │
-│  │ ────────────────────────────────────────────────────────────────►    │   │
-│  │ ◄──────────────────────────────────────────────────────────────────  │   │
-│  │ Response: [{ consentID, consentHandle, ... }]                        │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  • Extract real consentID                                                   │
-│  • Redirect to: /?consentID={id}&consentType={type}&mobileNo={no}&...       │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  PHASE 6: FI DATA FETCHING & CONSENT COMPLETION                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  • FetchingFiDataModal opens (detects consentID in URL)                     │
-│  • useFiDataConsentFlow triggered                                           │
-│                                                                             │
-│  [React Query] queryKey: ["fi-data", consentID]                             │
-│                                                                             │
-│  Step 1: Complete pending consent                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ completePendingConsent(consentID, consentType, mobileNo)            │    │
-│  │ • Find pending consent in localStorage                              │    │
-│  │ • Save full consent with real consentID                             │    │
-│  │ • Remove pending consent                                            │    │
-│  │ • Dispatch "moneyone:consent-updated" event                         │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                             │
-│  [localStorage] Updated:                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ moneyone:consent:{consentID} = {                                    │    │
-│  │   consentID, userId, consentType, mobileNo,                         │    │
-│  │   isDataReady: false,  ◄── Not ready yet                            │    │
-│  │   consentCreationData, consentExpiry                                │    │
-│  │ }                                                                   │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                             │
-│  Step 2: Fetch FI data (with retry logic)                                   │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │ POST /getallfidata (wait 3s before first fetch)                      │   │
-│  │ ────────────────────────────────────────────────────────────────►    │   │
-│  │                                                                      │   │
-│  │ If error "NoDataFound":                                              │   │
-│  │   • React Query retries every 3s (unlimited retries)                 │   │
-│  │                                                                      │   │
-│  │ ◄──────────────────────────────────────────────────────────────────  │   │
-│  │ Response: FiDataResponse (holdings data)                             │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-│  Step 3: Update consent & cache data                                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ [React Query Cache]                                                 │    │
-│  │ ["fi-data", consentID] = FiDataResponse                             │    │
-│  │ gcTime: 7 days, staleTime: Infinity                                 │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │ updateConsent(consentID, { isDataReady: true })                     │    │
-│  │ Dispatch "moneyone:consent-updated" event                           │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                             │
-│  • Remove URL params (consentID, consentType, mobileNo...)                  │
-│  • Close modal after 1.5s delay                                             │
-└────────────────────────────────┬────────────────────────────────────────────┘
-                                 │
-        ┌────────────────────────┴────────────────────────┐
-        │                                                 │
-        ▼                                                 ▼
-┌─────────────────────┐                    ┌──────────────────────────────────┐
-│ PHASE 7:            │                    │ PHASE 8:                         │
-│ HOLDINGS PREVIEW    │                    │ MANUAL REFRESH                   │
-│ & IMPORT            │                    │                                  │
-├─────────────────────┤                    ├──────────────────────────────────┤
-│                     │                    │ • User clicks refresh (🔄)       │
-│ User clicks         │                    │                                  │
-│ "Analyse"           │                    │ ┌──────────────────────────────┐ │
-│                     │                    │ │ POST /fi/request             │ │
-│ ┌─────────────────┐ │                    │ │ ──────────────────────────►  │ │
-│ │ Preview Modal   │ │                    │ │ ◄────────────────────────────│ │
-│ │ Opens           │ │                    │ │ Triggers fresh fetch         │ │
-│ │                 │ │                    │ └──────────────────────────────┘ │
-│ │ • Fetch from    │ │                    │                                  │
-│ │   React Query   │ │                    │ • Clear React Query cache:       │
-│ │   cache         │ │                    │   removeQueries(["fi-data"])     │
-│ │                 │ │                    │                                  │
-│ │ • Transform to  │ │                    │ • Poll getAllFiData() every 3s   │
-│ │   editable form │ │                    │   (max 20 retries ≈ 60s)         │
-│ │                 │ │                    │                                  │
-│ │ • User edits    │ │                    │ • Update cache with fresh data   │
-│ │   quantities    │ │                    │                                  │
-│ │                 │ │                    │ • Update timestamp:              │
-│ │ • Add/remove    │ │                    │   consentCreationData = now()    │
-│ │   holdings      │ │                    │                                  │
-│ └─────────────────┘ │                    │ • All components auto-update     │
-│                     │                    │                                  │
-│ User clicks         │                    └──────────────────────────────────┘
-│ "Import"            │
-│                     │
-│ ┌─────────────────┐ │
-│ │ Transform to    │ │
-│ │ markdown table  │ │
-│ │                 │ │
-│ │ • Filter qty=0  │ │
-│ │ • Format data   │ │
-│ │ • Create msg    │ │
-│ └─────────────────┘ │
-│                     │
-│ ┌─────────────────┐ │
-│ │ stream.submit() │ │
-│ │                 │ │
-│ │ Send to AI for  │ │
-│ │ analysis        │ │
-│ └─────────────────┘ │
-│                     │
-└─────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  KEY COMPONENTS & STATE                                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  [URL State (nuqs)]                                                         │
-│  • importViewOpen: boolean                                                  │
-│  • threadId: string | null                                                  │
-│  • consentID: string (temporary during flow)                                │
-│                                                                             │
-│  [localStorage]                                                             │
-│  • moneyone:userId                          ◄── Browser-unique ID (UUID)    │
-│  • moneyone:consent:{consentID}             ◄── Full consent data           │
-│  • moneyone:user:{userId}:consents          ◄── Array of consent IDs        │
-│  • moneyone:pending-consent:{handle}        ◄── Temporary (during OAuth)    │
-│                                                                             │
-│  [React Query Cache]                                                        │
-│  • ["consent", consentType]                 ◄── 1s staleTime, auto-refetch  │
-│  • ["fi-data", consentID]                   ◄── 7-day cache, never stale    │
-│                                                                             │
-│  [Custom Events]                                                            │
-│  • "moneyone:consent-updated"               ◄── Dispatched on localStorage  │
-│                                                  changes for reactivity     │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+/moneyone/{consentType}~{accountID}~{threadId?}?ecres=…&resdate=…&fi=…
 ```
 
-### Phase 1: Initiate Import
+`~` is the delimiter (account/thread IDs may contain `-`). Handled by the
+**server component** `src/app/moneyone/[slug]/page.tsx`:
 
-**Location**: Import Data Page → Connect Accounts section
+1. Parse and validate the slug's `consentType` + `accountID`.
+2. `decryptUrl(searchParams)` (server action) → MoneyOne returns the decrypted
+   payload as a discriminated result `{ success, status, data }`.
+   - `status === "rejected" | "failed"` → render `ConsentFailedRedirect` (a
+     countdown back to `/import`).
+   - `status === "error"` → render an inline error.
+3. On success, derive `mobileNo = userid.split("@")[0]` and
+   `consentHandle = srcref`, then `getConsentList(consentHandle, mobileNo,
+   consentType, accountID)` to resolve the real `consentID`.
+4. `redirect('/import?consentID=…&consentType=…&mobileNo=…&consentCreationData=…')`.
 
-1. User clicks "Import" from ThreadHistory sidebar
-2. `importViewOpen` query param set to `true`
-3. `ImportDataPage` renders with `MoneyOneHoldingsCard` components
-4. `useConsentQuery` hook checks localStorage for existing consents
-5. Cards show "Connect" button if no valid consent exists
-6. Cards show "Connected" status + refresh button if data ready
+> The first FI fetch is **not** triggered here — the MoneyOne consent template is
+> configured to auto-fetch on first approval (see §8). `requestFiData` is left
+> commented in the route on purpose.
 
-**Code**:
-- `src/components/thread/history/index.tsx:165-178`
-- `src/modules/import-data/components/ImportDataPage.tsx:76-90`
-- `src/modules/import-data/components/account-types/MoneyOneHoldingsCard.tsx`
+### 2.3 FI-data fetch + persist (on `/import`)
 
-### Phase 2: Consent Creation
+`ImportDataPage` always renders `FetchingFiDataModal`, which drives
+`useFiData → useFiDataConsentFlow`:
 
-**Location**: Connect button → Create Consent Modal
+1. Reads `consentID` / `consentType` (+ `mobileNo`, `consentCreationData`) from
+   the URL; enabled only when a valid `consentType` is present.
+2. Once, before the query: `completePendingConsent(consentID, type, mobileNo,
+   consentCreationData)` — promotes the `pending-consent` record to a real
+   `moneyone:consent:{consentID}` record (`isDataReady: false`).
+3. Query: `getAllFiData(consentID, 3000)` with retry (3 s) until data is present.
+4. On success: `updateConsent(consentID, { isDataReady: true, isExpired: false })`,
+   strip the consent params from the URL via `history.pushState`, close the modal.
+5. `FiDataAnimation` renders the `fetching | success | error` state.
 
-1. User clicks "Connect" on Equity or MF card
-2. `ImportHoldings` component executes `useCheckConsentMut`
-   - Checks `getUserConsent(consentType)` from localStorage
-   - If consent exists with `isDataReady: true`, returns FI data
-   - If no consent, returns null to trigger modal
-3. `CreateConsentModel` modal opens
-4. User enters:
-   - Mobile number (10 digits)
-   - PAN number (10 alphanumeric chars, auto-uppercase)
+### 2.4 Card display + per-type preview
 
-**Code**:
-- `src/components/moneyone/import-holdings.tsx:16-66`
-- `src/components/moneyone/useCheckConsentMut.ts`
-- `src/components/moneyone/CreateConsentModel.tsx:21-90`
+`MoneyOneHoldingsCard` subscribes via `useConsentQuery(type)` and renders:
 
-### Phase 3: Consent Request & Redirect (V3 API)
+- **No consent / not ready** → the `ImportHoldings` Connect button.
+- **Connected** (`isDataReady && !isExpired`) → "Connected", **Refresh**
+  (`useRefreshFiData`), **Remove** (`ConfirmDialog` → §2.6).
+- **Expired** (`isExpired`) → amber state, same Refresh / Remove actions.
 
-**Location**: Create Consent Modal → MoneyOne OAuth
+The **Analyse** button is the consent-type-specific `AnalysisModal` passed in by
+`ImportDataPage` (the preview modal, §3.2), which reads holdings through
+`useFiData(consentID)` off the shared cache.
 
-**Flow**:
-```
-useCreateConsentAndRedirectMut.mutate()
-  ↓
-Generate browser-unique userId via getUserId()
-  ↓
-Construct redirect URL:
-  /moneyone/{consentType}~{userId}~{threadId?}
-  ↓
-createConsentRequestV3(mobileNo, consentType, userId, pan, redirectUrl)
-  → POST /v3/requestconsent (single API call)
-  ← { status: "success", data: {
-      webRedirectionUrl,
-      consent_handle,
-      status
-    }}
-  ↓
-Save pending consent to localStorage
-  key: moneyone:pending-consent:{consentHandle}
-  value: {
-    consentHandle,
-    mobileNo,
-    consentType,
-    userId,
-    consentCreationData,
-    consentExpiry,
-    name
-  }
-  ↓
-redirect(webRedirectionUrl) → User taken to MoneyOne OAuth page
-```
+### 2.5 Resume existing consents
 
-**Important**: V3 API combines consent creation + encrypted URL generation in one call, replacing the older V2 two-step flow.
+`ResumeConsents` (reached from `CreateConsentModel` when `listConsents` returns
+hits) lists non-expired, resumable consents and offers, per item
+(`components/moneyone/useResumeConsents`):
 
-**Redirect URL Format**:
-```
-https://yourdomain.com/moneyone/{consentType}~{userId}~{threadId}
-Example: https://app.com/moneyone/EQUITIES~abc123~thread-xyz
-```
+- **ACTIVE** (`consentID` present) → `useResumeConsentMut`: hydrate into
+  `localStorage` **only after** data is confirmed (fast path `getAllFiData`,
+  else `requestFiData` + poll), so a failed resume never leaves a half-connected
+  card.
+- **PENDING** (approval not finished, `consentHandle` only) →
+  `useResumePendingMut`: re-write a pending record, regenerate the AA URL via
+  `getPendingConsentRedirectUrl` (with PAN + `fipID`), and send the user back to
+  the AA to finish **the same** consent (no duplicate).
+- **Remove** (ACTIVE only) → `useRevokeListedConsentMut` → `revokeConsent` +
+  `deleteConsent`.
 
-**Code**: `src/components/moneyone/useCreateConsentAndRedirectMut.ts:13-71`
+### 2.6 Refresh / Revoke / Delete
 
-### Phase 4: OAuth & Return
-
-**Location**: MoneyOne OAuth → Redirect Handler
-
-1. User authenticates at their depository/broker (NSDL, CDSL, AMC, etc.)
-2. User grants consent for data access
-3. MoneyOne redirects back with encrypted params:
-   ```
-   ?ecres=...&fi=...&resdate=...
-   ```
-
-**Code**: MoneyOne → `src/app/moneyone/[slug]/page.tsx`
-
-### Phase 5: Consent Verification & Redirect
-
-**Location**: Server-Side Redirect Handler Page
-
-**Flow**:
-```
-Receive encrypted params from MoneyOne
-  ↓
-Parse slug: {consentType}~{accountID}~{threadId?}
-  using ~ delimiter (since IDs may contain dashes)
-  ↓
-Validate consentType against ConsentType enum
-  ↓
-decryptUrl(searchParams)
-  → POST /webRedirection/decryptUrl
-  ← { status: "S", userid, srcref }
-  ↓
-Extract mobileNo from userid (split on '@')
-Extract consentHandle from srcref
-  ↓
-getConsentList(consentHandle, mobileNo, consentType, accountID)
-  → POST /v2/getconsentslist
-  ← { status: "success", data: [{ consentID, ... }] }
-  ↓
-Find consent matching consentHandle
-Extract real consentID
-  ↓
-redirect(/?consentID={id}&consentType={type}&mobileNo={no}&consentCreationData={date}&importViewOpen=true&threadId={tid?})
-```
-
-**Code**: `src/app/moneyone/[slug]/page.tsx:16-98`
-
-### Phase 6: FI Data Fetching & Consent Completion
-
-**Location**: Main App with FetchingFiDataModal
-
-**Trigger**: `useFiDataConsentFlow` hook detects `consentID` in URL params
-
-**Flow**:
-```
-FetchingFiDataModal opens with loading animation
-  ↓
-React Query starts with queryKey: ["fi-data", consentID]
-  ↓
-completePendingConsent(consentID, consentType, mobileNo, consentCreationData)
-  - Find pending consent in localStorage
-  - Save full consent with real consentID
-  - Remove pending consent entry
-  - Dispatch "moneyone:consent-updated" custom event
-  ↓
-getAllFiData(consentID, waitTime: 3000ms)
-  - Wait 3 seconds before first fetch
-  → POST /getallfidata
-  ← { status: "success", data: FiDataResponse }
-     OR { errorCode: "NoDataFound" }
-  ↓
-React Query Retry Logic:
-  - If error: retry after 3s delay
-  - Max retries: unlimited (until success or user closes modal)
-  - retryDelay: 3000ms
-  ↓
-On Success:
-  - Cache data in React Query (7-day gcTime, infinite staleTime)
-  - updateConsent(consentID, { isDataReady: true })
-  - Dispatch "moneyone:consent-updated" event
-  - Remove URL params (consentID, consentType, mobileNo, consentCreationData)
-  - Close modal after 1.5s delay
-```
-
-**React Query Configuration**:
-```ts
-{
-  queryKey: ["fi-data", consentID],
-  enabled: !!consentID && !!consentType,
-  retry: true,
-  retryDelay: 3000,
-  gcTime: 7 days,        // Configured via QueryProvider defaults
-  staleTime: Infinity,   // Configured via QueryProvider defaults
-  refetchOnWindowFocus: false
-}
-```
-
-**Code**:
-- `src/components/moneyone/FetchingFiDataModal.tsx:6-17`
-- `src/modules/import-data/hooks/useFiData.ts:26-99`
-
-### Phase 7: Holdings Preview & Import
-
-**Location**: Import Data Page → MoneyOneHoldingsCard
-
-After successful FI data fetch:
-- `useConsentQuery` hook auto-updates (listens to "moneyone:consent-updated" events)
-- `MoneyOneHoldingsCard` displays:
-  - Green checkmark icon
-  - "Connected" status
-  - Refresh button (🔄) for manual data refresh
-  - "Analyse" button (enabled)
-  - Last updated timestamp
-
-**User Action: Click "Analyse" button**
-
-Opens `HoldingsPreviewModal` with:
-
-1. **Data Fetching**:
-   ```
-   useHoldingsData(consentID, consentType, isDataReady)
-     ↓
-   useFiData(consentID, true) // Fetches from React Query cache
-     ↓
-   extractHoldingsFromFiData(fiData)
-     - Flatten all holdings from all accounts
-     ↓
-   transformHoldingsToFormData(holdings, consentType)
-     - Add `quantity` field based on QUANTITY_FIELD_MAP
-     - EQUITIES: quantity = parseFloat(holding.units)
-     - MUTUAL_FUNDS: quantity = parseFloat(holding.closingUnits)
-   ```
-
-2. **UI Features**:
-   - Searchable holdings table with virtualization
-   - Edit quantities (set to 0 to exclude)
-   - Add new holdings via search (stocks or mutual funds)
-   - Portfolio summary card (total holdings, total value)
-   - Real-time form validation with react-hook-form
-
-3. **User Action: Click import button**:
-   ```
-   transformFormDataToHoldings(formHoldings, consentType)
-     - Filter out holdings with quantity = 0
-     - Convert quantity field back to original field name
-     ↓
-   Reconstruct modified FiData structure
-     ↓
-   Close modal & navigate to chat (importViewOpen=false)
-     ↓
-   useImportHoldingsMutation.mutate({ data: modifiedFiData, consentType })
-     ↓
-   extractHoldingsFromFiData(data)
-     ↓
-   transformHoldingsToMarkdownFormat(holdings, consentType)
-     - EQUITIES: { "Company Name", "ISIN", "Units" }
-     - MUTUAL_FUNDS: { "Description", "ISIN", "Closing Units" }
-     ↓
-   convertToMarkdownTable(formattedHoldings)
-     ↓
-   Create human message:
-     "I've imported my {assetType} holdings. Here's the data:
-
-     {markdownTable}
-
-     Please analyze my portfolio and provide insights."
-     ↓
-   stream.submit({ messages: [...toolMessages, newHumanMessage] })
-     - Uses existing threadId or creates new thread
-     - AI receives holdings data in markdown table format
-   ```
-
-**Code**:
-- `src/modules/import-data/components/account-types/MoneyOneHoldingsCard.tsx:91-120`
-- `src/modules/import-data/components/modals/HoldingsPreviewModal/HoldingsPreviewModal.tsx`
-- `src/modules/import-data/hooks/useImportHoldingsMutation.ts:22-90`
-
-### Phase 8: Manual Data Refresh
-
-**User Action: Click refresh button (🔄)**
-
-**Flow**:
-```
-useRefreshFiData.mutate(consentID)
-  ↓
-requestFiData(consentID)
-  → POST /fi/request (triggers fresh fetch from MoneyOne)
-  ← { response: "ok", data: { consentId, sessionId } }
-  ↓
-Clear React Query cache (critical for 7-day cache):
-  queryClient.removeQueries({ queryKey: ["fi-data", consentID] })
-  ↓
-Poll for new data with retries:
-  maxRetries: 20 (≈60 seconds total)
-  retryDelay: 3000ms
-  ↓
-  getAllFiData(consentID)
-    - If error: retry after 3s
-    - If success: return data
-  ↓
-On Success:
-  - Update React Query cache: queryClient.setQueryData(...)
-  - updateConsent(consentID, {
-      isDataReady: true,
-      consentCreationData: new Date().toISOString()
-    })
-  - All components using useFiData auto-update reactively
-  - Toast success notification
-```
-
-**Why Clear Cache?**
-- FI data queries use `staleTime: Infinity` (7-day cache)
-- Without clearing, new data would never refetch
-- `removeQueries` forces fresh fetch even with long cache
-
-**Code**: `src/modules/import-data/hooks/useFiData.ts:146-205`
+- **Refresh** (`useRefreshFiData`): `requestFiData` → `removeQueries` (cache is
+  `staleTime: Infinity`, so it must be cleared) → poll `getAllFiData` (≤20×3 s) →
+  `setQueryData` + `updateConsent({ isDataReady: true })`. A dead consent flips
+  the card to **Expired** instead of retrying.
+- **Remove** (`MoneyOneHoldingsCard → handleDelete`): `revokeConsent` **first**
+  (real AA teardown), then `deleteConsent` locally + `removeQueries`. A revoke
+  that reports "already gone" is treated as success.
 
 ---
 
-## Technical Implementation
+## 3. Component & Fork Architecture
 
-### 1. Import Button Integration
+### 3.1 The card state machine
 
-**Location**: `src/components/thread/history/index.tsx:165-178`
+`MoneyOneHoldingsCard` is the one reusable card for every MoneyOne asset type. It
+derives three visual states from the `ConsentData` (`isExpired` → `isDataReady`
+→ idle) and renders the matching status text, icon, and action set. The
+`AnalysisModal` for the type is injected as a prop (`BaseAnalysisModalProps`).
 
-```tsx
-<Button
-  variant="outline"
-  className="w-full justify-start gap-2"
-  onClick={() => {
-    setQuery({
-      importViewOpen: true,
-      threadId: null,
-    });
-  }}
->
-  <Database className="h-4 w-4" />
-  Import
-</Button>
+### 3.2 Per-`ConsentType` forks
+
+`ImportDataPage` wires **five** forks, one per asset type, as:
+
+```
+<MoneyOneHoldingsCard consentType={…} AnalysisModal={<Type>PreviewModal} … />
 ```
 
-**Behavior**:
-- Opens import view
-- Clears active thread
-- Maintains other query params
+Each fork (`modules/import-data/components/modals/<Type>PreviewModal/`) is:
 
-### 2. MoneyOneHoldingsCard Component
+| File | Responsibility |
+|------|----------------|
+| `index.tsx` | The Dialog shell + Analyse trigger; wires the hooks below |
+| `<Type>PreviewForm.tsx` | Search / table / summary / submit UI |
+| `hooks/use<Type>Data.ts` | `useFiData(consentID)` → extract + shape rows |
+| `hooks/useImport<Type>Mutation.ts` | rows → markdown → `stream.submit` to chat |
+| `utils/<type>-transformer.ts` | raw FI JSON → table rows |
 
-**Location**: `src/modules/import-data/components/account-types/MoneyOneHoldingsCard.tsx`
+**Shared building blocks (live — do not delete)** under
+`modals/HoldingsPreviewModal/`:
 
-```tsx
-export function MoneyOneHoldingsCard({
-  consentType,
-  icon: Icon,
-  title,
-  description,
-  AnalysisModal, // Consent-type-specific preview modal (BaseAnalysisModalProps)
-}: MoneyOneHoldingsCardProps) {
-  const { data: consent } = useConsentQuery(consentType);
-  const { mutate: refreshData, isPending: isRefreshing } = useRefreshFiData();
+- `components/HoldingsSearch`, `HoldingsTable`, `HoldingsSummaryCard`
+- `hooks/useHoldingsForm`
+- `utils/holdings-transformer`, `utils/holdings-constants`
+  (`QUANTITY_FIELD_MAP` has an entry for **all 5** types).
 
-  const isDataReady = consent?.isDataReady;
-  const lastUpdated = formatLastUpdated(consent?.consentCreationData);
+These are imported by every fork and by `useComprehensiveAnalysisMutation`.
 
-  return (
-    <Card>
-      {/* Icon with dynamic color */}
-      {/* Title & description */}
-      {/* Last updated info */}
+> **Orphaned generic (currently unrendered).**
+> `HoldingsPreviewModal/HoldingsPreviewModal.tsx`, `HoldingsPreviewForm.tsx`,
+> `hooks/useHoldingsData.ts`, and `hooks/useImportHoldingsMutation.ts` are the
+> original *generic* (consent-type-driven) implementation. They are no longer
+> rendered — the five forks superseded them. They are the **target of a planned
+> consolidation** (collapse the forks back onto one generic shell), so they are
+> intentionally kept, not deleted. **Do not "rediscover" them as the live path,
+> and do not delete the `HoldingsPreviewModal/` folder** — its `components/` and
+> `useHoldingsForm` are the shared blocks above.
 
-      <div className="flex items-center justify-between gap-2 mt-auto pt-3">
-        {/* Left: Import/Connect button */}
-        {isDataReady ? (
-          <>
-            <span>Connected</span>
-            <Button onClick={handleRefresh}>
-              <RefreshCw />
-            </Button>
-          </>
-        ) : (
-          <ImportHoldings consentType={consentType} />
-        )}
+### 3.3 Manual (non-MoneyOne) cards
 
-        {/* Right: Analyse button — injected per consent type */}
-        <AnalysisModal consent={consent} />
-      </div>
-    </Card>
-  );
-}
-```
-
-> **Note**: The card is now generic over the preview modal. Each consent type
-> passes its own `AnalysisModal` (e.g. `EquitiesPreviewModal`,
-> `MutualFundsPreviewModal`, `BankAccountsPreviewModal`, `EtfPreviewModal`,
-> `SipPreviewModal`) from `ImportDataPage`, rather than the card hardcoding
-> `HoldingsPreviewModal`. The modal must accept `BaseAnalysisModalProps`
-> (`{ consent: ConsentData | null }`).
-
-```tsx
-// Wiring in ImportDataPage.tsx
-<MoneyOneHoldingsCard
-  consentType={ConsentType.EQUITIES}
-  icon={BarChart3}
-  title="Equity Holdings"
-  description="..."
-  AnalysisModal={EquitiesPreviewModal}
-/>
-```
-
-**Key Features**:
-- Real-time consent status via `useConsentQuery`
-- Manual refresh via `useRefreshFiData`
-- Holdings preview via `HoldingsPreviewModal`
-- Last updated timestamp formatting
-
-### 3. Consent Query Hook (Real-time Updates)
-
-**Location**: `src/modules/import-data/hooks/useConsentQuery.ts`
-
-```tsx
-export function useConsentQuery(consentType: ConsentType) {
-  const queryClient = useQueryClient();
-
-  const query = useQuery({
-    queryKey: ["consent", consentType],
-    queryFn: () => getUserConsent(consentType),
-    staleTime: 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-  });
-
-  useEffect(() => {
-    // Listen for storage events (cross-tab changes)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key?.startsWith("moneyone:consent:") || e.key?.startsWith("moneyone:user:")) {
-        queryClient.invalidateQueries({ queryKey: ["consent", consentType] });
-      }
-    };
-
-    // Listen for custom events (same-tab changes)
-    const handleCustomStorageChange = ((e: CustomEvent) => {
-      if (e.detail?.consentType === consentType) {
-        queryClient.invalidateQueries({ queryKey: ["consent", consentType] });
-      }
-    }) as EventListener;
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("moneyone:consent-updated", handleCustomStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("moneyone:consent-updated", handleCustomStorageChange);
-    };
-  }, [consentType, queryClient]);
-
-  return query;
-}
-```
-
-**Features**:
-- Automatic refetch on mount and window focus
-- Listens to both StorageEvent (cross-tab) and CustomEvent (same-tab)
-- Invalidates queries when localStorage changes
-- 1-second stale time for responsive updates
-
-### 4. HoldingsPreviewModal Architecture
-
-**Location**: `src/modules/import-data/components/modals/HoldingsPreviewModal/`
-
-**Modular Structure**:
-```
-HoldingsPreviewModal/
-├── HoldingsPreviewModal.tsx         # Container (modal state, data fetching)
-├── HoldingsPreviewForm.tsx          # Form logic (react-hook-form)
-├── components/
-│   ├── HoldingsSummaryCard.tsx     # Portfolio summary
-│   ├── HoldingsTable.tsx           # Table with virtualization
-│   ├── HoldingTableRow.tsx         # Editable row
-│   └── HoldingsSearch.tsx          # Add new holdings
-├── hooks/
-│   ├── useHoldingsData.ts          # Data fetching
-│   ├── useHoldingsForm.ts          # Form management
-│   └── useHoldingsSearch.ts        # Search functionality
-└── utils/
-    ├── holdings-constants.ts        # Constants
-    └── holdings-transformer.ts      # Data transformations
-```
-
-**Key Transformations** (`holdings-transformer.ts`):
-
-```ts
-// Extract holdings from FI data
-extractHoldingsFromFiData(fiData: FiDataResponse): Holding[]
-
-// Add quantity field for form management
-transformHoldingsToFormData(holdings, consentType): HoldingWithQuantity[]
-
-// Convert back to holdings (filters quantity=0)
-transformFormDataToHoldings(formHoldings, consentType): Holding[]
-
-// Format for markdown table import
-transformHoldingsToMarkdownFormat(holdings, consentType): Record<string, string>[]
-
-// Get display name
-getAssetTypeName(consentType): "Equity" | "Mutual Fund"
-```
-
-**Quantity Field Mapping** (`holdings-constants.ts`):
-```ts
-export const QUANTITY_FIELD_MAP = {
-  [ConsentType.EQUITIES]: 'units' as const,
-  [ConsentType.MUTUAL_FUNDS]: 'closingUnits' as const,
-};
-```
-
-### 5. Import Holdings Mutation
-
-**Location**: `src/modules/import-data/hooks/useImportHoldingsMutation.ts`
-
-```tsx
-export function useImportHoldingsMutation() {
-  const stream = useStreamContext();
-
-  return useMutation({
-    mutationFn: async ({ data, consentType }: ImportHoldingsParams) => {
-      // Extract & transform holdings
-      const holdings = extractHoldingsFromFiData(data);
-      const formattedHoldings = transformHoldingsToMarkdownFormat(holdings, consentType);
-      const markdownTable = convertToMarkdownTable(formattedHoldings);
-
-      // Create message
-      const assetType = getAssetTypeName(consentType);
-      const messageText = `I've imported my ${assetType} holdings...`;
-
-      // Submit to stream
-      const newHumanMessage: Message = {
-        id: uuidv4(),
-        type: "human",
-        content: [{ type: "text", text: messageText }],
-      };
-
-      stream.submit(
-        { messages: [...toolMessages, newHumanMessage] },
-        { streamMode: ["values"], optimisticValues: ... }
-      );
-
-      return { assetType, holdingsCount: holdings.length };
-    },
-    onSuccess: (result) => {
-      toast.success(`${result.assetType} holdings added to chat`);
-    },
-  });
-}
-```
+Fixed Deposits, Insurance, Real Estate, Commodities, Other, and NPS are **not**
+AA-backed. They render `account-types/AccountTypeCard` with a `forms/*Form`
+component whose submit routes to `utils/form-handlers → handleDummyFormSubmit`
+(a placeholder that toasts "not yet implemented"). NPS is a `status:
+"not-connected"` stub with no form.
 
 ---
 
-## Data Models
+## 4. localStorage Schema & Consent Lifecycle
 
-### ConsentData (localStorage)
+Owned by `lib/moneyone/moneyone.storage.ts`.
 
-```typescript
-interface ConsentData {
-  consentID: string;           // Real consent ID from MoneyOne
-  consentCreationData: string; // ISO date string (used for "last updated")
-  consentExpiry: string;       // ISO date string
-  userId: string;              // Browser-unique user ID (UUID)
-  isDataReady: boolean;        // True after successful FI data fetch
-  type: ConsentType;           // EQUITIES | MUTUAL_FUNDS
-  name: string | null;         // User identifier (mobile number)
-  mobileNo: string;            // User's mobile number
-}
-```
+| Key | Value |
+|-----|-------|
+| `moneyone:userId` | Generated UUID; doubles as MoneyOne `accountID` |
+| `moneyone:consent:{consentID}` | `ConsentData` (the real record) |
+| `moneyone:pending-consent:{consentHandle}` | Pre-redirect placeholder, completed on return |
+| `moneyone:user:{userId}:consents` | **Legacy** index of consentIDs (see below) |
 
-### FiDataResponse
+`ConsentData` shape: `consentID`, `consentCreationData` (ISO), `consentExpiry`
+(ISO), `userId`, `isDataReady`, `type` (`ConsentType`), `name`, `mobileNo`, and
+optional `isExpired` (set when FinPro reports the consent dead even though the
+local expiry date hasn't passed).
 
-```typescript
-type FiDataResponse = AccountType[];
+**Reads are self-healing.** `getAllUserConsents` **scans every
+`moneyone:consent:*` key directly** rather than trusting the `user:{id}:consents`
+index — the index breaks if `moneyone:userId` drifts. The index is still
+maintained by `saveConsent`/`deleteConsent` for backwards compatibility but is no
+longer load-bearing.
 
-type AccountType = {
-  linkReferenceNumber: string;
-  maskedAccountNumber: string;
-  fiType: string;
-  bank: string;
-  Summary?: {
-    costValue: string;
-    currentValue: string;
-    Investment: {
-      Holdings: {
-        Holding: Holding[];
-      };
-    };
-  };
-};
-```
+**Same-tab reactivity:** `saveConsent`/`deleteConsent` dispatch a
+`window` `CustomEvent("moneyone:consent-updated")`. `useConsentQuery` listens for
+both that event and the native cross-tab `storage` event and invalidates the
+`["consent", type]` query.
 
-### Holding (Unified for Equity & MF)
-
-```typescript
-type Holding = {
-  // Mutual Fund fields
-  amc: string;              // Asset Management Company
-  nav: string;              // Net Asset Value
-  folioNo: string;          // Folio number
-  navDate: string;          // NAV date
-  amfiCode: string;         // AMFI code
-  schemeTypes: string;      // Scheme type
-  closingUnits: string;     // Closing units
-  schemeOption: string;     // Scheme option
-  schemeCategory: string;   // Scheme category
-
-  // Equity fields
-  units: string;            // Number of units
-  issuerName: string;       // Company name
-  isin: string;             // ISIN code
-  isinDescription: string;  // Description
-  lastTradedPrice: string;  // Last traded price
-
-  // Common fields
-  ucc: string;
-  lienUnits: string;
-  registrar: string;
-  schemeCode: string;
-  FatcaStatus: string;
-  lockinUnits: string;
-};
-```
-
-### HoldingWithQuantity (Form Management)
-
-```typescript
-type HoldingWithQuantity = Holding & { quantity: number };
-
-// Used in HoldingsPreviewModal for editing
-// quantity field is derived from:
-// - EQUITIES: parseFloat(holding.units)
-// - MUTUAL_FUNDS: parseFloat(holding.closingUnits)
-```
+**Lifecycle:** `pending-consent` → `consent` (on return) → `isDataReady: true`
+(after fetch) → `isExpired: true` (on dead-consent error) → removed (on
+revoke+delete).
 
 ---
 
-## Storage Strategy
+## 5. Server Actions (API Contracts)
 
-### localStorage Keys
+All in `lib/moneyone/moneyone.actions.ts` (`"use server"`). Auth headers
+(`moneyOneAuthHeaders`) and `MONEY_ONE_BASE_URL` come from env (§8). Every action
+returns either a typed success or `{ error, errorCode? }` — callers branch on
+`"error" in result`.
 
-```typescript
-// User identification
-"moneyone:userId" → uuidv4()
+| Action | MoneyOne endpoint | Purpose | Status |
+|--------|-------------------|---------|--------|
+| `createConsentRequestV3` | `POST /v3/requestconsent` | Create consent + return AA redirect URL | live |
+| `getEncryptedUrl` | `POST /webRedirection/getEncryptedUrl` | Build AA redirect URL (redirects) | live |
+| `getPendingConsentRedirectUrl` | `POST /webRedirection/getEncryptedUrl` | Regenerate AA URL for a PENDING handle | live |
+| `decryptUrl` | `POST /webRedirection/decryptUrl` | Decrypt AA return params | live |
+| `getConsentList` | `POST /v2/getconsentslist` | Resolve a consent by `consentHandle` (return handler) | live |
+| `listConsents` | `POST /v1/accounts/getconsentslist` | List a mobile's resumable consents | live |
+| `getConsentStatus` | `POST /v2/getconsentslist` | Live status by `consentID` | live |
+| `getAllFiData` | `POST /getallfidata` | Fetch FI data for a consent | live |
+| `requestFiData` | `POST /fi/request` | Trigger a fresh AA fetch | live |
+| `revokeConsent` | `POST /revokeconsent` | Revoke on the AA (`alreadyGone` flag) | live |
+| `createConsentRequest` | `POST /v2/requestconsent` | v2 consent create | **dead** (no caller) |
 
-// Consent storage
-"moneyone:consent:{consentID}" → ConsentData
+Notes worth knowing:
 
-// User's consent index
-"moneyone:user:{userId}:consents" → string[] (consent IDs)
-
-// Temporary during OAuth flow
-"moneyone:pending-consent:{consentHandle}" → PendingConsentData
-```
-
-### Storage Functions
-
-**Location**: `src/lib/moneyone/moneyone.storage.ts`
-
-```typescript
-// Core functions
-getUserId(): string                     // Get or create browser-unique ID
-saveConsent(consent: ConsentData): void // Save & dispatch event
-getConsent(consentID: string): ConsentData | null
-getUserConsent(consentType: ConsentType): ConsentData | null // Most recent valid
-updateConsent(consentID: string, updates: Partial<ConsentData>): void
-deleteConsent(consentID: string): void
-getAllUserConsents(): ConsentData[]
-checkConsent(consentType: ConsentType): boolean
-completePendingConsent(...): ConsentData | null // Post-OAuth conversion
-```
-
-### Custom Event System
-
-**Purpose**: Enable same-tab reactivity for localStorage changes
-
-```typescript
-// Dispatched by saveConsent() and updateConsent()
-window.dispatchEvent(new CustomEvent("moneyone:consent-updated", {
-  detail: { consentType, type: "consent" }
-}));
-
-// Listened by useConsentQuery hook
-window.addEventListener("moneyone:consent-updated", handleCustomStorageChange);
-```
-
-### Consent Lifecycle
-
-```
-1. User initiates → savePendingConsent(consentHandle)
-   localStorage: "moneyone:pending-consent:{handle}"
-
-2. OAuth redirect → completePendingConsent(consentID)
-   - Remove pending consent
-   - Save full consent with real consentID
-   - Dispatch "moneyone:consent-updated" event
-   localStorage: "moneyone:consent:{consentID}"
-
-3. Data fetched → updateConsent({ isDataReady: true })
-   - Update consent
-   - Dispatch "moneyone:consent-updated" event
-
-4. User refreshes → updateConsent({ consentCreationData: new Date() })
-
-5. User removes → revokeConsent(consentID) then deleteConsent(consentID)
-   - revokeConsent: POST /revokeconsent on MoneyOne (stops AA data sharing).
-     "Already revoked"/"does not exist" is treated as success; any other
-     failure still removes locally but warns the user (warning-on-failure).
-   - deleteConsent: remove consent + remove from user's index
-   - Clear cached FI data: queryClient.removeQueries(["fi-data", consentID])
-   - Dispatch "moneyone:consent-updated" event
-   - Guarded by a ConfirmDialog (revoke is irreversible)
-```
+- `decryptUrl` validates the inbound params with `webRedirectionDecryptionApiReqParamsSchema`
+  (`ecres`/`resdate`/`fi` are strings) — this is a **shape** check only, not an
+  authenticity check (see Appendix B).
+- `listConsents` filters results by `productID` **client-side**: the
+  `/v1/accounts/getconsentslist` response is not reliably scoped to the requested
+  product, so it can return other asset types' consents.
+- `getAllFiData` always reads the response body even on non-OK, so it can surface
+  the real FinPro `errorCode` (e.g. `InvalidConsentId`) instead of a bare status.
 
 ---
 
-## API Integration
+## 6. React Query Cache Strategy
 
-### MoneyOne Base Configuration
-
-**Location**: `src/lib/moneyone/moneyone.actions.ts`
-
-**Environment Variables**:
-```bash
-MONEY_ONE_BASE_URL=https://api.moneyone.in
-MONEY_ONE_API_KEY=your_api_key_here
-MONEY_ONE_CLIENT_ID=your_client_id_here
-
-# Consent Form IDs (Product IDs)
-MONEY_ONE_EQUITIES_CONSENT_FORM=EQSUMMARY
-MONEY_ONE_MUTUAL_FUNDS_CONSENT_FORM=WM101
-
-# Financial Information Provider IDs (comma-separated)
-MONEY_ONE_EQUITIES_FIPS=NSDL-FIP,CDSL-FIP
-MONEY_ONE_MUTUAL_FUNDS_FIPS=CAMS-FIP,KARVY-FIP
-```
-
-**Auth Headers** (`src/lib/moneyone/moneyone.headers.ts`):
-```typescript
-export const moneyOneAuthHeaders = {
-  "api-key": process.env.MONEY_ONE_API_KEY!,
-  "client-id": process.env.MONEY_ONE_CLIENT_ID!,
-};
-```
-
-### API Endpoints
-
-#### 1. Create Consent Request V3 (One-Step Flow)
-
-```typescript
-POST /v3/requestconsent
-
-Request:
-{
-  "partyIdentifierType": "MOBILE",
-  "partyIdentifierValue": "9876543210",
-  "productID": "EQSUMMARY" | "WM101",
-  "vua": "9876543210@onemoney",
-  "accountID": "uuid-v4",
-  "fipID": ["FIP1", "FIP2"],
-  "pan": "ABCDE1234F",
-  "redirectUrl": "https://app.com/moneyone/EQUITIES~userId~threadId"
-}
-
-Response:
-{
-  "status": "success",
-  "ver": "3.0",
-  "message": "Consent request created",
-  "data": {
-    "webRedirectionUrl": "https://moneyone.in/auth?encrypted=...",
-    "status": "PENDING",
-    "consent_handle": "consent-handle-123"
-  }
-}
-```
-
-**Code**: `src/lib/moneyone/moneyone.actions.ts:77-126`
-
-**Advantages over V2**:
-- Single API call (combines consent creation + encrypted URL)
-- Includes FIP IDs in request
-- Returns webRedirectionUrl directly
-
-#### 2. Decrypt URL
-
-```typescript
-POST /webRedirection/decryptUrl
-
-Request:
-{
-  "webRedirectionURL": {
-    "ecres": "...",
-    "fi": "...",
-    "resdate": "..."
-  }
-}
-
-Response:
-{
-  "status": "success",
-  "data": {
-    "status": "S",
-    "userid": "9876543210@onemoney",
-    "srcref": "consent-handle-123"
-  }
-}
-```
-
-**Code**: `src/lib/moneyone/moneyone.actions.ts:204-234`
-
-#### 3. Get Consent List
-
-```typescript
-POST /v2/getconsentslist
-
-Request:
-{
-  "partyIdentifierType": "MOBILE",
-  "partyIdentifierValue": "9876543210",
-  "productID": "EQSUMMARY",
-  "accountID": "uuid-v4"
-}
-
-Response:
-{
-  "status": "success",
-  "data": [
-    {
-      "consentID": "consent-id-456",
-      "consentHandle": "consent-handle-123",
-      "status": "ACTIVE",
-      "productID": "EQSUMMARY",
-      "accountID": "uuid-v4",
-      "aaId": "AA-ID",
-      "vua": "9876543210@onemoney",
-      "consentCreationData": "2024-01-01T00:00:00Z"
-    }
-  ]
-}
-```
-
-**Code**: `src/lib/moneyone/moneyone.actions.ts:166-202`
-
-#### 4. Get All FI Data
-
-```typescript
-POST /getallfidata
-
-Request:
-{
-  "consentID": "consent-id-456"
-}
-
-Response (Success):
-{
-  "status": "success",
-  "data": [
-    {
-      "linkReferenceNumber": "LRN123",
-      "maskedAccountNumber": "XXXX1234",
-      "fiType": "EQUITIES",
-      "bank": "NSDL",
-      "Summary": {
-        "costValue": "100000",
-        "currentValue": "120000",
-        "Investment": {
-          "Holdings": {
-            "Holding": [
-              {
-                "issuerName": "TCS",
-                "isin": "INE467B01029",
-                "units": "10",
-                "lastTradedPrice": "3500"
-              }
-            ]
-          }
-        }
-      }
-    }
-  ]
-}
-
-Response (Data Not Ready):
-{
-  "errorCode": "NoDataFound",
-  "errorMsg": "Data not ready!"
-}
-```
-
-**Code**: `src/lib/moneyone/moneyone.actions.ts:236-280`
-
-**Error Handling**:
-- `NoDataFound` error triggers React Query retry
-- Validates `Summary` exists in response
-
-#### 5. Request FI Data (Manual Refresh)
-
-```typescript
-POST /fi/request
-
-Request:
-{
-  "consentId": "consent-id-456"
-}
-
-Response:
-{
-  "ver": "1.0",
-  "timestamp": "2024-01-01T00:00:00Z",
-  "response": "ok",
-  "data": {
-    "consentId": "consent-id-456",
-    "sessionId": "session-123"
-  }
-}
-```
-
-**Code**: `src/lib/moneyone/moneyone.actions.ts:282-328`
-
-**Usage**: Triggers fresh FI data fetch from MoneyOne
-
-#### 6. List Consents (mobile-keyed, for Resume)
-
-```typescript
-POST /v1/accounts/getconsentslist
-
-Request:
-{
-  "mobileNumber": "9876543210",
-  "productID": "EQSUMMARY",
-  "status": ["ACTIVE", "PENDING"]
-}
-
-Response:
-{
-  "status": "success",
-  "data": [
-    {
-      "consentID": "consent-id-456",   // null for PENDING
-      "consentHandle": "handle-123",
-      "status": "ACTIVE",              // ACTIVE | PENDING | REVOKED | EXPIRED
-      "productID": "EQSUMMARY",
-      "accountID": "browser-account-id",
-      "consent_expiry": "2026-03-17 10:23:52",
-      "accounts": [{ "fipName": "NSDL", "maskedAccountNumber": "XXXX1234", "fiType": "EQUITIES" }]
-    }
-  ]
-}
-```
-
-**Usage**: Powers the Resume flow. Keyed by mobile only (cross-device).
-Client-side guarded on each consent's own `productID`.
-
-#### 7. Get Encrypted URL (regenerate AA redirect for a PENDING handle)
-
-```typescript
-POST /webRedirection/getEncryptedUrl
-
-Request:
-{
-  "consentHandle": "handle-123",
-  "redirectUrl": "https://app.com/moneyone/EQUITIES~accountId",
-  "fipID": ["NSDL-FIP", "CDSL-FIP"],   // scope discovery to this asset type
-  "pan": "ABCDE1234F"                    // required for equity/MF discovery
-}
-
-Response:
-{ "status": "success", "data": { "webRedirectionUrl": "https://moneyone.in/auth?..." } }
-```
-
-**Usage**: PENDING in-place resume — finish the same consent without a duplicate.
-
-#### 8. Revoke Consent
-
-```typescript
-POST /revokeconsent
-
-Request:  { "consentID": "consent-id-456" }
-Response: { "status": "success", "message": "Successfully revoked." }
-```
-
-**Usage**: Real AA teardown on delete. "Already revoked / doesn't exist" is
-treated as success.
-
-#### 9. Consent Status (authoritative)
-
-```typescript
-POST /v2/getconsentslist   // matched by consentID
-```
-
-**Usage**: `getConsentStatus` returns the live `status` + `consent_expiry`
-instead of trusting the locally-cached `consentExpiry`.
+- **FI data** is keyed `[FI_DATA_QUERY_KEY, consentID]` (`"fi-data"`), with
+  `gcTime: 7 days` and `staleTime: Infinity` (configured in `QueryProvider` via
+  `setQueryDefaults`). The same key is shared by `useFiDataConsentFlow` (initial
+  fetch) and `useFiData` (preview reads), so a preview never re-hits MoneyOne.
+- Because `staleTime` is `Infinity`, **Refresh must `removeQueries` first** —
+  otherwise the 7-day cache would serve stale holdings even after a fresh fetch.
+- **Consent status** is keyed `["consent", type]` with `staleTime: 1s`,
+  invalidated on the storage / `moneyone:consent-updated` events (`useConsentQuery`).
 
 ---
 
-## Code References
+## 7. Error Handling
 
-### Key Files & Line Numbers
+`lib/moneyone/moneyone.utils.ts` classifies every FI failure into one of three
+kinds via `classifyFiDataError(errorCode, errorMsg)` (matches FinPro codes first,
+then a message heuristic):
 
-| Component | File Path | Key Lines |
-|-----------|-----------|-----------|
-| **Import Button** | `src/components/thread/history/index.tsx` | 165-178 |
-| **Import Data Page** | `src/modules/import-data/components/ImportDataPage.tsx` | 42-205 |
-| **MoneyOne Holdings Card** | `src/modules/import-data/components/account-types/MoneyOneHoldingsCard.tsx` | 24-125 |
-| **Import Holdings** | `src/components/moneyone/import-holdings.tsx` | 16-66 |
-| **Create Consent Modal** | `src/components/moneyone/CreateConsentModel.tsx` | 21-90 |
-| **Consent Mutation** | `src/components/moneyone/useCreateConsentAndRedirectMut.ts` | 13-71 |
-| **Check Consent** | `src/components/moneyone/useCheckConsentMut.ts` | 7-41 |
-| **OAuth Redirect Handler** | `src/app/moneyone/[slug]/page.tsx` | 16-98 |
-| **Data Fetching Modal** | `src/components/moneyone/FetchingFiDataModal.tsx` | 6-17 |
-| **FI Data Hook** | `src/modules/import-data/hooks/useFiData.ts` | 26-205 |
-| **Consent Query Hook** | `src/modules/import-data/hooks/useConsentQuery.ts` | 12-51 |
-| **Holdings Preview Modal** | `src/modules/import-data/components/modals/HoldingsPreviewModal/` | Multiple files |
-| **Import Mutation** | `src/modules/import-data/hooks/useImportHoldingsMutation.ts` | 22-90 |
-| **Storage Functions** | `src/lib/moneyone/moneyone.storage.ts` | 1-243 |
-| **API Actions** | `src/lib/moneyone/moneyone.actions.ts` | 1-328 |
-| **Holdings Transformer** | `.../HoldingsPreviewModal/utils/holdings-transformer.ts` | 1-140 |
-| **Markdown Converter** | `src/lib/convertToMarkdownTable.ts` | 1-17 |
+| Kind | Meaning | Recovery |
+|------|---------|----------|
+| `consent-dead` | Consent expired/revoked/invalid on MoneyOne | Delete + re-consent. Flips card to **Expired**; stops Refresh polling |
+| `data-missing` | Consent valid but FinPro holds no data | Re-fetch via `requestFiData` (Refresh) |
+| `transient` | Network/server hiccup | Retry |
 
-### Function Call Chain
+FinPro codes (`FP00xx`) are catalogued as two sets in `moneyone.utils.ts`:
 
-```
-User clicks "Connect"
-  → ImportHoldings.handleImportClick()
-    → useCheckConsentMut.mutate()
-      → getUserConsent(consentType)
-        → NO CONSENT FOUND
-          → CreateConsentModel opens
-            → useCreateConsentAndRedirectMut.mutate()
-              → createConsentRequestV3()
-                → savePendingConsent()
-                  → redirect(webRedirectionUrl)
-                    → [User at MoneyOne OAuth]
-                      → MoneyOne redirects back
-                        → /moneyone/[slug]/page.tsx
-                          → decryptUrl()
-                            → getConsentList()
-                              → redirect(/?consentID=...)
-                                → FetchingFiDataModal.useFiDataConsentFlow
-                                  → completePendingConsent()
-                                    → getAllFiData()
-                                      → updateConsent({ isDataReady: true })
-                                        → Close modal
+- **`CONSENT_DEAD_CODES`** — `InvalidConsentId` (FP0034), `InvalidRequest`
+  (FP0058), `ConsentExpired`, `ConsentRevoked`, `ConsentNotActive`,
+  `ConsentNotFound`, `ConsentRejected`, `NoConsent`.
+- **`DATA_MISSING_CODES`** — `NoDataAvailable` (FP0060), `DataIsDeleted`
+  (FP0061), `NoDataFound` (FP0063).
 
-User clicks "Analyse"
-  → HoldingsPreviewModal opens
-    → useHoldingsData()
-      → useFiData() // From React Query cache
-        → extractHoldingsFromFiData()
-          → transformHoldingsToFormData()
-    → User edits holdings
-      → User clicks import
-        → transformFormDataToHoldings()
-          → useImportHoldingsMutation.mutate()
-            → transformHoldingsToMarkdownFormat()
-              → convertToMarkdownTable()
-                → stream.submit()
-                  → [AI analyzes data]
-
-User clicks refresh
-  → useRefreshFiData.mutate()
-    → requestFiData()
-      → queryClient.removeQueries()
-        → pollData()
-          → getAllFiData()
-            → updateConsent({ consentCreationData: new Date() })
-              → queryClient.setQueryData()
-```
+`isConsentInvalidError` is the convenience predicate (`=== "consent-dead"`) used
+to flip the Expired state and halt polling. Preview modals render failures
+through `modules/import-data/components/shared/FiDataErrorState`, driven by
+`isError` / `errorKind` / `errorMessage` returned from each fork's data hook.
 
 ---
 
-## Configuration
+## 8. Configuration
 
-### Environment Variables
+All MoneyOne config is environment-driven; secrets are **server-only**
+(`lib/moneyone/moneyone.headers.ts` — see Appendix B).
 
-**Required for MoneyOne Integration**:
+| Variable | Purpose |
+|----------|---------|
+| `MONEY_ONE_BASE_URL` | FinPro API base |
+| `MONEY_ONE_CLIENT_ID` / `MONEY_ONE_CLIENT_SECRET` | Auth headers |
+| `MONEY_ONE_ORG_ID` / `MONEY_ONE_APP_IDENTIFIER` | Auth headers |
+| `MONEY_ONE_<TYPE>_CONSENT_FORM` | Product ID per asset type (`consentFormMap`) |
+| `MONEY_ONE_<TYPE>_FIPS` | Comma-separated FIP IDs per type, optional (`consentFipIdsMap`) |
 
-```bash
-# MoneyOne API Configuration
-MONEY_ONE_BASE_URL=https://api.moneyone.in
-MONEY_ONE_CLIENT_ID=your_client_id_here
-MONEY_ONE_API_KEY=your_api_key_here
+`<TYPE>` ∈ `EQUITIES`, `MUTUAL_FUNDS`, `ETF`, `BANK_ACCOUNTS`, `SIP`. Keep
+`.env.example` in sync with all five (it previously omitted SIP).
 
-# Consent Form IDs (Product IDs)
-MONEY_ONE_EQUITIES_CONSENT_FORM=EQSUMMARY
-MONEY_ONE_MUTUAL_FUNDS_CONSENT_FORM=WM101
-MONEY_ONE_ETF_CONSENT_FORM=                      # Pending API configuration
-MONEY_ONE_BANK_ACCOUNTS_CONSENT_FORM=DEPOSITDETAILS
+**MoneyOne dashboard consent-template settings** (referenced in
+`[slug]/page.tsx`): Periodicity = **Periodic**, Data Request Mode = **Manual**,
+*Do First Time Data Request Automatic* = **true**. This last setting is why the
+app does **not** call `requestFiData` on return — the first fetch happens
+automatically AA-side.
 
-# Financial Information Provider IDs (comma-separated)
-MONEY_ONE_EQUITIES_FIPS=NSDL-FIP,CDSL-FIP
-MONEY_ONE_MUTUAL_FUNDS_FIPS=CAMS-FIP,KARVY-FIP
-MONEY_ONE_ETF_FIPS=                              # Pending API configuration
-MONEY_ONE_BANK_ACCOUNTS_FIPS=                    # Pending API configuration
-```
-
-### Consent Type Mapping
-
-**Location**: `src/lib/moneyone/moneyone.enums.ts`
-
-```typescript
-export enum ConsentType {
-  MUTUAL_FUNDS = 'MUTUAL_FUNDS',
-  EQUITIES = 'EQUITIES',
-  ETF = 'ETF',
-  BANK_ACCOUNTS = 'BANK_ACCOUNTS',
-  SIP = 'SIP'
-}
-```
-
-### React Query Default Settings
-
-**Location**: `src/providers/QueryProvider.tsx`
-
-```typescript
-// Consent queries
-queryClient.setQueryDefaults(["consent"], {
-  staleTime: 1000,
-  refetchOnWindowFocus: true,
-  refetchOnMount: true,
-});
-
-// FI data queries
-queryClient.setQueryDefaults(["fi-data"], {
-  gcTime: 7 * 24 * 60 * 60 * 1000, // 7 days
-  staleTime: Infinity,              // Never consider stale
-  refetchOnWindowFocus: false,      // Don't refetch on focus
-});
-```
+> **Operational gotcha:** the redirect URL registered with MoneyOne must match
+> the deployment's domain exactly, or the AA return will fail before reaching
+> `/moneyone/[slug]`.
 
 ---
 
-## Error Handling
+## Appendix A — Reference: the (removed) Data-Ready Webhook
 
-### FinPro FI-Data Error Catalogue
+> **Status: removed.** The route
+> `src/app/api/webhooks/moneyone/data-ready/route.ts` has been deleted. It was
+> **logging/monitoring only** and could not do its apparent job: a server-side
+> webhook cannot write the browser `localStorage` that is the source of truth for
+> `isDataReady` (§4). Readiness is driven client-side instead — `useFiData` polls
+> `getAllFiData` and calls `updateConsent(id, { isDataReady: true })`. This
+> appendix exists so the wiring can be faithfully recreated if a server-side
+> readiness signal is ever needed.
 
-`POST /getallfidata` (and `POST /fi/request`) return a JSON body of the shape
-`{ ver, timestamp, errorCode, errorMsg, status }` on failure. The frontend reads
-this body (`getAllFiData` / `requestFiData` in `moneyone.actions.ts`) and surfaces
-the real `errorCode` instead of a generic "status 400". Source: the *Get All FI
-Data → Error Code Catalogue* in the FinPro Postman collection.
+### A.1 What it was
 
-| FP code | `errorCode` | `errorMsg` | Meaning |
-|---------|-------------|------------|---------|
-| FP0034 | `InvalidConsentId` | "Consent ID does not exist." | Consent gone |
-| FP0058 | `InvalidRequest` | "Consent ID is Revoked…" | Consent revoked |
-| FP0060 | `NoDataAvailable` | "Data is not available for the given consent" | **Valid consent, no data fetched yet (or purged after retention)** |
-| FP0061 | `DataIsDeleted` | "Data is deleted for this consent" | FI data expired & deleted |
-| FP0063 | `NoDataFound` | "Data is not available" | No linked accounts found |
-| FP0055 | `InvalidPayload` | "Either consentId or accountID…" | Bad request payload |
-| FP0070 | `InternalError` | "Internal Server Error…" | Server-side error |
+- **Route:** `POST /api/webhooks/moneyone/data-ready`.
+- **Body:** `DataReadyWebHookReqBody` (in `lib/moneyone/moneyone.types.ts`).
+  Load-bearing fields: `eventStatus` (acted on `"DATA_READY"`), `productID`,
+  `vua`, `consentId`, `accountID` (+ `sessionId`, `firstTimeFetch`,
+  `linkRefNumbers`).
+- **Mapping:** `productIdToConsentTypeMap`, built **conditionally** from the
+  `MONEY_ONE_<TYPE>_CONSENT_FORM` env vars (only the types whose env var was set
+  were registered).
+- **Parse:** `mobileNo = vua.split("@")[0]` (same parse as `[slug]/page.tsx`);
+  unknown `productID` → `console.error`, non-fatal.
+- **Responses:** `200 {status:"success"}` happy path; `400` on missing/invalid
+  `vua`; `500 {error}` on throw. It only ever logged.
 
-> **Common gotcha**: `NoDataAvailable` (FP0060) is **not** an expired consent —
-> it means the consent is still valid but FinPro currently holds no data. The fix
-> is to re-fetch via `/fi/request`, not to delete/re-consent.
+### A.2 MoneyOne-side configuration
 
-### Frontend Error Classification
+- The AA **redirect URL** is registered per the slug pattern
+  `/moneyone/{consentType}~{accountID}~{threadId?}` (§2.2).
+- The consent-template settings in §8 (Periodic / Manual / first-fetch automatic)
+  govern when FinPro fetches and would emit a `DATA_READY` event.
 
-`classifyFiDataError(errorCode, errorMsg)` in `moneyone.utils.ts` maps the above
-into three handling buckets (`FiDataErrorKind`):
+### A.3 If recreating it — decide the scope first
 
-| Kind | Triggers | UI behaviour |
-|------|----------|--------------|
-| `consent-dead` | `InvalidConsentId` (FP0034), Revoked (FP0058) | Card flips to **Expired** state (`isExpired` set on `ConsentData`); preview modal offers **Remove connection**. Refresh polling stops immediately. |
-| `data-missing` | `NoDataAvailable` (FP0060), `DataIsDeleted` (FP0061), `NoDataFound` (FP0063) | Modal shows **"No data to show yet"** + a **Fetch latest data** button (runs the refresh flow; modal auto-recovers into the form once data arrives). Consent stays Connected. |
-| `transient` | network / 5xx / unrecognised | **Try again** button. |
+1. **Observability only** (what it was) — fine to log, but it buys little.
+2. **Real readiness signal** — requires **moving consent/readiness state
+   server-side** (a DB row per authenticated user, encrypted at rest). A webhook
+   cannot reach `localStorage`, so without that move it can never flip the card.
 
-**Key files**:
-- `src/lib/moneyone/moneyone.utils.ts` — `classifyFiDataError`, `isConsentInvalidError`
-- `src/modules/import-data/hooks/useFiData.ts` — exposes `errorKind`; flips consent to `isExpired` on `consent-dead`; stops refresh polling on dead consents
-- `src/modules/import-data/components/shared/FiDataErrorState.tsx` — per-kind modal error UI (Fetch / Remove / Try again)
-- `src/modules/import-data/components/account-types/MoneyOneHoldingsCard.tsx` — Connected (Refresh + Delete) and Expired (Refresh + Delete) card states
+### A.4 Mandatory security (the original had none)
 
-> **Authoritative status check**: to verify a consent's true state instead of
-> trusting the locally-cached `consentExpiry`, call `getConsentStatus(consentID,
-> mobileNo, consentType, accountID)` (`moneyone.actions.ts`), which wraps
-> `POST /v2/getconsentslist` and returns the live `status`
-> (`ACTIVE`/`PAUSED`/`REVOKED`/`EXPIRED`) and `consent_expiry`.
+The deleted handler had **no authentication and no signature verification** — any
+client could `POST` a forged `DATA_READY`. A recreation **must**, before doing
+anything stateful:
 
-### Error Types & Recovery
+- Verify an **HMAC signature** header over the **raw** request body against a
+  shared secret (e.g. `MONEY_ONE_WEBHOOK_SECRET`), using a constant-time compare;
+  return `401` on mismatch.
+- Optionally add a bearer/secret header and/or a source-IP allowlist.
+- Enforce **idempotency** (dedupe on `consentId` + `sessionId`) and **rate
+  limiting**.
 
-#### 1. Consent Creation Errors
-
-**Location**: `src/components/moneyone/useCreateConsentAndRedirectMut.ts:40`
-
-```typescript
-if ("error" in createConsentReqRes) throw createConsentReqRes;
-```
-
-**Common Errors**:
-- `503 Service Temporarily Unavailable`: MoneyOne API down
-- Invalid mobile/PAN format
-- Network timeout
-
-**User Experience**: Toast error shown, modal remains open for retry
-
-#### 2. Data Not Ready Error
-
-**Location**: `src/lib/moneyone/moneyone.actions.ts:262`
-
-```typescript
-if (response?.errorCode === "NoDataFound") throw response;
-```
-
-**Recovery**: React Query automatically retries every 3 seconds
-
-**User Experience**: Loading modal shows "Fetching data..." animation
-
-#### 3. No Holdings Found
-
-**Location**: `src/modules/import-data/hooks/useImportHoldingsMutation.ts:34-36`
-
-```typescript
-if (holdings.length === 0) {
-  throw new Error("No holdings found in the imported data");
-}
-```
-
-**User Experience**: Toast error notification
-
-#### 4. Consent Not Found
-
-**Location**: `src/app/moneyone/[slug]/page.tsx:60`
-
-```typescript
-if (!consent) return <div>Consent not found</div>;
-```
-
-**Recovery**: User must create new consent
-
-#### 5. Storage Errors
-
-**Location**: `src/lib/moneyone/moneyone.storage.ts:75-79`
-
-```typescript
-try {
-  return JSON.parse(consentData) as ConsentData;
-} catch {
-  return null;
-}
-```
-
-**Recovery**: Graceful fallback to null, treated as no consent
-
-### Error Monitoring
-
-All MoneyOne API errors are logged:
-```typescript
-if (process.env.NODE_ENV === "development")
-  console.log("---Making consent request ~ body:", body);
-
-console.error("---Error occurred while ...", error);
-```
-
-Production recommendation: Integrate with Sentry/LogRocket for error tracking
+This is doubly required for scope (2): a spoofable webhook that *writes* readiness
+would let an attacker mark arbitrary consents ready. See **Appendix B**.
 
 ---
 
-## Security Considerations
-
-### 1. No Credential Storage
-
-- Application **never** stores user login credentials
-- Uses OAuth-based Account Aggregator framework
-- MoneyOne handles all authentication
-
-### 2. Client-Side Encryption
-
-- All sensitive data transmitted via HTTPS
-- MoneyOne uses bank-level 256-bit encryption
-- Encrypted URL parameters for OAuth callback
-
-### 3. Read-Only Access
-
-- Consents only grant read permissions
-- Cannot initiate transactions
-- Cannot modify account data
-
-### 4. Consent Expiry
-
-- Consents have defined expiry (default: 1 year)
-- Expired consents automatically filtered by `getUserConsent()`
-- User must re-authorize after expiry
-
-### 5. Browser-Only Storage
-
-- localStorage used for consent data (client-side only)
-- Data tied to specific browser/device
-- No server-side storage of financial data in current implementation
-
-### 6. User Control
-
-- Users can revoke consent anytime via the card/modal Remove action, which
-  calls `revokeConsent` (`POST /revokeconsent`) to tear down the consent on
-  MoneyOne/the AA, then `deleteConsent` for local cleanup. Guarded by a
-  confirmation dialog; on revoke failure it removes locally and warns.
-- Clear consent status shown in UI (Connected / Expired)
-- Transparent data usage messaging
-
-### 7. API Security
-
-**Server-Side Actions**:
-```typescript
-"use server"; // Ensures MoneyOne credentials only used server-side
-```
-
-**Headers Protection**:
-```typescript
-export const moneyOneAuthHeaders = {
-  "api-key": process.env.MONEY_ONE_API_KEY!,
-  "client-id": process.env.MONEY_ONE_CLIENT_ID!,
-};
-```
-
-**Never Exposed to Client**:
-- MoneyOne API key and client ID
-- PAN numbers (only used during redirect)
-- Full consent handles
-
-### 8. Data Minimization
-
-- Only holdings data is fetched
-- No transaction history stored
-- No account numbers stored (only masked)
-- Holdings converted to markdown immediately, raw data only cached in React Query
-
-### 9. Secure Redirects
-
-**URL Pattern Validation** (`src/app/moneyone/[slug]/page.tsx:25`):
-```typescript
-if (!Object.values(ConsentType).includes(slugParts[0] as ConsentType))
-  return <div>Invalid slug</div>;
-```
-
-**Schema Validation**:
-```typescript
-const validatedData = webRedirectionDecryptionApiReqParamsSchema.safeParse(searchParamsData);
-if (!validatedData.success) {
-  return <div>Invalid search params</div>;
-}
-```
-
-### 10. Best Practices for Production
-
-**Recommended Enhancements**:
-
-1. **Move to Database Storage**:
-   ```typescript
-   // Replace localStorage with secure server-side storage
-   // Encrypt consent data at rest
-   // Associate with authenticated user accounts
-   ```
-
-2. **Add Rate Limiting**:
-   ```typescript
-   // Limit consent creation attempts per user
-   // Prevent API abuse
-   ```
-
-3. ~~**Implement Consent Revocation API**~~ ✅ **Done**:
-   ```typescript
-   // revokeConsent(consentID) → POST /revokeconsent (moneyone.actions.ts)
-   // Called by the Remove action before deleteConsent; cleans up MoneyOne side.
-   // Treats "already revoked"/"does not exist" as success; warns on other
-   // failures while still removing locally.
-   ```
-
-4. **Add Webhook Signature Verification**:
-   ```typescript
-   // Verify webhook requests actually from MoneyOne
-   // Prevent spoofing
-   ```
-
-5. **Session Management**:
-   ```typescript
-   // Tie consents to authenticated user sessions
-   // Invalidate on logout
-   ```
-
-6. **Audit Logging**:
-   ```typescript
-   // Log all consent creation/usage/deletion
-   // Track data access patterns
-   ```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### Connect Button Not Responding
-- **Check**: Browser console for errors
-- **Check**: `useCheckConsentMut` mutation status
-- **Fix**: Clear localStorage and refresh
-
-#### OAuth Redirect Fails
-- **Check**: Redirect URL matches configured domain in MoneyOne dashboard
-- **Check**: Slug format: `{consentType}~{userId}~{threadId?}`
-- **Fix**: Verify environment variables
-
-#### Data Not Fetching (Stuck in Loading)
-- **Check**: Browser console for "NoDataFound" errors
-- **Check**: React Query DevTools for retry status
-- **Fix**: Wait 5-10 seconds, MoneyOne may still be fetching from FIPs
-- **Alternative**: Close modal and try "Analyse" button again
-
-#### Consent Not Persisting
-- **Check**: localStorage quota not exceeded
-- **Check**: localStorage permissions enabled
-- **Fix**: Clear old consents or other localStorage data
-
-#### Analyse Button Disabled
-- **Check**: `consent.isDataReady === true`
-- **Check**: `useConsentQuery` hook returning data
-- **Fix**: Verify FI data fetch completed successfully
-
-#### Refresh Not Working
-- **Check**: `requestFiData` API response
-- **Check**: React Query cache cleared
-- **Fix**: Check network tab for API errors
-
-#### Holdings Not Importing to Chat
-- **Check**: Holdings array length > 0
-- **Check**: Stream context available
-- **Fix**: Verify `useImportHoldingsMutation` mutation status
-
-### Debug Mode
-
-Enable detailed logging:
-```bash
-NODE_ENV=development # Shows all MoneyOne API logs
-```
-
-Check localStorage:
-```javascript
-// In browser console
-Object.keys(localStorage)
-  .filter(k => k.startsWith('moneyone:'))
-  .forEach(k => console.log(k, JSON.parse(localStorage.getItem(k))));
-```
-
-Check React Query cache:
-```javascript
-// In React Query DevTools
-// Look for ["consent", ConsentType] and ["fi-data", consentID] queries
-```
-
----
-
-## Resuming Existing Consents
-
-A user may already have consents on MoneyOne — from a previous session, a
-different device, or cleared `localStorage`. The Connect flow surfaces these so
-the user can **reuse** or **finish** them instead of always creating duplicates.
-
-### Unified "Connect" flow
-
-The Connect button opens `CreateConsentModel`, which is now a single
-lookup-gated action (no separate "Resume" link):
-
-```
-User enters Mobile + PAN → "Continue"
-  ↓
-listConsents(mobile, consentType)            // POST /v1/accounts/getconsentslist
-  ↓
-┌─ no existing consents → createConsentAndRedirectMut (V3 → AA)   [straight through]
-└─ existing found       → "Your connections" chooser (ResumeConsents)
-```
-
-**Why mobile-keyed lookup**: `listConsents` queries by **mobile number only**
-(no browser `accountID`), so it recovers consents even after `localStorage` is
-cleared or on a different device — unlike `/v2/getconsentslist`, which the rest
-of the app uses scoped to the browser `accountID`.
-
-> **Product-scope guard**: `/v1/accounts/getconsentslist` does **not** reliably
-> honour the `productID` in the request — it can return consents for other asset
-> types. `listConsents` therefore filters each returned consent on its **own**
-> `productID`, so an equity Resume never lists (or resumes) a bank consent.
-
-### The chooser (`ResumeConsents`)
-
-Renders only non-expired, resumable consents for this asset type:
-
-| Status | Action | What it does |
-|--------|--------|--------------|
-| **ACTIVE** (`consentID` present) | **Continue** | `useResumeConsentMut`: persists the consent (only once data is confirmed), warms the FI-data cache via a fast `getAllFiData`, and if FinPro has no data yet, triggers `requestFiData` and **polls** until it lands. Terminal errors (e.g. "no accounts found") surface instead of leaving a broken Connected card. |
-| **ACTIVE** | **Delete** (trash) | `useRevokeListedConsentMut`: `revokeConsent` on MoneyOne, then local cleanup + list refetch. Guarded by `ConfirmDialog`. |
-| **PENDING** (`consentID` is null) | **Finish setup** | `useResumePendingMut`: completes the **same** consent in place (no duplicate). |
-| any | **Create a new connection** | Starts a fresh V3 consent. Always available so the user is never trapped. |
-
-PENDING consents have **no `consentID`**, so they can't be revoked
-(`/revokeconsent` requires one) — the delete button is hidden for them; they
-auto-expire on MoneyOne.
-
-### PENDING in-place resume — the PAN + fipID requirement
-
-A PENDING consent never finished approval, so it has no data and no `consentID`.
-To finish it, the user is sent back to the AA via a **regenerated redirect URL**
-for the existing `consentHandle`:
-
-```
-useResumePendingMut
-  ↓
-save moneyone:pending-consent:{consentHandle}   // so the return handler completes it
-  ↓
-getPendingConsentRedirectUrl(consentHandle, redirectUrl, consentType, pan)
-  → POST /webRedirection/getEncryptedUrl
-    body: { consentHandle, redirectUrl, fipID, pan }
-  ← { data: { webRedirectionUrl } }
-  ↓
-window.location.href = webRedirectionUrl        // back to the AA, same handle
-```
-
-**Both `fipID` and `pan` are required**, mirroring the V3 create flow:
-- Without **`fipID`**, the AA does generic discovery across all linked FIPs and
-  defaults to the **bank account picker** (wrong asset type).
-- Without **`pan`**, equity/MF **account discovery returns nothing** ("no accounts
-  found" on the AA page) — the FinPro docs state PAN is required for discovery of
-  PAN-gated FI types (Equity, Mutual Funds).
-
-The redirect path reuses the consent's **original `accountID`**
-(`/moneyone/{consentType}~{accountID}~{threadId?}`) so the `/moneyone/[slug]`
-return handler can resolve it via `getConsentList`. On return,
-`completePendingConsent` transitions that handle PENDING → ACTIVE — no duplicate.
-
-### Code references
-
-| Piece | File |
-|-------|------|
-| Connect modal (lookup-gated) | `src/components/moneyone/CreateConsentModel.tsx` |
-| Chooser UI | `src/components/moneyone/ResumeConsents.tsx` |
-| Resume hooks | `src/components/moneyone/useResumeConsents.ts` (`useListConsentsMut`, `useResumeConsentMut`, `useResumePendingMut`, `useRevokeListedConsentMut`) |
-| Server actions | `src/lib/moneyone/moneyone.actions.ts` (`listConsents`, `getPendingConsentRedirectUrl`, `getConsentStatus`, `revokeConsent`) |
-
----
-
-## Conclusion
-
-The import holdings feature provides a secure, user-friendly way to import financial data using India's Account Aggregator framework. The implementation leverages:
-
-- **V3 API** for streamlined consent creation
-- **React Query** with optimized caching (7-day gcTime, infinite staleTime)
-- **localStorage** with custom events for real-time reactivity
-- **Modular architecture** with HoldingsPreviewModal for user control
-- **Manual refresh** capability with cache invalidation
-- **AI integration** via markdown table format
-
-Key benefits:
-- Minimal API calls (aggressive caching)
-- Real-time UI updates (custom events + React Query)
-- User control (preview/edit before import)
-- Thread continuity (threadId preserved through OAuth flow)
-
-For questions or issues, refer to:
-- MoneyOne Documentation: [docs.moneyone.in](https://docs.moneyone.in)
-- RBI AA Framework: [rbi.org.in/Scripts/AA_FAQs.aspx](https://rbi.org.in/Scripts/AA_FAQs.aspx)
-- Internal Team: Contact FinSharpe engineering team
-
----
-
-## Adding New Consent Types
-
-To integrate a new MoneyOne consent type (e.g., NPS, Insurance, Bonds), refer to the comprehensive integration guide:
-
-**📄 See**: [`ADDING_NEW_MONEYONE_CONSENT_TYPE.md`](./ADDING_NEW_MONEYONE_CONSENT_TYPE.md)
-
-**Key Points**:
-- **Form components are optional** - Not all consent types need editable forms
-- Start with read-only implementation, add forms only if needed
-- Choose between two implementation paths:
-  - **Path A: Read-Only Display** - Simple preview with direct import (1-2 hours)
-  - **Path B: Editable Form** - Full form with quantity editing (2-4 hours)
-- Includes complete code examples and decision tree
-- Lists all files that need to be created/updated
-- Provides testing checklist and troubleshooting guide
-
-**Implementation Pattern**:
-```
-1. Add consent type to enum
-2. Update webhook handler
-3. Create types (basic for read-only, extended for forms)
-4. Create transformers
-5. Create data hooks
-6. Create modal component (simple or with form)
-7. Add to ImportDataPage
-8. Configure environment variables
-```
-
----
-
-**Document Version**: 3.4
-**Last Updated**: June 2026
-**Maintained By**: FinSharpe Engineering Team
-
-> **Changelog 3.4**: Added the **Resuming Existing Consents** section — the
-> unified lookup-gated Connect flow (`listConsents`, mobile-keyed), the chooser
-> (ACTIVE continue / PENDING in-place resume / delete / create-new), and the
-> PAN + fipID requirement for PENDING resume via `getPendingConsentRedirectUrl`.
-> Documented endpoints 6–9 (list consents, getEncryptedUrl, revokeconsent,
-> consent status).
->
-> **Changelog 3.3**: Consent removal now revokes on MoneyOne (`revokeConsent` →
-> `POST /revokeconsent`) before local cleanup, guarded by a `ConfirmDialog`, with
-> a warning-on-failure policy. Removed the "implement revocation" production TODO.
->
-> **Changelog 3.2**: Added the FinPro FI-data error catalogue (FP00xx codes) and
-> the frontend error-classification model (`consent-dead` / `data-missing` /
-> `transient`); documented the Expired card state, per-kind modal recovery
-> (`FiDataErrorState`), and the `getConsentStatus` authoritative status check.
->
-> **Changelog 3.1**: `ConsentType` expanded to 5 AA types (added `SIP`);
-> `MoneyOneHoldingsCard` refactored to accept a generic `AnalysisModal` prop
-> instead of a hardcoded `HoldingsPreviewModal`; each consent type now wires its
-> own preview modal from `ImportDataPage`.
+## Appendix B — Security & Production TODOs
+
+- **Decrypted-redirect trust** (`[slug]/page.tsx` + `decryptUrl`): the AA return
+  params are validated for *shape* only. The handler should additionally assert
+  the resolved consent's `productID` matches the slug's `consentType` and that
+  `accountID` matches, before completing the consent.
+- **Secrets:** `moneyone.headers.ts` must stay server-only (`import "server-only"`);
+  never log `moneyOneAuthHeaders`.
+- **PII in logs:** keep `console.log` of holdings / PAN / mobile / consentIDs
+  behind `NODE_ENV === "development"` (or remove). FI data contains PII.
+- **localStorage as trust anchor:** consent IDs + mobile live in `localStorage`,
+  readable by any XSS and never expiring. Documented accepted risk for the
+  single-browser model; revisit if moving consent state server-side.
+- **Webhook auth:** if the data-ready webhook is reinstated, Appendix A.4 is
+  mandatory.

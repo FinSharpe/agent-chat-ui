@@ -17,9 +17,8 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
 import { ConsentData, deleteConsent } from "@/lib/moneyone/moneyone.storage";
 import { FiDataErrorKind } from "@/lib/moneyone/moneyone.utils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -46,9 +45,26 @@ export function FiDataErrorState({
 }: FiDataErrorStateProps) {
   const queryClient = useQueryClient();
   const { mutate: refresh, isPending: isRefreshing } = useRefreshFiData();
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const consentID = consent?.consentID;
+
+  // Revoke on MoneyOne first; on failure (and not already gone) still remove
+  // locally but warn it may still be live on MoneyOne's side. On success the
+  // modal closes (onClose) so the card falls back to Connect for re-consent.
+  const { mutateAsync: deleteConnection, isPending: isDeleting } = useMutation({
+    mutationFn: (id: string) => revokeConsent(id),
+    onSuccess: (result, id) => {
+      if ("error" in result && !result.alreadyGone) {
+        toast.warning(
+          `Removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
+        );
+      } else {
+        toast.success("Connection removed");
+      }
+      deleteConsent(id);
+      queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, id] });
+      onClose();
+    },
+  });
 
   const handleRefresh = () => {
     if (!consentID) {
@@ -67,25 +83,7 @@ export function FiDataErrorState({
   };
 
   const handleDelete = async () => {
-    if (!consentID || isDeleting) return;
-
-    setIsDeleting(true);
-    // Revoke on MoneyOne first; on failure (and not already gone) still remove
-    // locally but warn it may still be live on MoneyOne's side.
-    const result = await revokeConsent(consentID);
-
-    if ("error" in result && !result.alreadyGone) {
-      toast.warning(
-        `Removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
-      );
-    } else {
-      toast.success("Connection removed");
-    }
-
-    deleteConsent(consentID);
-    queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, consentID] });
-    setIsDeleting(false);
-    onClose();
+    if (consentID) await deleteConnection(consentID);
   };
 
   const isConsentDead = errorKind === "consent-dead";
@@ -139,23 +137,33 @@ export function FiDataErrorState({
         </Button>
 
         {isConsentDead ? (
-          <Button
-            variant="destructive"
-            onClick={() => setConfirmOpen(true)}
-            disabled={isRefreshing || isDeleting}
+          <ConfirmDialog
+            title="Remove connection?"
+            description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
+            confirmLabel="Remove"
+            destructive
+            onConfirm={handleDelete}
           >
-            {isDeleting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Removing…
-              </>
-            ) : (
-              <>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remove connection
-              </>
+            {(_, setOpen) => (
+              <Button
+                variant="destructive"
+                onClick={() => setOpen(true)}
+                disabled={isRefreshing || isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove connection
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+          </ConfirmDialog>
         ) : (
           <Button onClick={handleRefresh} disabled={isRefreshing}>
             {isRefreshing ? (
@@ -172,17 +180,6 @@ export function FiDataErrorState({
           </Button>
         )}
       </DialogFooter>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title="Remove connection?"
-        description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
-        confirmLabel="Remove"
-        destructive
-        confirming={isDeleting}
-        onConfirm={handleDelete}
-      />
     </>
   );
 }

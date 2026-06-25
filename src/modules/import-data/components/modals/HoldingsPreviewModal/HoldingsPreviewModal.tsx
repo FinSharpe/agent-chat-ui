@@ -9,49 +9,53 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import useModalState from "@/hooks/useModalState";
-import { ConsentData } from "@/lib/moneyone/moneyone.storage";
+import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
+import { BaseAnalysisModalProps } from "@/modules/import-data/types";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { useImportHoldingsMutation } from "../../../hooks/useImportHoldingsMutation";
 import { HoldingsPreviewForm } from "./HoldingsPreviewForm";
 import { useHoldingsData } from "./hooks/useHoldingsData";
-import { getAssetTypeName } from "./utils/holdings-transformer";
+import type { EditableHoldingsConfig } from "./editable-configs";
 
-type HoldingsPreviewModalProps = {
-  consent?: ConsentData | null;
+type HoldingsPreviewModalProps = BaseAnalysisModalProps & {
+  /** Per-asset configuration (one of EQUITIES/ETF/MUTUAL_FUNDS configs). */
+  config: EditableHoldingsConfig;
 };
 
 /**
- * Container component for holdings preview modal
- * Handles modal state, data fetching, and submission
+ * Generic editable-holdings preview modal shared by Equities, ETF, and Mutual
+ * Funds. Handles modal state, data fetching, error state, and submission;
+ * everything asset-specific is supplied via `config`.
  */
-export function HoldingsPreviewModal({ consent }: HoldingsPreviewModalProps) {
+export function HoldingsPreviewModal({
+  consent,
+  config,
+}: HoldingsPreviewModalProps) {
   const { open, handleClose, handleOpenChange } = useModalState();
 
   const consentID = consent?.consentID;
-  const consentType = consent?.type;
   const isDataReady = consent?.isDataReady;
 
-  const importHoldingsMut = useImportHoldingsMutation();
+  const importMutation = useImportHoldingsMutation();
 
-  // Fetch and transform holdings data
-  const { formDefaultValues, isLoading, fiData } = useHoldingsData(
-    consentID,
-    consentType!,
-    !!isDataReady,
-  );
+  const {
+    formDefaultValues,
+    isLoading,
+    fiData,
+    currentValue,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useHoldingsData(consentID, config.consentType, !!isDataReady);
 
-  const assetType = consentType ? getAssetTypeName(consentType) : "";
+  const handleSubmit = (modifiedFiData: typeof fiData) => {
+    if (!modifiedFiData) return;
 
-  const handleSubmit = (
-    _convertedHoldings: any,
-    modifiedFiData: any,
-  ) => {
     handleClose();
-
-    // Call mutation to import holdings to chat
-    if (consentType) {
-      importHoldingsMut.mutate({ data: modifiedFiData, consentType });
-    }
+    importMutation.mutate({
+      data: modifiedFiData,
+      consentType: config.consentType,
+    });
   };
 
   return (
@@ -71,22 +75,31 @@ export function HoldingsPreviewModal({ consent }: HoldingsPreviewModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-600" />
-            {assetType} Holdings Preview
+            {config.title}
           </DialogTitle>
-          <DialogDescription>
-            Review, edit quantities, or add new holdings before analysis
-          </DialogDescription>
+          <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
 
-        <HoldingsPreviewForm
-          defaultValues={formDefaultValues}
-          consentType={consentType!}
-          fiData={fiData}
-          isLoading={isLoading}
-          isImporting={importHoldingsMut.isPending}
-          onSubmit={handleSubmit}
-          onClose={handleClose}
-        />
+        {isError ? (
+          <FiDataErrorState
+            assetLabel={config.assetLabel}
+            errorKind={errorKind}
+            message={errorMessage}
+            consent={consent}
+            onClose={handleClose}
+          />
+        ) : (
+          <HoldingsPreviewForm
+            config={config}
+            defaultValues={formDefaultValues}
+            fiData={fiData}
+            isLoading={isLoading}
+            isImporting={importMutation.isPending}
+            currentValue={currentValue}
+            onSubmit={handleSubmit}
+            onClose={handleClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

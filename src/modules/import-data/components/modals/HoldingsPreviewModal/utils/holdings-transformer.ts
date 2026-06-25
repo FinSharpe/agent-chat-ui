@@ -37,6 +37,31 @@ export function extractHoldingsFromFiData(
 }
 
 /**
+ * Sum the current value across all accounts (shown in the ETF summary card).
+ * Returns null when no account reports a value.
+ */
+export function extractCurrentValueFromFiData(
+  fiData: FiDataResponse | undefined | null,
+): string | null {
+  if (!fiData) return null;
+
+  let totalValue = 0;
+  let hasValue = false;
+
+  fiData.forEach((account) => {
+    if (account.Summary?.currentValue) {
+      const value = parseFloat(account.Summary.currentValue);
+      if (!isNaN(value)) {
+        totalValue += value;
+        hasValue = true;
+      }
+    }
+  });
+
+  return hasValue ? totalValue.toString() : null;
+}
+
+/**
  * Transform holdings to form data with quantity field
  */
 export function transformHoldingsToFormData(

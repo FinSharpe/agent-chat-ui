@@ -7,7 +7,6 @@ import { moneyOneAuthHeaders } from "./moneyone.headers";
 import { webRedirectionDecryptionApiReqParamsSchema } from "./moneyone.schema";
 import {
   Consent,
-  ConsentRequestResponse,
   ConsentRequestV3Response,
   FiDataResponse,
   FiRequestResponse,
@@ -46,57 +45,6 @@ const consentFipIdsMap = {
     ? process.env.MONEY_ONE_SIP_FIPS.split(",")
     : null,
 } as const;
-
-export const createConsentRequest = async (
-  mobileNo: string,
-  consentType: ConsentType,
-  accountID: string, // Browser-unique user ID from localStorage
-): Promise<{ error: string } | ConsentRequestResponse> => {
-  const body = JSON.stringify({
-    partyIdentifierType: "MOBILE",
-    partyIdentifierValue: mobileNo,
-    productID: consentFormMap[consentType],
-    accountID: accountID,
-    vua: `${mobileNo}@onemoney`,
-  });
-
-  const url = `${process.env.MONEY_ONE_BASE_URL}/v2/requestconsent`;
-
-  try {
-    if (process.env.NODE_ENV === "development")
-      console.log("---Making consent request ~ body:", body);
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...moneyOneAuthHeaders,
-      },
-      body,
-    });
-
-    if (!response.ok) {
-      if (response.status === 503)
-        throw new Error("503 Service Temporarily Unavailable");
-      throw await response.json();
-    }
-
-    const res: ConsentRequestResponse = await response.json();
-    if (process.env.NODE_ENV === "development")
-      console.log("---Consent created ~ /v2/requestconsent", res);
-
-    return res;
-  } catch (error) {
-    console.error("---Error occurred while creating consent", error);
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : extractErrorMessage(error) || ReasonPhrases.INTERNAL_SERVER_ERROR;
-
-    return { error: message };
-  }
-};
 
 export const createConsentRequestV3 = async (
   mobileNo: string,
@@ -140,8 +88,6 @@ export const createConsentRequestV3 = async (
           status: response.status,
           statusText: response.statusText,
           body: errorBody,
-          requestBody: JSON.parse(body),
-          headers: moneyOneAuthHeaders,
         });
       }
       if (response.status === 503)
@@ -313,8 +259,27 @@ export const getConsentList = async (
         (c: Consent) => c.consentHandle === consentHandle,
       );
       if (!consent) throw new Error("Consent not found");
-      if (process.env.NODE_ENV === "development")
-        console.log("Consent found in list: ", consent);
+
+      // Defense-in-depth: the AA return payload is decrypted but its contents
+      // aren't otherwise authenticated. Never complete a consent whose productID
+      // doesn't match the asset type we asked for (prevents an attacker-supplied
+      // handle resolving to a different asset type's consent).
+      const expectedProductID = consentFormMap[consentType];
+      if (expectedProductID && consent.productID !== expectedProductID) {
+        throw new Error("Resolved consent does not match the requested type");
+      }
+      // TODO(security): once accountID echo semantics are confirmed against
+      // live traffic, hard-fail on mismatch like the productID check above.
+      // It's a dev-only warn for now so an unverified echo can't block real
+      // returns — tracked in IMPORT_HOLDINGS_DOCUMENTATION.md Appendix B.
+      if (
+        process.env.NODE_ENV === "development" &&
+        consent.accountID !== accountID
+      ) {
+        console.warn(
+          "getConsentList: resolved consent accountID does not match request",
+        );
+      }
 
       return consent;
     }

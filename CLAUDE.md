@@ -127,7 +127,6 @@ src/modules/
 - `useConsentQuery.ts` - Real-time localStorage tracking for consent status
 - `useFiData.ts` - FI data fetching and consent flow management
 - `useImportHoldingsMutation.ts` - Import holdings to chat as markdown table
-- `useMoneyOneStatus.ts` - MoneyOne connection status tracking
 - `useRefreshFiData` - Manual FI data refresh functionality
 
 ### Component Decomposition Guidelines

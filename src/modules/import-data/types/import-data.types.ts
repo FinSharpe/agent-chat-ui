@@ -9,13 +9,6 @@ export interface ImportMethodProps {
   onRefresh?: () => void;
 }
 
-export interface AnalysisModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  analysisType: string;
-  analysisData: Record<string, unknown>;
-}
-
 export interface CollapsibleInstructionsProps {
   title: string;
   description: string;

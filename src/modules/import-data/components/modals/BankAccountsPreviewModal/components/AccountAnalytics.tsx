@@ -26,9 +26,22 @@ import {
   prepareBalanceTrendData,
   processTransactionsForDisplay,
 } from "../utils/transaction-analytics";
-import { BalanceTrendChart } from "./BalanceTrendChart";
-import { IncomeExpenseChart } from "./IncomeExpenseChart";
+import dynamic from "next/dynamic";
 import { TransactionsList } from "./TransactionsList";
+
+// Both charts pull in recharts (large). Load them only when a bank account's
+// analytics are expanded, keeping recharts out of the preview-modal bundle.
+const chartLoading = () => (
+  <div className="h-64 w-full animate-pulse rounded-md bg-gray-100" />
+);
+const BalanceTrendChart = dynamic(
+  () => import("./BalanceTrendChart").then((m) => m.BalanceTrendChart),
+  { ssr: false, loading: chartLoading },
+);
+const IncomeExpenseChart = dynamic(
+  () => import("./IncomeExpenseChart").then((m) => m.IncomeExpenseChart),
+  { ssr: false, loading: chartLoading },
+);
 
 interface AccountAnalyticsProps {
   account: BankAccount;

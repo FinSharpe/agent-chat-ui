@@ -15,26 +15,18 @@ export function useCheckConsentMut(consentType: ConsentType) {
         return null;
       }
 
-      console.log("Found existing consent:", consent);
-
       // If consent exists and data is ready, fetch FI data
       if (consent.isDataReady) {
-        console.log("Data is ready, fetching FI data for consentID:", consent.consentID);
-
         const fiData = await getAllFiData(consent.consentID);
 
         if ("error" in fiData) {
           throw new Error(fiData.error);
         }
 
-        // Log raw holdings data
-        console.log("Raw holdings data:", fiData);
-
-        return fiData
+        return fiData;
       }
 
       // Consent exists but data not ready yet
-      console.log("Consent found but data not ready yet");
       return null;
     },
   });

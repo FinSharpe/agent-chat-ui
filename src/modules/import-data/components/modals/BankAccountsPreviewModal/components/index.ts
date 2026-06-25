@@ -7,5 +7,4 @@ export { AccountAnalytics } from "./AccountAnalytics";
 export { BalanceTrendChart } from "./BalanceTrendChart";
 export { IncomeExpenseChart } from "./IncomeExpenseChart";
 export { TransactionsList } from "./TransactionsList";
-export { BankAccountTableRow } from "./BankAccountTableRow";
 export { BankAccountsTable } from "./BankAccountsTable";

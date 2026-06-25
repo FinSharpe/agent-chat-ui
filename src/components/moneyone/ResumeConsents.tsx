@@ -80,20 +80,20 @@ export function ResumeConsents({
       ? consentKey(pendingMut.variables as ListedConsent)
       : undefined;
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     const consentID = toDelete?.consentID;
     if (!consentID) return;
-    revokeMut.mutate(consentID, {
-      onSuccess: () => {
-        toast.success("Connection removed");
-        setToDelete(null);
-        onRefetch();
-      },
-      onError: (error) =>
-        toast.error(
-          error instanceof Error ? error.message : "Couldn't remove connection",
-        ),
-    });
+    try {
+      await revokeMut.mutateAsync(consentID);
+      toast.success("Connection removed");
+      onRefetch();
+      // The dialog closes itself once this resolves (controlled via `toDelete`).
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Couldn't remove connection",
+      );
+      throw error; // keep the dialog open so the user can retry
+    }
   };
 
   const handleContinue = (consent: ListedConsent) => {
@@ -230,7 +230,6 @@ export function ResumeConsents({
         description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
         confirmLabel="Remove"
         destructive
-        confirming={revokeMut.isPending}
         onConfirm={handleConfirmDelete}
       />
     </div>

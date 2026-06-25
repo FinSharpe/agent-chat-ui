@@ -66,9 +66,10 @@ export function useFiDataConsentFlow() {
 
   const query = useQuery({
     queryKey: consentID ? [FI_DATA_QUERY_KEY, consentID] : ["fi-data-disabled"],
+    // Pure fetch only — no setState/URL/timer side effects here, so React Query
+    // retries can't fire them more than once. Post-success work happens in the
+    // effect below.
     queryFn: async () => {
-      setModalOpen(true);
-
       if (!consentID || !consentType) {
         throw new Error("Invalid consent ID or consent type");
       }
@@ -81,26 +82,66 @@ export function useFiDataConsentFlow() {
         throw err;
       }
 
-      // Mark data as ready after successful fetch (clear any stale expiry flag)
-      updateConsent(consentID, { isDataReady: true, isExpired: false });
-
-      // Remove search params from url
-      const url = new URL(window.location.href);
-      url.searchParams.delete("consentID");
-      url.searchParams.delete("consentType");
-      url.searchParams.delete("mobileNo");
-      url.searchParams.delete("consentCreationData");
-      history.pushState(null, "", url.toString());
-
-      setTimeout(() => setModalOpen(false), 1500);
-
       return data;
     },
     enabled: isEnabled,
-    retry: true,
+    // Poll while the AA finishes preparing data ("data not ready yet" keeps
+    // failing), but cancel the poll on a dead/invalid consent (it'll never
+    // resolve) and cap it at ~120s so it can't retry forever.
+    retry: (failureCount, error) => {
+      const e = error as FiDataError;
+      if (classifyFiDataError(e.errorCode, e.message) === "consent-dead") {
+        return false;
+      }
+      return failureCount < 40;
+    },
     retryDelay: 3000,
     // gcTime (7 days), staleTime (Infinity), and refetchOnWindowFocus inherited from QueryProvider setQueryDefaults
   });
+
+  const successHandledRef = useRef<string | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Open the fetching modal once a consent return is detected. It closes after
+  // success (below) or when the user dismisses it — we never force it shut here,
+  // so stripping the URL params later (which flips `isEnabled` false) can't
+  // re-trigger and reopen it.
+  useEffect(() => {
+    if (isEnabled) setModalOpen(true);
+  }, [isEnabled]);
+
+  // Run the post-success side effects exactly once per consent: mark it ready,
+  // strip the AA return params from the URL, then auto-close the modal.
+  //
+  // The close timer is held in a ref (NOT returned as effect cleanup) on
+  // purpose: stripping the params via history.pushState makes useSearchParams
+  // re-render with consentID=null, which would otherwise trip this effect's
+  // cleanup and cancel the timer before it fires — leaving the modal stuck open.
+  // It's cleared only on unmount.
+  useEffect(() => {
+    if (!query.isSuccess || !consentID) return;
+    if (successHandledRef.current === consentID) return;
+    successHandledRef.current = consentID;
+
+    updateConsent(consentID, { isDataReady: true, isExpired: false });
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("consentID");
+    url.searchParams.delete("consentType");
+    url.searchParams.delete("mobileNo");
+    url.searchParams.delete("consentCreationData");
+    history.pushState(null, "", url.toString());
+
+    closeTimerRef.current = setTimeout(() => setModalOpen(false), 1500);
+  }, [query.isSuccess, consentID]);
+
+  // Cancel a pending close timer only when the hook unmounts.
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
   // Derive fetch status from query state
   const fetchStatus: "fetching" | "success" | "error" = query.isError
@@ -206,7 +247,6 @@ export function useRefreshFiData() {
       queryClient.removeQueries({
         queryKey: [FI_DATA_QUERY_KEY, consentID],
       });
-      console.log("Cleared FI data cache for consent:", consentID);
 
       // Step 2: Poll for new data with retries
       // Similar to useFiDataConsentFlow behavior
@@ -251,7 +291,6 @@ export function useRefreshFiData() {
         isExpired: false,
         consentCreationData: new Date().toISOString(),
       });
-      console.log("Marked consent data as ready after refresh:", consentID);
     },
   });
 }

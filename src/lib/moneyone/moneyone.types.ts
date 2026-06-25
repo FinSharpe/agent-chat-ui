@@ -42,15 +42,6 @@ export type CreateNewConsentFormValues = z.infer<
   typeof createNewConsentFormSchema
 >;
 
-export type ConsentRequestResponse = {
-  status: string;
-  ver: string;
-  data: {
-    status: string;
-    consent_handle: string;
-  };
-};
-
 export type ConsentRequestV3Response = {
   status: string;
   ver: string;
@@ -62,6 +53,9 @@ export type ConsentRequestV3Response = {
   };
 };
 
+// --- Reference contract for the (removed) MoneyOne data-ready webhook. ---
+// Retained to document the payload for recreating the webhook; see
+// docs/reference/IMPORT_HOLDINGS_DOCUMENTATION.md Appendix A. Not used at runtime.
 export type LinkRefNumber = {
   linkRefNumber: string;
   fiStatus: string;

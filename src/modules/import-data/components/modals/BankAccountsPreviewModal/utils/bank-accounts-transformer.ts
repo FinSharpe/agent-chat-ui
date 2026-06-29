@@ -19,6 +19,35 @@ export function extractBankAccountsFromFiData(
 }
 
 /**
+ * Sum the current balance across all bank accounts — the single source of truth
+ * for a bank consent's total. Balances are summed signed (an overdraft/CURRENT
+ * account's negative balance reduces the total), matching the preview form's
+ * total exactly so the My-Networth figure and the modal can never drift.
+ * Returns null when no account reports a balance (distinguishes "no data" from
+ * a genuine ₹0).
+ */
+export function extractBankBalanceFromFiData(
+  fiData: BankAccountsFiDataResponse | undefined | null,
+): number | null {
+  if (!fiData || fiData.length === 0) return null;
+
+  let total = 0;
+  let hasValue = false;
+
+  fiData.forEach((account) => {
+    const raw = account.Summary?.currentBalance;
+    if (raw == null || raw === "") return;
+    const value = parseFloat(raw);
+    if (!isNaN(value)) {
+      total += value;
+      hasValue = true;
+    }
+  });
+
+  return hasValue ? total : null;
+}
+
+/**
  * Format currency for display
  */
 function formatCurrency(amount: string): string {

@@ -7,6 +7,8 @@ import { useMemo } from "react";
 import { useFiData } from "@/modules/import-data/hooks/useFiData";
 import { SIPFiDataResponse } from "@/modules/import-data/types/sip";
 import { transformSipAccountsToDisplayData } from "../utils/sip-transformer";
+import { computeSipHygiene } from "../utils/sip-hygiene";
+import { computeSipAnalytics } from "../utils/sip-analytics";
 
 /**
  * Hook for fetching and transforming SIP data
@@ -39,9 +41,21 @@ export function useSipData(
     [sipData],
   );
 
+  // Registry/hygiene facts from the Profile block (available today).
+  const hygiene = useMemo(() => computeSipHygiene(sipData), [sipData]);
+
+  // Performance analytics — null until a Summary/Transactions block arrives.
+  const analytics = useMemo(() => computeSipAnalytics(sipData), [sipData]);
+
   return {
     /** SIP accounts transformed for display */
     displayData,
+    /** Registry & account-hygiene facts (KYC, nominee gap, fund-house spread) */
+    hygiene,
+    /** Performance analytics, or null while gated on Summary/Transactions */
+    analytics,
+    /** Whether real performance analytics are available to render */
+    hasPerformanceData: analytics !== null,
     /** Whether data is currently loading */
     isLoading,
     /** Whether the FI-data fetch failed */

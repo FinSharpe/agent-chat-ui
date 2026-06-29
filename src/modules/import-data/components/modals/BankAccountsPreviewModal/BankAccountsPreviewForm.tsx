@@ -25,7 +25,10 @@ import {
   formatCount,
   type WorkspaceMetric,
 } from "@/modules/import-data/components/shared/ui";
-import { transformFormDataToBankAccounts } from "./utils/bank-accounts-transformer";
+import {
+  extractBankBalanceFromFiData,
+  transformFormDataToBankAccounts,
+} from "./utils/bank-accounts-transformer";
 import {
   useHoldingsForm,
   HoldingFormData,
@@ -62,11 +65,8 @@ export function BankAccountsPreviewForm({
 
   const accounts = fields as unknown as BankAccountWithFormData[];
   const count = accounts.length;
-  const totalBalance = accounts.reduce(
-    (sum, account) =>
-      sum + (parseFloat(account.Summary?.currentBalance ?? "") || 0),
-    0,
-  );
+  // Shared with the My-Networth aggregator so the two totals can never drift.
+  const totalBalance = extractBankBalanceFromFiData(accounts) ?? 0;
   const insightCount = accounts.filter(hasTransactions).length;
 
   const safeIndex = Math.min(selectedIndex, Math.max(count - 1, 0));

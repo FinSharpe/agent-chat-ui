@@ -43,11 +43,26 @@ const METRIC_TONE = {
   negative: "text-error-fg",
 } as const;
 
-/** Inline, divider-separated KPI row — replaces the old pill + stat-card grid. */
-export function MetricStrip({ metrics }: { metrics: WorkspaceMetric[] }) {
+/**
+ * Inline, divider-separated KPI row — replaces the old pill + stat-card grid.
+ * With `spread`, the metrics stretch to equal-width columns that fill the header
+ * edge-to-edge (kept on one line); otherwise they hug the left and wrap.
+ */
+export function MetricStrip({
+  metrics,
+  spread = false,
+}: {
+  metrics: WorkspaceMetric[];
+  spread?: boolean;
+}) {
   if (metrics.length === 0) return null;
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-4">
+    <div
+      className={cn(
+        "mt-3 flex items-center gap-x-3 gap-y-2 sm:gap-x-4",
+        spread ? "w-full" : "flex-wrap",
+      )}
+    >
       {metrics.map((m, i) => (
         <Fragment key={i}>
           {i > 0 && (
@@ -56,7 +71,12 @@ export function MetricStrip({ metrics }: { metrics: WorkspaceMetric[] }) {
               className="bg-border-default h-6 w-px shrink-0 sm:h-7"
             />
           )}
-          <div className="flex flex-col">
+          <div
+            className={cn(
+              "flex flex-col",
+              spread && "flex-1 whitespace-nowrap",
+            )}
+          >
             <span className="text-text-muted text-[10px] font-medium tracking-wide uppercase sm:text-[11px]">
               {m.label}
             </span>
@@ -91,6 +111,7 @@ export function WorkspaceHeader({
   eyebrow,
   title,
   metrics,
+  metricsSpread,
   srDescription,
 }: {
   icon: IconType;
@@ -98,6 +119,8 @@ export function WorkspaceHeader({
   eyebrow: string;
   title: ReactNode;
   metrics?: WorkspaceMetric[];
+  /** Stretch the metric strip to fill the header width (equal columns). */
+  metricsSpread?: boolean;
   srDescription?: string;
 }) {
   return (
@@ -135,7 +158,12 @@ export function WorkspaceHeader({
         {srDescription ?? eyebrow}
       </DialogDescription>
 
-      {metrics && <MetricStrip metrics={metrics} />}
+      {metrics && (
+        <MetricStrip
+          metrics={metrics}
+          spread={metricsSpread}
+        />
+      )}
 
       <span
         aria-hidden

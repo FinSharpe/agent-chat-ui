@@ -14,11 +14,13 @@ import { FiDataErrorState } from "@/modules/import-data/components/shared/FiData
 import {
   DataPanel,
   EmptyState,
+  SectionLabel,
   TableSkeleton,
   WorkspaceFooter,
   WorkspaceHeader,
   WorkspaceSingle,
   formatCount,
+  formatINRCompact,
   workspaceDialogContentClass,
   type WorkspaceMetric,
 } from "@/modules/import-data/components/shared/ui";
@@ -26,6 +28,9 @@ import { SIP_COLUMNS } from "@/modules/import-data/types/sip";
 import { BarChart3, Info, Loader2, Repeat } from "lucide-react";
 import { useSipData } from "./hooks/useSipData";
 import { useImportSipMutation } from "./hooks/useImportSipMutation";
+import { SipHygieneStrip } from "./components/SipHygieneStrip";
+import { SipAnalyticsDashboard } from "./components/SipAnalyticsDashboard";
+import { SipLockedAnalytics } from "./components/SipLockedAnalytics";
 
 /**
  * Modal component for SIP accounts preview
@@ -40,8 +45,17 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
   const importMutation = useImportSipMutation();
 
   // Fetch and transform SIP data
-  const { displayData, isLoading, fiData, isError, errorKind, errorMessage } =
-    useSipData(consentID, !!isDataReady);
+  const {
+    displayData,
+    hygiene,
+    analytics,
+    hasPerformanceData,
+    isLoading,
+    fiData,
+    isError,
+    errorKind,
+    errorMessage,
+  } = useSipData(consentID, !!isDataReady);
 
   const handleSubmit = () => {
     if (!fiData || fiData.length === 0) return;
@@ -53,17 +67,57 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
   };
 
   const count = displayData.length;
-  const metrics: WorkspaceMetric[] = [
-    { label: "Registrations", value: count },
+
+  // Header strip leads with performance once it's available, otherwise the
+  // registry/hygiene figures we can show from the Profile block today. Capped at
+  // three so the strip stays on one line on mobile; the fourth figure ("Fund
+  // houses" / "Invested") already lives as a tile in the body below.
+  const hygieneMetrics: WorkspaceMetric[] = [
+    { label: "Registrations", value: hygiene.registrations },
     {
-      label: "Fund houses",
-      value: new Set(displayData.map((d) => d.fundHouse)).size,
+      label: "KYC",
+      value:
+        hygiene.kycTotal > 0
+          ? `${hygiene.kycCompliant}/${hygiene.kycTotal}`
+          : "—",
+      tone:
+        hygiene.kycTotal > 0 && hygiene.kycCompliant === hygiene.kycTotal
+          ? "positive"
+          : "default",
     },
-    {
-      label: "Registrars",
-      value: new Set(displayData.map((d) => d.registrar)).size,
-    },
+    { label: "Nominee gap", value: hygiene.nomineeGap },
   ];
+
+  const performanceMetrics: WorkspaceMetric[] = analytics
+    ? [
+        {
+          label: "Current value",
+          value: formatINRCompact(analytics.totalCurrentValue),
+          tone: "positive",
+        },
+        {
+          label: "Returns",
+          value:
+            analytics.returnsPct === null
+              ? "—"
+              : `${analytics.returnsPct >= 0 ? "+" : ""}${analytics.returnsPct.toFixed(1)}%`,
+          hint: "XIRR",
+          tone:
+            analytics.returnsPct === null
+              ? "default"
+              : analytics.returnsPct >= 0
+                ? "positive"
+                : "negative",
+        },
+        {
+          label: "Monthly",
+          value: formatINRCompact(analytics.monthlyCommitment),
+          hint: "/mo",
+        },
+      ]
+    : [];
+
+  const metrics = hasPerformanceData ? performanceMetrics : hygieneMetrics;
 
   return (
     <Dialog
@@ -107,22 +161,11 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
               eyebrow="Import · SIP Registry"
               title="SIP Accounts"
               metrics={isLoading || count === 0 ? undefined : metrics}
+              metricsSpread
               srDescription="Review your Systematic Investment Plan registrations"
             />
 
-            <WorkspaceSingle>
-              {/* Info banner */}
-              <div className="border-info-border bg-info-bg text-info-foreground flex items-start gap-2.5 rounded-xl border p-3 text-sm">
-                <Info className="text-info-icon mt-0.5 h-4 w-4 shrink-0" />
-                <p>
-                  SIP registrations show your active Systematic Investment Plans
-                  across fund houses, including account identifiers and
-                  registrar details fetched via the Account Aggregator
-                  framework. This is a read-only registry — import it so the
-                  assistant can factor your recurring commitments into planning.
-                </p>
-              </div>
-
+            <WorkspaceSingle className="max-w-none">
               {isLoading ? (
                 <TableSkeleton rows={5} />
               ) : count === 0 ? (
@@ -134,103 +177,138 @@ export function SipPreviewModal({ consent }: BaseAnalysisModalProps) {
                 />
               ) : (
                 <>
-                  {/* Mobile: stacked cards instead of a horizontally-scrolling table. */}
-                  <div className="flex flex-col gap-2.5 sm:hidden">
-                    {displayData.map((row, index) => (
-                      <div
-                        key={index}
-                        className="border-border bg-card flex flex-col gap-2 rounded-xl border p-3.5 shadow-sm"
-                      >
-                        <div className="text-text-primary text-sm font-semibold">
-                          {row.fundHouse || "—"}
-                        </div>
-                        {row.maskedAccountNumber && (
-                          <span className="bg-bg-subtle text-text-tertiary inline-flex w-fit items-center rounded px-1.5 py-0.5 font-mono text-[11px]">
-                            {row.maskedAccountNumber}
-                          </span>
-                        )}
-                        <dl className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-                          <dt className="text-text-muted">Registrar</dt>
-                          <dd className="text-text-secondary text-right">
-                            {row.registrar || "—"}
-                          </dd>
-                          <dt className="text-text-muted">Holder</dt>
-                          <dd className="text-text-secondary text-right">
-                            {row.holderName || "—"}
-                          </dd>
-                        </dl>
-                      </div>
-                    ))}
+                  <SipHygieneStrip hygiene={hygiene} />
+
+                  {/* Info banner */}
+                  <div className="border-info-border bg-info-bg text-info-foreground flex items-start gap-2.5 rounded-xl border p-3 text-sm">
+                    <Info className="text-info-icon mt-0.5 h-4 w-4 shrink-0" />
+                    <p>
+                      SIP registrations show your active Systematic Investment
+                      Plans across fund houses, including account identifiers
+                      and registrar details fetched via the Account Aggregator
+                      framework. Import them so the assistant can factor your
+                      recurring commitments into planning.
+                    </p>
                   </div>
 
-                  {/* sm and up: the full registry table. */}
-                  <DataPanel
-                    noPadding
-                    className="hidden sm:block"
-                  >
-                    <div className="scrollbar-thin overflow-auto">
-                      <table className="w-full border-separate border-spacing-0 text-sm">
-                        <thead className="sticky top-0 z-10">
-                          <tr>
-                            {SIP_COLUMNS.map((col) => (
-                              <th
-                                key={col.key}
-                                className={cn(
-                                  "border-border-subtle bg-bg-subtle text-text-tertiary border-b px-3 py-2.5 text-[11px] font-semibold tracking-[0.06em] uppercase",
-                                  col.align === "right"
-                                    ? "text-right"
-                                    : col.align === "center"
-                                      ? "text-center"
-                                      : "text-left",
-                                )}
-                              >
-                                {col.label}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {displayData.map((row, index) => (
-                            <tr
-                              key={index}
-                              className="hover:bg-bg-hover transition-colors"
-                            >
-                              {SIP_COLUMNS.map((col) => {
-                                const value =
-                                  row[col.key as keyof typeof row] || "—";
-                                const isAccount =
-                                  col.key === "maskedAccountNumber";
-                                return (
-                                  <td
-                                    key={col.key}
-                                    className={cn(
-                                      "border-border-subtle border-b px-3 py-2.5 align-middle",
-                                      col.key === "fundHouse"
-                                        ? "text-text-primary font-medium"
-                                        : "text-text-secondary",
-                                      col.align === "right"
-                                        ? "text-right"
-                                        : col.align === "center"
-                                          ? "text-center"
-                                          : "text-left",
-                                    )}
-                                  >
-                                    {isAccount && value !== "—" ? (
-                                      <span className="bg-bg-subtle text-text-tertiary inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[11px]">
-                                        {value}
-                                      </span>
-                                    ) : (
-                                      value
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  {/* Registered SIP folios */}
+                  <section>
+                    <SectionLabel className="mb-2.5">
+                      Registered SIP folios
+                    </SectionLabel>
+
+                    {/* Mobile: stacked cards instead of a horizontally-scrolling table. */}
+                    <div className="flex flex-col gap-2.5 sm:hidden">
+                      {displayData.map((row, index) => (
+                        <div
+                          key={index}
+                          className="border-border bg-card flex flex-col gap-2 rounded-xl border p-3.5 shadow-sm"
+                        >
+                          <div className="text-text-primary text-sm font-semibold">
+                            {row.fundHouse || "—"}
+                          </div>
+                          {row.maskedAccountNumber && (
+                            <span className="bg-bg-subtle text-text-tertiary inline-flex w-fit items-center rounded px-1.5 py-0.5 font-mono text-[11px]">
+                              {row.maskedAccountNumber}
+                            </span>
+                          )}
+                          <dl className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                            <dt className="text-text-muted">Registrar</dt>
+                            <dd className="text-text-secondary text-right">
+                              {row.registrar || "—"}
+                            </dd>
+                            <dt className="text-text-muted">Holder</dt>
+                            <dd className="text-text-secondary text-right">
+                              {row.holderName || "—"}
+                            </dd>
+                          </dl>
+                        </div>
+                      ))}
                     </div>
-                  </DataPanel>
+
+                    {/* sm and up: the full registry table. */}
+                    <DataPanel
+                      noPadding
+                      className="hidden sm:block"
+                    >
+                      <div className="scrollbar-thin overflow-auto">
+                        <table className="w-full border-separate border-spacing-0 text-sm">
+                          <thead className="sticky top-0 z-10">
+                            <tr>
+                              {SIP_COLUMNS.map((col) => (
+                                <th
+                                  key={col.key}
+                                  className={cn(
+                                    "border-border-subtle bg-bg-subtle text-text-tertiary border-b px-3 py-2.5 text-[11px] font-semibold tracking-[0.06em] uppercase",
+                                    col.align === "right"
+                                      ? "text-right"
+                                      : col.align === "center"
+                                        ? "text-center"
+                                        : "text-left",
+                                  )}
+                                >
+                                  {col.label}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {displayData.map((row, index) => (
+                              <tr
+                                key={index}
+                                className="hover:bg-bg-hover transition-colors"
+                              >
+                                {SIP_COLUMNS.map((col) => {
+                                  const value =
+                                    row[col.key as keyof typeof row] || "—";
+                                  const isAccount =
+                                    col.key === "maskedAccountNumber";
+                                  return (
+                                    <td
+                                      key={col.key}
+                                      className={cn(
+                                        "border-border-subtle border-b px-3 py-2.5 align-middle",
+                                        col.key === "fundHouse"
+                                          ? "text-text-primary font-medium"
+                                          : "text-text-secondary",
+                                        col.align === "right"
+                                          ? "text-right"
+                                          : col.align === "center"
+                                            ? "text-center"
+                                            : "text-left",
+                                      )}
+                                    >
+                                      {isAccount && value !== "—" ? (
+                                        <span className="bg-bg-subtle text-text-tertiary inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[11px]">
+                                          {value}
+                                        </span>
+                                      ) : (
+                                        value
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </DataPanel>
+                  </section>
+
+                  {/* Performance analytics — gated on Summary/Transactions. Shows
+                      the locked placeholder today; the same slot renders the real
+                      dashboard the moment the registrar shares the data. */}
+                  <section>
+                    <SectionLabel className="mb-2.5">
+                      Performance analytics
+                    </SectionLabel>
+                    {hasPerformanceData && analytics ? (
+                      <SipAnalyticsDashboard analytics={analytics} />
+                    ) : (
+                      <SipLockedAnalytics />
+                    )}
+                  </section>
                 </>
               )}
             </WorkspaceSingle>

@@ -9,23 +9,29 @@ import { SectionLabel } from "./layout";
 type IconType = ComponentType<{ className?: string }>;
 
 /**
- * Sheet-style workspace frame. Overrides shadcn's centered DialogContent
- * (translate + max-w + radius + padding) so the same `<DialogContent>` renders
- * as a slide-in sheet: a right rail at ~60vw on desktop (`lg`+), and a bottom
- * sheet at ~80dvh on smaller screens. The desktop/mobile split is viewport-based
- * on purpose (it's a device decision); the layout *inside* the sheet responds to
- * the sheet's own width via container queries (see `WorkspaceSplit`).
+ * Workspace frame: a bottom sheet on mobile/tablet, a centered modal on desktop.
+ * Below `lg` it overrides shadcn's centered DialogContent to pin a slide-up
+ * sheet (~80dvh) to the bottom edge. At `lg`+ it instead renders a centered
+ * modal whose width lines up with the import page's card edges (the container is
+ * `max-w-5xl` with `p-6` padding, so the cards span `64rem − 2·1.5rem = 61rem`)
+ * — and is shifted right by half the side-nav width so it sits centered in the
+ * *content area* rather than the full viewport (the fixed sidebar would otherwise
+ * skew it left). The layout *inside* the frame keys off the frame's own width via
+ * container queries (see `WorkspaceSplit`) — at this width that's the
+ * side-by-side split.
  */
 export const workspaceDialogContentClass = cn(
   "flex flex-col gap-0 overflow-hidden p-0 shadow-2xl",
-  "max-w-none translate-x-0 translate-y-0 sm:max-w-none",
-  "border-border border-0",
-  // < lg — bottom sheet (~80dvh), slides up
-  "inset-x-0 bottom-0 left-0 top-auto h-[80dvh] max-h-[80dvh] w-full rounded-t-2xl border-t",
-  "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
-  // lg+ — right rail (~60vw), slides in from the right
-  "lg:inset-y-0 lg:bottom-auto lg:left-auto lg:right-0 lg:top-0 lg:h-[100dvh] lg:max-h-[100dvh] lg:w-[60vw] lg:rounded-l-2xl lg:rounded-tr-none lg:border-l lg:border-t-0",
-  "lg:data-[state=open]:slide-in-from-right lg:data-[state=closed]:slide-out-to-right",
+  "border-border",
+  // < lg — bottom sheet (~80dvh), slides up. Overrides the base centered
+  // DialogContent (translate + max-w) to pin to the bottom edge.
+  "inset-x-0 bottom-0 left-0 top-auto h-[80dvh] max-h-[80dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-t-2xl border-0 border-t sm:max-w-none",
+  "max-lg:data-[state=open]:slide-in-from-bottom max-lg:data-[state=closed]:slide-out-to-bottom",
+  // lg+ — centered modal flush with the import page's card edges (61rem max),
+  // capped to the content area with the same 1.5rem-per-side page padding, and
+  // re-centered to that area's midpoint. Entrance falls back to the base
+  // zoom/fade.
+  "lg:inset-auto lg:left-[calc(50%_+_var(--side-navbar-width)/2)] lg:top-[50%] lg:h-auto lg:max-h-[85vh] lg:w-[calc(100%_-_var(--side-navbar-width)_-_3rem)] lg:max-w-[61rem] lg:translate-x-[-50%] lg:translate-y-[-50%] lg:rounded-2xl lg:border",
 );
 
 /** A single figure in the header's live metric strip. */
@@ -336,7 +342,7 @@ export function WorkspaceCanvasEmpty({
     <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-8 text-center">
       <span
         aria-hidden
-        className="mb-4 h-32 w-32 rounded-full"
+        className="mb-4 hidden h-32 w-32 rounded-full sm:block"
         style={{
           background:
             "conic-gradient(rgba(37,99,235,0.18) 0 33%, rgba(66,212,163,0.18) 33% 60%, rgba(99,102,241,0.14) 60% 100%)",

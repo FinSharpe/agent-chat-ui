@@ -143,8 +143,8 @@ function NudgeAccordion({
             <div className="flex items-center gap-3">
               <div className={cn("rounded-lg p-2", iconBg)}>{icon}</div>
               <div className="text-left">
-                <h4 className="text-sm font-medium text-gray-900">{title}</h4>
-                <p className="text-xs text-gray-500">{subtitle}</p>
+                <h4 className="font-medium text-gray-900">{title}</h4>
+                <p className="text-sm text-gray-600">{subtitle}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

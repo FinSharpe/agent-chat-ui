@@ -76,6 +76,12 @@ const MoneyOneHoldingsCard = dynamic(
   { ssr: false },
 );
 
+// Reads consents from localStorage; ssr:false avoids a hydration mismatch.
+const PortfolioNudges = dynamic(
+  () => import("./nudges/PortfolioNudges").then((mod) => mod.PortfolioNudges),
+  { ssr: false },
+);
+
 export function ImportDataPage() {
   return (
     <div className="mx-auto max-w-5xl pb-24">
@@ -107,6 +113,9 @@ export function ImportDataPage() {
             defaultExpanded={true}
           />
         </div>
+
+        {/* Portfolio Nudges — holding-scoped insights (hidden when no holdings) */}
+        <PortfolioNudges />
 
         {/* Connect Accounts */}
         <div>

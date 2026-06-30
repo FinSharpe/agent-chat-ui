@@ -31,6 +31,11 @@ const API_GROUPS = [
     outputPath: path.join(__dirname, "../openapi-report.json"),
   },
   {
+    name: "Nudge APIs",
+    tags: ["Nudge APIs"],
+    outputPath: path.join(__dirname, "../openapi-nudges.json"),
+  },
+  {
     name: "Auth APIs",
     tags: ["auth"],
     outputPath: path.join(__dirname, "../openapi-auth.json"),

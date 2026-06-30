@@ -77,6 +77,35 @@ export default defineConfig({
       },
     },
   },
+  'nudge-apis': {
+    input: {
+      target: './openapi-nudges.json',
+    },
+    output: {
+      mode: 'tags-split',
+      target: './src/api/generated/nudge-apis',
+      schemas: './src/api/generated/nudge-apis/models',
+      client: 'react-query',
+      httpClient: 'fetch',
+      mock: false,
+      clean: true,
+      prettier: true,
+      baseUrl: '/api/utilities',
+      override: {
+        useDates: false,
+        // The nudge endpoints are POSTs but are reads — coerce them to useQuery
+        // so they cache, dedupe, and refetch like queries (lazy on accordion open).
+        operations: {
+          news_nudge_api_nudges_news_post: { query: { useQuery: true } },
+          technical_nudge_api_nudges_technical_post: { query: { useQuery: true } },
+          fundamental_nudge_api_nudges_fundamental_post: { query: { useQuery: true } },
+          finsharpe_score_nudge_api_nudges_finsharpe_score_post: {
+            query: { useQuery: true },
+          },
+        },
+      },
+    },
+  },
   'auth-apis': {
     input: {
       target: './openapi-auth.json',

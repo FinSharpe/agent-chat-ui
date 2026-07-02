@@ -226,7 +226,7 @@ export function PortfolioNudges() {
   return (
     <div>
       <h3 className="mb-4 font-medium text-gray-900">Portfolio Nudges</h3>
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
         {hasEquity && (
           <>
             <NudgeAccordion

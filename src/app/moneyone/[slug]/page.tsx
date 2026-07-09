@@ -33,6 +33,22 @@ export default async function page({ params, searchParams }: Props) {
     return <div>Missing account ID in URL</div>;
   }
 
+  // Mobile-created consents (finsharpe-mobile ADR-0004/0009): no decrypt, no
+  // processing — forward the raw encrypted return params to the App Link URL.
+  // Android reopens the FinSharpe app, which resolves the params against the
+  // backend under its own JWT; if App Link interception fails, the page shows
+  // a "return to the app" fallback and the app's foreground poll completes
+  // the consent instead.
+  if (slugParts[2] === "mobile") {
+    const forwarded = new URLSearchParams();
+    for (const [key, value] of Object.entries(searchParamsData ?? {})) {
+      if (typeof value === "string") forwarded.set(key, value);
+    }
+    forwarded.set("type", consentType);
+    forwarded.set("accountID", accountID);
+    redirect(`/app/consent-return?${forwarded.toString()}`);
+  }
+
   const decryptResult = await decryptUrl(searchParamsData as Record<string, string>);
 
   // Handle decryption failures

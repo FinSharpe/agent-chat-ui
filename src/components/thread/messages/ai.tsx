@@ -1,6 +1,6 @@
-import { CitationProvider } from "@/hooks/use-citation";
 import { useHideToolCalls } from "@/hooks/useDefaultApiValues";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
+import { stripCitationMarkers } from "@/lib/citations";
 import { isScannerApprovalInterrupt } from "@/lib/scanner-approval-interrupt";
 import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
@@ -16,7 +16,11 @@ import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { Fragment, useMemo } from "react";
 import { ThreadView } from "../agent-inbox";
 import { useArtifact } from "../artifact";
-import { CitationsList } from "../citations-list";
+import {
+  CitationProvider,
+  CitationSourcesFooter,
+  useTurnCitations,
+} from "../citations";
 import { MarkdownText } from "../markdown-text";
 import { getContentString } from "../utils";
 import ClientComponentsRegistry from "./client-components/registry";
@@ -177,6 +181,20 @@ export function AssistantMessage({
     }
     return map;
   }, [thread.messages]);
+  // The turn's filings citations: the registry every tool message in this turn
+  // carried, this answer's markers resolved against it, and whether the sources
+  // footer belongs under this message.
+  const citations = useTurnCitations(message, contentString);
+  const answer = citations.index.text;
+  // The floor, not a fallback: the footer renders whenever the turn retrieved
+  // filings, cited or not. Held back until the run finishes so it does not
+  // judder down the screen on every token.
+  const showSourcesFooter =
+    !citations.registry.isEmpty &&
+    citations.isLastAnswerOfTurn &&
+    !isLoading &&
+    !!answer;
+
   const allToolCallsAreWidgets =
     !!hasToolCalls &&
     (message as AIMessage).tool_calls!.every((tc) => {
@@ -219,10 +237,12 @@ export function AssistantMessage({
       <CitationProvider>
         <div className="chat-message-table group mr-auto flex w-full items-start">
           <div className="flex w-full flex-col">
-            {contentString.length > 0 && (
+            {answer.length > 0 && (
               <div className="py-1">
-                <MarkdownText>{contentString}</MarkdownText>
-                <CitationsList content={contentString} />
+                <MarkdownText citations={citations.index}>{answer}</MarkdownText>
+                {showSourcesFooter && (
+                  <CitationSourcesFooter registry={citations.registry} />
+                )}
               </div>
             )}
 
@@ -260,10 +280,12 @@ export function AssistantMessage({
     <CitationProvider>
       <div className="chat-message-table group mr-auto flex w-full items-start">
         <div className="flex w-full flex-col">
-          {contentString.length > 0 && (
+          {answer.length > 0 && (
             <div className="py-1">
-              <MarkdownText>{contentString}</MarkdownText>
-              <CitationsList content={contentString} />
+              <MarkdownText citations={citations.index}>{answer}</MarkdownText>
+              {showSourcesFooter && (
+                <CitationSourcesFooter registry={citations.registry} />
+              )}
             </div>
           )}
 
@@ -278,7 +300,7 @@ export function AssistantMessage({
             isLastMessage={isLastMessage}
             hasNoAIOrToolMessages={hasNoAIOrToolMessages}
           />
-          {!hasToolCalls && !!contentString && (
+          {!hasToolCalls && !!answer && (
             <div
               className={cn(
                 "mr-auto flex items-center gap-2 transition-opacity",
@@ -292,7 +314,8 @@ export function AssistantMessage({
                 isLoading={isLoading}
               />
               <CommandBar
-                content={contentString}
+                // Copying an answer must not carry its citation machinery.
+                content={stripCitationMarkers(answer)}
                 isLoading={isLoading}
                 isAiMessage={true}
                 handleRegenerate={() => handleRegenerate(parentCheckpoint)}

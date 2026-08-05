@@ -22,13 +22,15 @@ import { loadPdfJs, type PdfDocument } from "@/lib/citations/pdfjs";
 import { cn } from "@/lib/utils";
 
 /**
- * The filing behind a citation: the passage first, the document underneath.
+ * The filing behind a citation.
  *
  * The verbatim quote and the filing's identity come off the registry with no
- * network call, so they render immediately — which is what makes a chip worth
- * clicking before the PDF has arrived. The document resolves underneath and a
- * failed fetch leaves the quote standing with a calm error rather than a blank
- * viewer.
+ * network call, so they render the instant the viewer opens — which is what
+ * makes a chip worth clicking before the PDF has arrived. They are a
+ * **placeholder**: once the document lands, the cited page with the passage
+ * highlighted says the same thing better, and the quote panel gives way to it.
+ * A failed fetch leaves the quote standing with a calm error, so the click was
+ * never wasted.
  *
  * `passages` is one entry when a chip opened this, and every passage the turn
  * drew from a filing when a footer row did.
@@ -41,33 +43,89 @@ export function FilingViewer({
   number?: number;
 }) {
   const filing = passages[0];
+  const { doc, error } = useFilingDocument(filing);
 
   return (
-    <div className="flex h-full flex-col overflow-auto">
-      <PassagePanel
-        passages={passages}
-        number={number}
-      />
-      <PdfPanel
-        filing={filing}
-        passages={passages}
-      />
+    <div className="flex h-full flex-col overflow-hidden">
+      {!doc && (
+        <PassagePanel
+          passages={passages}
+          number={number}
+          error={error}
+        />
+      )}
+      {doc && (
+        <PdfPanel
+          doc={doc}
+          passages={passages}
+          citedPage={filing.page ?? 1}
+        />
+      )}
     </div>
   );
+}
+
+/** The document itself, or why it could not be shown. */
+function useFilingDocument(filing: Citation) {
+  const [doc, setDoc] = useState<PdfDocument | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { subcatname, attachmentName } = filing;
+
+  useEffect(() => {
+    let cancelled = false;
+    let loaded: PdfDocument | null = null;
+    setDoc(null);
+    setError(null);
+
+    (async () => {
+      try {
+        const [lib, bytes] = await Promise.all([
+          loadPdfJs(),
+          loadFilingPdf(subcatname, attachmentName),
+        ]);
+        if (cancelled) return;
+        // pdf.js detaches the buffer it is handed, so the cached bytes are
+        // copied rather than surrendered.
+        const pdf = await lib.getDocument({ data: bytes.slice() }).promise;
+        if (cancelled) {
+          void pdf.destroy();
+          return;
+        }
+        loaded = pdf;
+        setDoc(pdf);
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "The filing could not be loaded.",
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      void loaded?.destroy();
+    };
+  }, [subcatname, attachmentName]);
+
+  return { doc, error };
 }
 
 function PassagePanel({
   passages,
   number,
+  error,
 }: {
   passages: Citation[];
   number?: number;
+  error: string | null;
 }) {
   const filing = passages[0];
   const many = passages.length > 1;
 
   return (
-    <div className="shrink-0 border-b px-4 py-4">
+    <div className="flex-1 overflow-auto px-4 py-4">
       <div className="flex items-start gap-2">
         {number != null && (
           <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-50 px-1.5 text-xs font-semibold text-blue-700 tabular-nums dark:bg-blue-950 dark:text-blue-300">
@@ -100,75 +158,46 @@ function PassagePanel({
           </blockquote>
         ))}
       </div>
-      <p className="text-muted-foreground mt-2 text-xs">
-        {many
-          ? "Verbatim from the filing — the passages this answer drew on."
-          : "Verbatim from the filing."}
-      </p>
+
+      {error ? (
+        <div className="text-muted-foreground mt-4 flex items-start gap-2 text-xs">
+          <TriangleAlert className="mt-px size-4 shrink-0 text-amber-500" />
+          <span>
+            {error} The passage above is what the answer drew on, and is
+            unaffected.
+          </span>
+        </div>
+      ) : (
+        <div className="text-muted-foreground mt-4 flex items-center gap-2 text-xs">
+          <Loader2 className="size-3.5 animate-spin" />
+          Opening the filing at the cited page…
+        </div>
+      )}
     </div>
   );
 }
 
 function PdfPanel({
-  filing,
+  doc,
   passages,
+  citedPage,
 }: {
-  filing: Citation;
+  doc: PdfDocument;
   passages: Citation[];
+  citedPage: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
-  const [doc, setDoc] = useState<PdfDocument | null>(null);
-  const [numPages, setNumPages] = useState(0);
   // A citation with no page opens the document at its first page.
-  const citedPage = filing.page ?? 1;
-  const [page, setPage] = useState(citedPage);
-  const [scale, setScale] = useState(1.2);
+  const [page, setPage] = useState(() =>
+    Math.min(Math.max(citedPage, 1), doc.numPages),
+  );
+  const [scale, setScale] = useState(1);
   const [size, setSize] = useState<{ width: number; height: number } | null>(
     null,
   );
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    let loaded: PdfDocument | null = null;
-
-    (async () => {
-      try {
-        const [lib, bytes] = await Promise.all([
-          loadPdfJs(),
-          loadFilingPdf(filing.subcatname, filing.attachmentName),
-        ]);
-        if (cancelled) return;
-        // pdf.js detaches the buffer it is handed, so the cached bytes are
-        // copied rather than surrendered.
-        const pdf = await lib.getDocument({ data: bytes.slice() }).promise;
-        if (cancelled) {
-          void pdf.destroy();
-          return;
-        }
-        loaded = pdf;
-        setDoc(pdf);
-        setNumPages(pdf.numPages);
-        setPage(Math.min(Math.max(citedPage, 1), pdf.numPages));
-      } catch (err) {
-        if (cancelled) return;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "The filing could not be loaded.",
-        );
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      void loaded?.destroy();
-    };
-  }, [filing.subcatname, filing.attachmentName, citedPage]);
-
-  useEffect(() => {
-    if (!doc) return;
     let cancelled = false;
     let task: { cancel(): void } | null = null;
 
@@ -217,33 +246,14 @@ function PdfPanel({
   const step = useCallback(
     (delta: number) =>
       setPage((current) =>
-        Math.min(Math.max(current + delta, 1), numPages || current),
+        Math.min(Math.max(current + delta, 1), doc.numPages),
       ),
-    [numPages],
+    [doc.numPages],
   );
-
-  if (error) {
-    return (
-      <div className="text-muted-foreground flex flex-col items-center gap-2 px-4 py-10 text-center text-sm">
-        <TriangleAlert className="size-5 text-amber-500" />
-        <p>{error}</p>
-        <p className="text-xs">The passage above is unaffected.</p>
-      </div>
-    );
-  }
-
-  if (!doc) {
-    return (
-      <div className="text-muted-foreground flex items-center justify-center gap-2 px-4 py-10 text-sm">
-        <Loader2 className="size-4 animate-spin" />
-        Loading the filing…
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="bg-background sticky top-0 z-10 flex items-center justify-between border-b px-3 py-2">
+      <div className="bg-background flex items-center justify-between border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -255,13 +265,13 @@ function PdfPanel({
             <ChevronLeft className="size-4" />
           </Button>
           <span className="text-xs tabular-nums">
-            Page {page} of {numPages}
+            Page {page} of {doc.numPages}
           </span>
           <Button
             size="sm"
             variant="outline"
             onClick={() => step(1)}
-            disabled={page >= numPages}
+            disabled={page >= doc.numPages}
             aria-label="Next page"
           >
             <ChevronRight className="size-4" />

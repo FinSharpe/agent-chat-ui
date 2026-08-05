@@ -4,17 +4,21 @@ import "./markdown-styles.css";
 
 import { SyntaxHighlighter } from "@/components/thread/syntax-highlighter";
 import { CheckIcon, ChevronRightIcon, CopyIcon } from "lucide-react";
-import { FC, memo, useState } from "react";
+import { FC, memo, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
+import { CitationChip } from "@/components/thread/citations/citation-chip";
 import { TooltipIconButton } from "@/components/thread/tooltip-icon-button";
-import { useCitation } from "@/hooks/use-citation";
+import type { CitationIndex } from "@/lib/citations";
+import {
+  CITATION_TAG_ATTRIBUTE,
+  remarkCitations,
+} from "@/lib/citations/remark-citations";
 import { cn } from "@/lib/utils";
-import { CitationData } from "@/types/citation";
 
 import "katex/dist/katex.min.css";
 
@@ -60,52 +64,6 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
         {isCopied && <CheckIcon />}
       </TooltipIconButton>
     </div>
-  );
-};
-
-const CitationButton: FC<{
-  className?: string;
-  children: React.ReactNode;
-  [key: string]: any;
-}> = ({ className, children, ...props }) => {
-  const { openCitation } = useCitation();
-
-  const filename = props["data-filename"] || "";
-  const ticker = props["data-ticker"] || "";
-  const category = props["data-category"] || "";
-
-  const handleClick = () => {
-    try {
-      // Parse citation data from data attributes
-      const citationData: CitationData = {
-        citationId: props["data-citation-id"] || "",
-        ticker,
-        page: parseInt(props["data-page"] || "1", 10),
-        filename,
-        fincode: props["data-fincode"] || "",
-        category,
-        documentDate: props["data-document-date"] || "",
-        bbox: props["data-bbox"] ? JSON.parse(props["data-bbox"]) : null,
-        headings: props["data-headings"] ? JSON.parse(props["data-headings"]) : [],
-      };
-
-      openCitation(citationData);
-    } catch (error) {
-      console.error("Failed to parse citation data:", error);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      className={cn(
-        "inline-flex items-center text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium",
-        "transition-colors duration-150",
-        className,
-      )}
-    >
-      {children}
-    </button>
   );
 };
 
@@ -302,29 +260,14 @@ const defaultComponents: any = {
     className?: string;
     children: React.ReactNode;
     [key: string]: any;
-  }) => {
-    // Check if this is a citation button
-    if (className?.includes("citation-btn")) {
-      return (
-        <CitationButton
-          className={className}
-          {...props}
-        >
-          {children}
-        </CitationButton>
-      );
-    }
-
-    // Regular button
-    return (
-      <button
-        className={cn("rounded px-2 py-1", className)}
-        {...props}
-      >
-        {children}
-      </button>
-    );
-  },
+  }) => (
+    <button
+      className={cn("rounded px-2 py-1", className)}
+      {...props}
+    >
+      {children}
+    </button>
+  ),
   details: ({
     className,
     children,
@@ -371,13 +314,72 @@ const defaultComponents: any = {
   del: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 };
 
-const MarkdownTextImpl: FC<{ children: string }> = ({ children }) => {
+const BASE_REMARK_PLUGINS: any[] = [
+  remarkGfm,
+  [remarkMath, { singleDollarTextMath: false }],
+];
+const CITATION_REMARK_PLUGINS: any[] = [...BASE_REMARK_PLUGINS, remarkCitations];
+
+/**
+ * Render one `[[tag]]` the citation plugin left behind.
+ *
+ * Only markers the resolution pass kept reach here, so an unresolvable tag is
+ * not this component's problem — but a chip that leads nowhere is worse than no
+ * chip, so it renders nothing rather than a dead control if one slips through.
+ */
+function citationSpan(citations: CitationIndex) {
+  return ({ node: _node, className, children, ...props }: any) => {
+    const tag = props[CITATION_TAG_ATTRIBUTE];
+    // Every other span in the answer — KaTeX output, raw HTML — is left alone.
+    if (typeof tag !== "string") {
+      return (
+        <span
+          className={className}
+          {...props}
+        >
+          {children}
+        </span>
+      );
+    }
+    const number = citations.numberOf(tag);
+    const citation = citations.citationOf(tag);
+    if (number == null || !citation) return null;
+    return (
+      <CitationChip
+        number={number}
+        citation={citation}
+      />
+    );
+  };
+}
+
+const MarkdownTextImpl: FC<{
+  children: string;
+  /**
+   * A turn's resolved citations. Supplied by the assistant message, which is
+   * the only place that can see the whole turn; omitted everywhere else, where
+   * the markdown pipeline stays exactly as it was.
+   */
+  citations?: CitationIndex;
+}> = ({ children, citations }) => {
+  const components = useMemo(
+    () =>
+      citations && !citations.isEmpty
+        ? { ...defaultComponents, span: citationSpan(citations) }
+        : defaultComponents,
+    [citations],
+  );
+
   return (
     <div className="markdown-content chat-container overflow-hidden text-left">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, [remarkMath, { singleDollarTextMath: false }]]}
+        remarkPlugins={
+          citations && !citations.isEmpty
+            ? CITATION_REMARK_PLUGINS
+            : BASE_REMARK_PLUGINS
+        }
         rehypePlugins={[rehypeRaw, rehypeKatex]}
-        components={defaultComponents}
+        components={components}
       >
         {children}
       </ReactMarkdown>

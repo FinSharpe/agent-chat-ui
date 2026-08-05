@@ -1,6 +1,7 @@
 import { Thread } from "@langchain/langgraph-sdk";
 import { format, parseISO } from "date-fns";
 import { getContentString } from "@/components/thread/utils";
+import { stripCitationMarkers } from "@/lib/citations";
 
 export function getThreadInfo(thread: Thread) {
   let title = thread.thread_id;
@@ -25,7 +26,9 @@ export function getThreadInfo(thread: Thread) {
     // Get preview from the last message or second message if available
     if (messages.length > 1) {
       const lastMessage = messages[messages.length - 1];
-      preview = getContentString(lastMessage.content);
+      // A preview renders outside the citation-aware markdown pipeline, so its
+      // markers are stripped here — a raw tag must never reach the reader.
+      preview = stripCitationMarkers(getContentString(lastMessage.content));
     } else {
       preview = title;
     }

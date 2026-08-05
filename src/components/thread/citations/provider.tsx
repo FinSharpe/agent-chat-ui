@@ -44,6 +44,15 @@ const CitationViewerContext = createContext<CitationViewerApi | null>(null);
 interface ViewerState {
   passages: Citation[];
   number?: number;
+  /**
+   * Counts opens, not citations.
+   *
+   * Two chips into the same filing leave the viewer showing one already-loaded
+   * document, so nothing about the document identifies the *request* — and the
+   * page the viewer is on has to follow the click even when the click asks for
+   * a page the reader has already navigated away from by hand.
+   */
+  requestId: number;
 }
 
 export function CitationProvider({ children }: { children: ReactNode }) {
@@ -54,7 +63,11 @@ export function CitationProvider({ children }: { children: ReactNode }) {
   const openViewer = useCallback(
     (passages: Citation[], number?: number) => {
       if (passages.length === 0) return;
-      setState({ passages, number });
+      setState((previous) => ({
+        passages,
+        number,
+        requestId: (previous?.requestId ?? 0) + 1,
+      }));
       setOpen(true);
     },
     [setOpen],
@@ -90,6 +103,7 @@ export function CitationProvider({ children }: { children: ReactNode }) {
               <FilingViewer
                 passages={state.passages}
                 number={state.number}
+                requestId={state.requestId}
               />
             </div>
           </DialogContent>
@@ -112,6 +126,7 @@ export function CitationProvider({ children }: { children: ReactNode }) {
           <FilingViewer
             passages={state.passages}
             number={state.number}
+            requestId={state.requestId}
           />
         </ArtifactContent>
       )}

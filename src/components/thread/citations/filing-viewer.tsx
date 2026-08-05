@@ -38,9 +38,12 @@ import { cn } from "@/lib/utils";
 export function FilingViewer({
   passages,
   number,
+  requestId,
 }: {
   passages: Citation[];
   number?: number;
+  /** Identifies the click, not the citation — see `ViewerState.requestId`. */
+  requestId?: number;
 }) {
   const filing = passages[0];
   const { doc, error } = useFilingDocument(filing);
@@ -59,6 +62,7 @@ export function FilingViewer({
           doc={doc}
           passages={passages}
           citedPage={filing.page ?? 1}
+          requestId={requestId}
         />
       )}
     </div>
@@ -181,21 +185,30 @@ function PdfPanel({
   doc,
   passages,
   citedPage,
+  requestId,
 }: {
   doc: PdfDocument;
   passages: Citation[];
   citedPage: number;
+  requestId?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   // A citation with no page opens the document at its first page.
-  const [page, setPage] = useState(() =>
-    Math.min(Math.max(citedPage, 1), doc.numPages),
-  );
+  const landingPage = Math.min(Math.max(citedPage, 1), doc.numPages);
+  const [page, setPage] = useState(landingPage);
   const [scale, setScale] = useState(1);
   const [size, setSize] = useState<{ width: number; height: number } | null>(
     null,
   );
+
+  // Every click lands on its own cited page. Two citations into one filing
+  // reuse the loaded document and this component with it, so without this the
+  // viewer would keep showing whatever page it was left on while the header
+  // above it named a different one.
+  useEffect(() => {
+    setPage(landingPage);
+  }, [requestId, landingPage]);
 
   useEffect(() => {
     let cancelled = false;

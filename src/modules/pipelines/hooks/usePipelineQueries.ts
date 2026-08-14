@@ -8,7 +8,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   deletePurchase,
@@ -234,5 +234,5 @@ export function useShareActions() {
     onSuccess: invalidate,
   });
 
-  return useMemo(() => ({ mint, revoke, remove }), [mint, revoke, remove]);
+  return { mint, revoke, remove };
 }

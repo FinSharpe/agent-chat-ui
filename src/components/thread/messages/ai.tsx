@@ -3,6 +3,10 @@ import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
 import { stripCitationMarkers } from "@/lib/citations";
 import { isScannerApprovalInterrupt } from "@/lib/scanner-approval-interrupt";
 import { cn } from "@/lib/utils";
+import {
+  PipelineSummaryCardView,
+  readSummaryCard,
+} from "@/modules/pipelines";
 import { useStreamContext } from "@/providers/Stream";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { parsePartialJson } from "@langchain/core/output_parsers";
@@ -204,6 +208,18 @@ export function AssistantMessage({
 
   if (isToolResult) {
     return null;
+  }
+
+  // A published research report delivers a Summary Card into the thread. Its
+  // text content is the fallback for a renderer that does not know the card;
+  // this one does, so it shows the card instead of restating it as prose.
+  const summaryCard = readSummaryCard(message);
+  if (summaryCard) {
+    return (
+      <div className="chat-message-table group mr-auto flex w-full items-start">
+        <PipelineSummaryCardView card={summaryCard} />
+      </div>
+    );
   }
 
   // Hide the tool-calling bubble when its only output is widget(s) and it has no

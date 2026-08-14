@@ -45,6 +45,17 @@ const API_GROUPS = [
     tags: ["me-mcp"],
     outputPath: path.join(__dirname, "../openapi-mcp.json"),
   },
+  {
+    name: "Pipeline APIs",
+    tags: ["Pipeline APIs"],
+    outputPath: path.join(__dirname, "../openapi-pipelines.json"),
+    // The share routes are deliberately public on the backend (they serve a
+    // frozen report to anyone holding the token). The generated client talks
+    // to the authed `/api/utilities` proxy, which would turn a public link
+    // into a 401 — so they are excluded here and served by the hand-written
+    // public client in `src/modules/pipelines/api/pipelines-client.ts` instead.
+    excludePathPrefixes: ["/shared/"],
+  },
 ];
 
 async function fetchOpenAPISpec() {
@@ -56,7 +67,7 @@ async function fetchOpenAPISpec() {
   return response.json();
 }
 
-function filterPaths(spec, tags) {
+function filterPaths(spec, tags, excludePathPrefixes = []) {
   const filteredPaths = {};
   const usedSchemas = new Set();
 
@@ -69,6 +80,10 @@ function filterPaths(spec, tags) {
           // Strip /api prefix from paths for proxy compatibility
           // /api/strategies -> /strategies
           const normalizedPath = pathKey.replace(/^\/api/, "");
+
+          if (excludePathPrefixes.some((p) => normalizedPath.startsWith(p))) {
+            continue;
+          }
 
           if (!filteredPaths[normalizedPath]) {
             filteredPaths[normalizedPath] = {};
@@ -137,7 +152,11 @@ async function main() {
 
     // Generate a separate spec file for each API group
     for (const group of API_GROUPS) {
-      const { filteredPaths, usedSchemas } = filterPaths(spec, group.tags);
+      const { filteredPaths, usedSchemas } = filterPaths(
+        spec,
+        group.tags,
+        group.excludePathPrefixes,
+      );
       const filteredSchemas = filterSchemas(spec, usedSchemas);
 
       const filteredSpec = {

@@ -110,10 +110,9 @@ const StreamSession = ({
       if (pathname !== "/") {
         router.push(`/?threadId=${id}`);
       } else {
-        setThreadId(id)
+        setThreadId(id);
       }
 
-      // setThreadId(id);
       // Refetch threads list when thread ID changes.
       // Wait for some seconds before fetching so we're able to get the new thread that was created.
       sleep().then(() => getThreads().then(setThreads).catch(console.error));

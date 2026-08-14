@@ -31,6 +31,7 @@ import {
   CarouselBanner,
   type CarouselSlide,
 } from "@/modules/core/common/ui/CarouselBanner";
+import { ResearchReportsCard } from "@/modules/pipelines";
 
 const discoverSlides: CarouselSlide[] = [
   {
@@ -257,6 +258,8 @@ export function DiscoverPage() {
           iconColor="text-info-icon"
           defaultExpanded={true}
         />
+
+        <ResearchReportsCard />
 
         <CustomBasketBuilderCard />
 

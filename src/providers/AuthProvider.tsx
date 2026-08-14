@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { UserResponse } from "@/api/generated/auth-apis/models";
+import { isPublicPage } from "@/lib/auth/public-paths";
 
 /**
  * Minimal user data available from the user_info cookie.
@@ -96,12 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "/api/auth/logout",
         "/api/auth/logout-all",
       ];
-      const onAuthPage = ["/login", "/register", "/verify-email"].includes(
-        window.location.pathname,
-      );
+      // Any page a visitor may legitimately be on with no session — the auth
+      // screens, and every other public page (a shared report above all). On
+      // those, a 401 is the expected answer for an anonymous reader, not a
+      // dead session, and bouncing them to /login would break the page.
+      const onPublicPage = isPublicPage(window.location.pathname);
       if (
         !isRedirecting &&
-        !onAuthPage &&
+        !onPublicPage &&
         response.status === 401 &&
         pathname.startsWith("/api/") &&
         !AUTH_401_PASSTHROUGH.includes(pathname)

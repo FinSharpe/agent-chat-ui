@@ -1,21 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const PUBLIC_PATHS = ["/login", "/register", "/verify-email", "/welcome"];
-const PUBLIC_PREFIXES = [
-  "/api/",
-  "/_next/",
-  "/favicon.ico",
-  "/moneyone/",
-  // Mobile App Link return + Android verification file: fetched with no web
-  // session (Custom Tab / Google crawler) — must never bounce to /login.
-  "/app/consent-return",
-  "/.well-known/",
-];
-
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_PATHS.includes(pathname)) return true;
-  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
+import { isPublicPath } from "@/lib/auth/public-paths";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

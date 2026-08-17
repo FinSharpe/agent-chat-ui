@@ -27,8 +27,14 @@ interface MetricDisplay {
 
 export type MetricValue = boolean | number | string | null;
 
-/** Indian-market digit grouping (12,34,567). */
-function group(value: number): string {
+/**
+ * Indian-market digit grouping (12,34,567).
+ *
+ * Exported for the report Table, which reads no *dictionary* — every column
+ * declares its own unit — but must group its digits the same way, or one
+ * frozen document would show two number formats on one page.
+ */
+export function group(value: number): string {
   const s = Math.abs(value).toString();
   const sign = value < 0 ? "-" : "";
   if (s.length <= 3) return sign + s;

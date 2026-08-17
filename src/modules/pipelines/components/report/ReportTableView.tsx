@@ -17,24 +17,11 @@
  */
 
 import { cn } from "@/lib/utils";
+// The digit grouping only — not the per-key dictionary, which a Table never
+// consults. Shared so one document cannot show two number formats.
+import { group } from "../../constants/metric-dictionary";
 import { vintageStampText } from "../../constants/presentation";
 import type { TableColumn, TableSpec } from "../../types/pipelines.types";
-
-/** Indian-market digit grouping (12,34,567) — the metric tiles' own rule. */
-function group(value: number): string {
-  const s = Math.abs(Math.round(value)).toString();
-  if (s.length <= 3) return s;
-  const head = s.slice(0, -3);
-  const tail = s.slice(-3);
-  const parts: string[] = [];
-  let rest = head;
-  while (rest.length > 2) {
-    parts.unshift(rest.slice(-2));
-    rest = rest.slice(0, -2);
-  }
-  parts.unshift(rest);
-  return `${parts.join(",")},${tail}`;
-}
 
 function decimals(value: number): string {
   return Number.isInteger(value) ? group(value) : value.toFixed(1);
@@ -51,17 +38,24 @@ function formatCell(value: unknown, unit: string): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value !== "number" || Number.isNaN(value)) return String(value);
 
-  const sign = value < 0 ? "−" : "";
-  const mag = Math.abs(value);
+  // Rounds to zero at one decimal, so never print "−0.0%". The PDF clamps the
+  // same way; a frozen document has to read the same on every surface.
+  const n =
+    (unit === "pct" || unit === "pp") && Math.abs(value) < 0.05 ? 0 : value;
+  // The sign rides every unit, money included: a Table ranks subjects against
+  // each other, so a negative crore figure is a real row and printing it
+  // unsigned would read as a positive one.
+  const sign = n < 0 ? "−" : "";
+  const mag = Math.abs(n);
   switch (unit) {
     case "pct":
       return `${sign}${mag.toFixed(1)}%`;
     case "pp":
       return `${sign}${mag.toFixed(1)}pp`;
     case "cr":
-      return `₹${group(mag)} cr`;
+      return `${sign}₹${group(Math.round(mag))} cr`;
     case "inr":
-      return `₹${group(mag)}`;
+      return `${sign}₹${group(Math.round(mag))}`;
     case "x":
       return `${sign}${mag.toFixed(1)}×`;
     default:

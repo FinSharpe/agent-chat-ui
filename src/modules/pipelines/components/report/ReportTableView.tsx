@@ -91,11 +91,14 @@ export function ReportTableView({ table }: { table: TableSpec }) {
         )}
       </figcaption>
 
-      {/* The scroller is the table's own box, so a 17-column ranking scrolls
-          sideways inside the Section instead of widening the page. */}
-      <div className="border-border-default max-h-96 overflow-auto rounded-md border">
+      {/* Sideways only. The scroller is the table's own box, so a wide ranking
+          scrolls inside the Section instead of widening the page — but the
+          rows are not capped and put behind a second vertical scrollbar: this
+          is the Section's content, and the PDF and the app both show every
+          row. A reader comparing the three must not find a different report. */}
+      <div className="border-border-default overflow-x-auto rounded-md border">
         <table className="w-full text-xs">
-          <thead className="bg-bg-subtle text-text-secondary sticky top-0">
+          <thead className="bg-bg-subtle text-text-secondary">
             <tr>
               {columns.map((column) => (
                 <th

@@ -27,6 +27,8 @@ export type {
   Stance,
   StepOutput,
   StepState,
+  TableColumn,
+  TableSpec,
   VintageStamp,
 } from "@/api/generated/pipelines-apis/models";
 

@@ -6,7 +6,9 @@
  */
 import type { StepOutputMetrics } from "./stepOutputMetrics";
 import type { ChartSpec } from "./chartSpec";
+import type { TableSpec } from "./tableSpec";
 import type { StepOutputBadge } from "./stepOutputBadge";
+import type { StepOutputCarry } from "./stepOutputCarry";
 
 /**
  * The full envelope a step emits and `pipeline_step_results.output` stores.
@@ -14,7 +16,9 @@ import type { StepOutputBadge } from "./stepOutputBadge";
 export interface StepOutput {
   metrics?: StepOutputMetrics;
   charts?: ChartSpec[];
+  tables?: TableSpec[];
   paragraph?: string;
   badge?: StepOutputBadge;
   headline?: string;
+  carry?: StepOutputCarry;
 }

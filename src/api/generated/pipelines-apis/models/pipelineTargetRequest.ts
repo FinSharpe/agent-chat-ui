@@ -4,6 +4,7 @@
  * FastAPI
  * OpenAPI spec version: 0.1.0
  */
+import type { PipelineTargetRequestSymbol } from "./pipelineTargetRequestSymbol";
 import type { PipelineTargetRequestThreadId } from "./pipelineTargetRequestThreadId";
 
 /**
@@ -14,6 +15,6 @@ quote and purchase must agree on the target, so neither trusts the client
 with anything beyond the symbol.
  */
 export interface PipelineTargetRequest {
-  symbol: string;
+  symbol?: PipelineTargetRequestSymbol;
   thread_id?: PipelineTargetRequestThreadId;
 }

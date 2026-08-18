@@ -254,6 +254,46 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
     label: "Strongest on rank",
     format: (v) => String(v),
   },
+  // top_down_research / technical_analysis
+  //
+  // The `technicals_` prefix carries the load the `fundamentals_` one above
+  // does, against a closer neighbour: Deep Dive's Trend Section publishes
+  // `rsi_14`, `dma_50`, `dma_200` and `above_dma_200` as one stock's readings,
+  // off the same arithmetic. These are counts and medians across fifteen
+  // names, which is not that fact.
+  technicals_shortlisted: { label: "Shortlisted names", format: (v) => num(v) },
+  technicals_resolved: { label: "Price history read", format: (v) => num(v) },
+  technicals_missed: { label: "Not resolved", format: (v) => num(v) },
+  technicals_ranked: { label: "Ranked on all three", format: (v) => num(v) },
+  technicals_gate_passed: {
+    label: "Passed the trend gate",
+    format: (v) => num(v),
+  },
+  // A tile rather than a footnote, because a relaxed gate changes what the
+  // ranking beside it means: the names under it were not all in uptrends.
+  technicals_gate_relaxed: {
+    label: "Trend gate relaxed",
+    format: yesNo,
+    tone: "boolean",
+  },
+  // Signed, and never positive: the last close sits inside the window its own
+  // high is taken over, so a shortlist at its highs reads 0.0%.
+  technicals_median_pct_from_52w_high: {
+    label: "Median from 52w high",
+    format: signedPct,
+    tone: "signed",
+  },
+  // A ratio rather than a valuation multiple, taking the multiple's formatter
+  // for the reason the cash conversion tile above does: both read as "so many
+  // times", here of the fifty session average volume.
+  technicals_median_volume_ratio: {
+    label: "Median volume 10d / 50d",
+    format: mult,
+  },
+  technicals_strongest: {
+    label: "Strongest on technicals",
+    format: (v) => String(v),
+  },
 };
 
 /** One metric, ready for a stat tile. */

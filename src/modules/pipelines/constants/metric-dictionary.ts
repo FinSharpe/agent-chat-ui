@@ -326,6 +326,38 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
     label: "Its combined rank",
     format: (v) => num(v, 2),
   },
+  // top_down_research / newsflow_filings
+  //
+  // Counts of what was read about three names, and one date. The `newsflow_`
+  // prefix carries the same load the two above it do, against a much closer
+  // neighbour: Deep Dive's own Filings and News Sections publish
+  // `chunk_count`, `latest_filing_date` and `article_count` as figures about
+  // the one stock a reader bought a report on. Nothing here is that fact -
+  // these are totals across three names - so none of them may land on a key a
+  // reader has already met as one company's reading.
+  newsflow_picks: { label: "Names covered", format: (v) => num(v) },
+  newsflow_picks_with_news: { label: "News tape read", format: (v) => num(v) },
+  newsflow_headlines: { label: "Headlines, 30 days", format: (v) => num(v) },
+  // Both counts, and the gap between them is the finding: a name inside the
+  // Nifty 50 that the store held no passage for is a different absence from a
+  // name the store was never asked about.
+  newsflow_in_filings_roster: {
+    label: "In filings coverage",
+    format: (v) => num(v),
+  },
+  newsflow_filings_covered: {
+    label: "Filings drawn on",
+    format: (v) => num(v),
+  },
+  newsflow_filings_documents: { label: "Filings read", format: (v) => num(v) },
+  newsflow_filings_passages: { label: "Passages read", format: (v) => num(v) },
+  // The newest filing any pick was read on. A date rather than an age in
+  // days, because filings are not a declared vintage of this report and an age
+  // would imply one clock over three companies that file on their own.
+  newsflow_latest_filing_date: {
+    label: "Newest filing drawn on",
+    format: date,
+  },
 };
 
 /** One metric, ready for a stat tile. */

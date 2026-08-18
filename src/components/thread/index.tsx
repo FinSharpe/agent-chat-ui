@@ -378,8 +378,17 @@ export function Thread() {
                   />
                 )}
                 {isLoading && <AssistantMessageLoading />}
-                {!isLoading &&
-                  nextPromptSuggestions.length > 0 &&
+                {/* Deliberately NOT gated on !isLoading. The suggestions land
+                    in a state update from the agent's after_agent hook, which
+                    resolves well before the run closes — the run also carries
+                    the grounding judge, which has nothing to do with these
+                    chips. Gating on run completion made the user wait out the
+                    judge to see them. They stay disabled until the run ends
+                    (handleSuggestedQuery refuses while isLoading anyway), so
+                    this only brings the render forward, and the submit path
+                    clears next_prompt_suggestions optimistically, so what is
+                    on screen is never the previous turn's. */}
+                {nextPromptSuggestions.length > 0 &&
                   messages.length > 0 &&
                   messages[messages.length - 1].type === "ai" && (
                     <DynamicSuggestions

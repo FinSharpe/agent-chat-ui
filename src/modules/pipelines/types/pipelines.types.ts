@@ -77,7 +77,12 @@ export function isRunTerminal(status: string | undefined): boolean {
 export interface PipelineSummaryCard {
   run_id: string;
   pipeline_id: string;
-  target: { symbol?: string; fincode?: number };
+  target: {
+    symbol?: string;
+    fincode?: number;
+    kind?: string;
+    market?: string;
+  };
   stance: { value: string; label: string };
   degraded: boolean;
   coverage_gaps: string[];

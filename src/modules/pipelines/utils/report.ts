@@ -48,14 +48,6 @@ export function hasCharts(section: ReportSection): boolean {
   return (section.output?.charts?.length ?? 0) > 0;
 }
 
-/** The target symbol, or the empty string — the target is a loose dict. */
-export function targetSymbol(target: unknown): string {
-  if (target && typeof target === "object" && "symbol" in target) {
-    return String((target as { symbol?: unknown }).symbol ?? "");
-  }
-  return "";
-}
-
 /**
  * Every source the Run probed, in a stable order, with the vintage it was
  * pinned to. All of them are listed, including any the report never drew from:

@@ -11,9 +11,10 @@ export default function ResearchRunRoutePage() {
   return (
     <RunScreen
       runId={params.runId}
-      // The run status carries no target, so the symbol rides the URL from the
-      // purchase. It only ever labels the page — nothing depends on it.
-      symbol={search.get("symbol") ?? ""}
+      // The run status carries no target, so the label rides the URL from the
+      // purchase. It only ever labels the page — nothing depends on it, and a
+      // run reached without one reads its label off the owned list instead.
+      label={search.get("target") ?? search.get("symbol") ?? ""}
     />
   );
 }

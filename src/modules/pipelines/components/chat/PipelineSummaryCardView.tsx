@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatTimestamp, stanceTone } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import type { PipelineSummaryCard } from "../../types/pipelines.types";
+import { targetLabel } from "../../utils/target";
 
 /**
  * The Summary Card, as it lands in a chat thread at publish.
@@ -20,7 +21,9 @@ export function PipelineSummaryCardView({
 }: {
   card: PipelineSummaryCard;
 }) {
-  const symbol = card.target?.symbol ?? "";
+  // A market Report has no ticker; the slot names the market instead of
+  // rendering as a gap.
+  const about = targetLabel(card.target);
   const tone = stanceTone(card.stance?.value);
   const headlines = Object.entries(card.headlines ?? {}).filter(
     ([, headline]) => !!headline,
@@ -35,7 +38,7 @@ export function PipelineSummaryCardView({
           </span>
           <div>
             <p className="text-text-primary text-sm font-medium">
-              {symbol ? `${symbol} research report` : "Research report"}
+              {about ? `${about} research report` : "Research report"}
             </p>
             <p className="text-text-tertiary text-xs">
               {card.published_at
@@ -78,7 +81,7 @@ export function PipelineSummaryCardView({
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           {card.degraded
             ? "Some sections could not be produced — each is marked in the report."
-            : `${card.coverage_gaps.length} ${card.coverage_gaps.length === 1 ? "section is" : "sections are"} not covered for this stock, and are marked in the report.`}
+            : `${card.coverage_gaps.length} ${card.coverage_gaps.length === 1 ? "section is" : "sections are"} not covered, and are marked in the report.`}
         </p>
       )}
 

@@ -11,7 +11,7 @@ import {
 } from "../../api/pipelines-client";
 import { formatTimestamp } from "../../constants/presentation";
 import { useSharedReport } from "../../hooks/usePipelineQueries";
-import { targetSymbol } from "../../utils/report";
+import { targetLabel } from "../../utils/target";
 import { ReportDocumentView } from "../report/ReportDocumentView";
 
 /**
@@ -26,7 +26,7 @@ import { ReportDocumentView } from "../report/ReportDocumentView";
 export function SharedReportScreen({ token }: { token: string }) {
   const { data, isLoading, error } = useSharedReport(token);
   const document = data?.document;
-  const symbol = document ? targetSymbol(document.target) : "";
+  const about = document ? targetLabel(document.target) : "";
 
   return (
     <div className="bg-background min-h-dvh">
@@ -95,7 +95,7 @@ export function SharedReportScreen({ token }: { token: string }) {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h1 className="text-text-primary text-2xl font-semibold">
-                  {symbol ? `${symbol} — research report` : "Research report"}
+                  {about ? `${about} — research report` : "Research report"}
                 </h1>
                 <p className="text-text-secondary mt-1 text-sm">
                   Published {formatTimestamp(document.published_at)} · shared

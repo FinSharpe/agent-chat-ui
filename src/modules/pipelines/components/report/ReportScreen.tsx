@@ -11,7 +11,7 @@ import {
   useOwnedReports,
   usePipelineReport,
 } from "../../hooks/usePipelineQueries";
-import { targetSymbol } from "../../utils/report";
+import { targetLabel } from "../../utils/target";
 import { ResearchShell } from "../shared/ResearchShell";
 import { ReportDocumentView } from "./ReportDocumentView";
 import { ShareDialog } from "./ShareDialog";
@@ -30,12 +30,12 @@ export function ReportScreen({ runId }: { runId: string }) {
 
   const purchase = owned?.find((row) => row.run_id === runId);
   const document = data?.document;
-  const symbol = document ? targetSymbol(document.target) : "";
+  const about = document ? targetLabel(document.target) : "";
 
   return (
     <ResearchShell
       wide
-      title={symbol ? `${symbol} — research report` : "Research report"}
+      title={about ? `${about} — research report` : "Research report"}
       subtitle={
         document
           ? `Published ${formatTimestamp(document.published_at)}`

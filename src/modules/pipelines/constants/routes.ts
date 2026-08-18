@@ -17,9 +17,12 @@ export const researchRoutes = {
     symbol
       ? `/discover/research/quote/${pipelineId}?symbol=${encodeURIComponent(symbol)}`
       : `/discover/research/quote/${pipelineId}`,
-  run: (runId: string, symbol?: string) =>
-    symbol
-      ? `/discover/research/run/${runId}?symbol=${encodeURIComponent(symbol)}`
+  // `label` only ever labels the page — a ticker for a stock report, the
+  // market for a market one. Nothing depends on it, which is why it may be
+  // omitted and why the run view falls back to the owned list for the name.
+  run: (runId: string, label?: string) =>
+    label
+      ? `/discover/research/run/${runId}?target=${encodeURIComponent(label)}`
       : `/discover/research/run/${runId}`,
   report: (runId: string) => `/discover/research/report/${runId}`,
   shared: (token: string) => `/shared/reports/${token}`,

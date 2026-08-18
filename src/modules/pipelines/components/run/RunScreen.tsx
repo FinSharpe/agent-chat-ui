@@ -9,8 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PipelineApiError } from "../../api/pipelines-client";
 import { RUN_STATUS_LABEL } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
-import { usePipelineRun } from "../../hooks/usePipelineQueries";
+import {
+  useOwnedReports,
+  usePipelineCatalog,
+  usePipelineRun,
+} from "../../hooks/usePipelineQueries";
 import { useRunCompletionNotification } from "../../hooks/useRunCompletionNotification";
+import { stepsAreOrdered, targetLabel } from "../../utils/target";
 import { ResearchShell } from "../shared/ResearchShell";
 import { RunTimeline } from "./RunTimeline";
 
@@ -24,17 +29,27 @@ import { RunTimeline } from "./RunTimeline";
  */
 export function RunScreen({
   runId,
-  symbol = "",
+  label = "",
 }: {
   runId: string;
-  symbol?: string;
+  /** What the page is about — a ticker, or the market. Only ever a label. */
+  label?: string;
 }) {
   const { data: run, isLoading, error } = usePipelineRun(runId);
+  // The run status carries neither a target nor a Pipeline, so both are read
+  // off the Purchase that owns this Run — the same lookup the report screen
+  // makes, and already cached. The URL label stands in until it lands.
+  const { data: owned } = useOwnedReports();
+  const { data: catalog } = usePipelineCatalog();
+  const purchase = owned?.find((row) => row.run_id === runId);
+  const entry = catalog?.find((item) => item.id === purchase?.pipeline_id);
+  const about = label || targetLabel(purchase?.target);
+  const ordered = stepsAreOrdered(entry);
 
   const notification = useRunCompletionNotification({
     runId,
     status: run?.status,
-    symbol: symbol || "Your",
+    subject: about || "Your",
     href: researchRoutes.report(runId),
   });
 
@@ -57,7 +72,9 @@ export function RunScreen({
 
   return (
     <ResearchShell
-      title={symbol ? `${symbol} research report` : "Research report"}
+      title={
+        about ? `${about} research report` : (entry?.name ?? "Research report")
+      }
       subtitle={
         run ? (
           <span>
@@ -128,9 +145,11 @@ export function RunScreen({
             <div className="border-border-default bg-bg-subtle text-text-secondary flex items-start gap-3 rounded-lg border px-4 py-3 text-sm">
               <Loader2 className="text-primary mt-0.5 size-4 shrink-0 animate-spin motion-reduce:animate-none" />
               <p>
-                Sections are fetched and written in parallel, so they finish out
-                of order. You can leave this page — the run keeps going, and the
-                report will be waiting in{" "}
+                {ordered
+                  ? "Each step narrows the one before it, so they finish in order."
+                  : "Sections are fetched and written in parallel, so they finish out of order."}{" "}
+                You can leave this page — the run keeps going, and the report
+                will be waiting in{" "}
                 <Link
                   href={researchRoutes.library}
                   className="underline underline-offset-2"

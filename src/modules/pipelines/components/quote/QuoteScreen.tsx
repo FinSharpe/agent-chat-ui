@@ -19,6 +19,7 @@ import {
   usePipelineQuote,
   usePurchasePipeline,
 } from "../../hooks/usePipelineQueries";
+import { isMarketTarget, needsSymbol, targetLabel } from "../../utils/target";
 import { ResearchShell } from "../shared/ResearchShell";
 import { StockPicker } from "../catalog/StockPicker";
 
@@ -26,10 +27,15 @@ import { StockPicker } from "../catalog/StockPicker";
  * The screen before the payment boundary.
  *
  * Everything that could surprise someone after they pay is said here: the
- * price, their balance, the sections that will not run for this stock, and how
- * old each source is. The quote is fetched fresh every time — a stale balance
- * or a stale vintage on the screen that takes the money would be a lie with a
- * button under it.
+ * price, their balance, the sections that will not run for this stock, how old
+ * each source is, and — for a market Pipeline — that the report is not
+ * exclusive. The quote is fetched fresh every time: a stale balance or a stale
+ * vintage on the screen that takes the money would be a lie with a button
+ * under it.
+ *
+ * A market Pipeline arrives here with no symbol and quotes anyway; what the
+ * screen shows keys off the *resolved* target the quote came back with, since
+ * the server is the one that decided what this Run is about.
  */
 export function QuoteScreen({
   pipelineId,
@@ -41,18 +47,35 @@ export function QuoteScreen({
   threadId?: string | null;
 }) {
   const router = useRouter();
-  const { data: catalog } = usePipelineCatalog();
-  const quote = usePipelineQuote(pipelineId, symbol);
+  const { data: catalog, isLoading: catalogLoading } = usePipelineCatalog();
   const purchase = usePurchasePipeline();
 
   const entry = catalog?.find((item) => item.id === pipelineId);
+  const wantsSymbol = needsSymbol(entry);
+  const quote = usePipelineQuote(pipelineId, symbol, {
+    enabled: !wantsSymbol || !!symbol,
+  });
   const stepNames = useMemo(() => {
     const names = new Map<string, string>();
     for (const step of entry?.steps ?? []) names.set(step.id, step.name);
     return names;
   }, [entry]);
 
-  if (!symbol) {
+  // Which branch this is depends on the catalog's declaration, so hold the
+  // page rather than flashing a stock picker at a Pipeline that has no stock.
+  if (catalogLoading) {
+    return (
+      <ResearchShell
+        title="Research report"
+        backHref={researchRoutes.catalog}
+        backLabel="Research Reports"
+      >
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </ResearchShell>
+    );
+  }
+
+  if (wantsSymbol && !symbol) {
     return (
       <ResearchShell
         title={entry?.name ?? "Research report"}
@@ -77,9 +100,12 @@ export function QuoteScreen({
   const balance = data?.balance_credits ?? 0;
   const shortfall = Math.max(0, price - balance);
   const canAfford = !!data && shortfall === 0;
+  // Server truth, not the route: the quote came back with the target the Run
+  // will actually use, and a market one carries no symbol at all.
+  const label = targetLabel(data?.target);
+  const isMarket = isMarketTarget(data?.target);
 
   async function onPurchase() {
-    if (!symbol) return;
     try {
       const receipt = await purchase.mutateAsync({
         pipelineId,
@@ -89,7 +115,7 @@ export function QuoteScreen({
       router.push(
         receipt.run_status === "published"
           ? researchRoutes.report(receipt.run_id)
-          : researchRoutes.run(receipt.run_id, symbol),
+          : researchRoutes.run(receipt.run_id, label),
       );
     } catch (error) {
       const message =
@@ -104,12 +130,16 @@ export function QuoteScreen({
     <ResearchShell
       title={entry?.name ?? "Research report"}
       subtitle={
-        <span>
-          {symbol}
-          {data?.target?.symbol && data.target.symbol !== symbol
-            ? ` (resolved to ${data.target.symbol})`
-            : ""}
-        </span>
+        isMarket ? (
+          <span>{label} — there is no stock to choose</span>
+        ) : (
+          <span>
+            {symbol}
+            {data?.target?.symbol && data.target.symbol !== symbol
+              ? ` (resolved to ${data.target.symbol})`
+              : ""}
+          </span>
+        )
       }
       backHref={researchRoutes.catalog}
       backLabel="Research Reports"
@@ -141,8 +171,8 @@ export function QuoteScreen({
               <p className="flex items-center gap-2 text-sm font-medium">
                 <AlertTriangle className="size-4" />
                 {data.coverage_gaps!.length === 1
-                  ? "One section will not run for this stock"
-                  : `${data.coverage_gaps!.length} sections will not run for this stock`}
+                  ? `One section will not run for this ${isMarket ? "market" : "stock"}`
+                  : `${data.coverage_gaps!.length} sections will not run for this ${isMarket ? "market" : "stock"}`}
               </p>
               <ul className="mt-2 space-y-1 text-sm">
                 {data.coverage_gaps!.map((gap) => (
@@ -187,6 +217,18 @@ export function QuoteScreen({
           </section>
 
           <section className="border-border-default bg-bg-card rounded-xl border p-5">
+            {isMarket && (
+              // The honest reason for the price belongs on this side of the
+              // payment boundary, and above it. A market Run is content-keyed,
+              // so every Purchase inside one Data Vintage window resolves onto
+              // the same frozen Report — which is what makes the second
+              // buyer's copy instant, and equally what makes it common.
+              <p className="border-border-default bg-bg-subtle text-text-secondary mb-4 rounded-md border px-3 py-2 text-sm">
+                This report is not exclusive. Everyone who buys it on this data
+                receives the same document, naming the same stocks.
+              </p>
+            )}
+
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-text-primary flex items-center gap-2 text-lg font-semibold">

@@ -8,6 +8,17 @@ import type { ReportDocument } from "../../types/pipelines.types";
 import { summariseSections } from "../../utils/report";
 
 /**
+ * What a jump chip reads where the Section carries no Badge, keyed by status.
+ * Each absence says its own thing: a coverage gap is about the stock, an
+ * unbuilt section is about the report, and a failure is about the run.
+ */
+const ABSENT_CHIP_LABEL: Record<string, string> = {
+  coverage_gap: "not covered",
+  not_wired: "not built",
+  failed: "unavailable",
+};
+
+/**
  * The verdict, and the way into the report.
  *
  * Built from `document.sections`, never from `Stance.badges`: that list is
@@ -69,9 +80,7 @@ export function StanceHeader({ document }: { document: ReportDocument }) {
                   <span className="font-medium">{section.title}</span>
                   <span className="opacity-70">
                     {isAbsent
-                      ? section.status === "coverage_gap"
-                        ? "not covered"
-                        : "unavailable"
+                      ? (ABSENT_CHIP_LABEL[section.status] ?? "unavailable")
                       : (section.badge?.label ?? "—")}
                   </span>
                 </a>

@@ -49,6 +49,15 @@ function StatusMark({ status }: { status: string }) {
           <MinusCircle className="size-3.5" />
         </span>
       );
+    // Skipped like a coverage gap and marked like one, but never coloured
+    // like one: nothing is out of coverage here, the step simply has not
+    // been built yet, so the mark stays muted rather than cautionary.
+    case "not_wired":
+      return (
+        <span className={cn(base, "border-border-default bg-bg-subtle")}>
+          <MinusCircle className="text-text-muted size-3.5" />
+        </span>
+      );
     case "running":
       return (
         <span className={cn(base, "border-primary/40 bg-primary/10")}>
@@ -116,6 +125,11 @@ export function RunTimeline({
                   <AlertTriangle className="size-3.5" />
                   Declared out of coverage before you paid — this section was
                   never run.
+                </p>
+              )}
+              {status === "not_wired" && !step.headline && (
+                <p className="text-text-tertiary mt-1 text-xs">
+                  This section has not been built yet, so it did not run.
                 </p>
               )}
             </div>

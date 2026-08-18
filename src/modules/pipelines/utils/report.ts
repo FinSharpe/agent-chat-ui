@@ -19,7 +19,7 @@ import type {
 export interface SectionSummary {
   stepId: string;
   title: string;
-  /** succeeded | failed | coverage_gap */
+  /** succeeded | failed | coverage_gap | not_wired */
   status: string;
   badge: SectionBadge | null;
   headline: string;

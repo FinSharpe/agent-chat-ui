@@ -40,13 +40,18 @@ export type RunStatus =
   | "failed"
   | "cancelled";
 
-/** Per-step status. `coverage_gap` is first-class, not an absence. */
+/**
+ * Per-step status. `coverage_gap` and `not_wired` are first-class, not
+ * absences: the first was never scheduled because the stock is out of the
+ * step's reach, the second because the step has not been built yet.
+ */
 export type StepStatus =
   | "pending"
   | "running"
   | "succeeded"
   | "failed"
-  | "coverage_gap";
+  | "coverage_gap"
+  | "not_wired";
 
 /** The three-level Section Badge scale. */
 export type BadgeValue = "positive" | "neutral" | "caution";

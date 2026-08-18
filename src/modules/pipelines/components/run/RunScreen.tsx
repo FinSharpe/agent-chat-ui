@@ -41,8 +41,13 @@ export function RunScreen({
   const { done, total } = useMemo(() => {
     const steps = run?.steps ?? [];
     return {
+      // every terminal state, not just the successful one — a step that was
+      // never scheduled (out of coverage, or not built yet) is as settled as
+      // one that ran, and leaving it out strands the counter short of total
       done: steps.filter((step) =>
-        ["succeeded", "failed", "coverage_gap"].includes(step.status),
+        ["succeeded", "failed", "coverage_gap", "not_wired"].includes(
+          step.status,
+        ),
       ).length,
       total: steps.length,
     };

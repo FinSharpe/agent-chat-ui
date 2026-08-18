@@ -140,6 +140,7 @@ export const STEP_STATUS_LABEL: Record<string, string> = {
   succeeded: "Done",
   failed: "Unavailable",
   coverage_gap: "Not covered",
+  not_wired: "Not built",
 };
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
@@ -155,6 +156,12 @@ export const RUN_STATUS_LABEL: Record<string, string> = {
  * *tone* but not its meaning: both are disclosed, neither is hidden, and the
  * report keeps a visible placeholder for each. The distinction the copy has to
  * carry is "we could not" versus "there is nothing to".
+ *
+ * `not_wired` gets a third wording rather than borrowing either. A coverage
+ * gap is a fact about the stock, disclosed on the quote before payment; an
+ * unbuilt section is a fact about the report itself, and telling a reader
+ * their stock was out of coverage when nobody had built the section yet
+ * would simply be untrue.
  */
 export const SECTION_ABSENCE_COPY: Record<
   string,
@@ -167,6 +174,10 @@ export const SECTION_ABSENCE_COPY: Record<
   failed: {
     title: "Could not be produced",
     body: "This section's data could not be fetched for this run. Nothing here was estimated or filled in.",
+  },
+  not_wired: {
+    title: "Not built yet",
+    body: "This section is part of this report and has not been built yet, so it did not run. Nothing about this stock was out of reach.",
   },
 };
 

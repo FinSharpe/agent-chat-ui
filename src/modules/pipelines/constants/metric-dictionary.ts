@@ -294,6 +294,38 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
     label: "Strongest on technicals",
     format: (v) => String(v),
   },
+  // top_down_research / stock_ideas
+  //
+  // Counts and two identities, and deliberately nothing that reads as a
+  // return. This is the Section a reader arrives at for the answer, so a tile
+  // carrying a percentage beside three symbols would be the forward claim the
+  // whole Section is built to refuse.
+  ideas_published: { label: "Stocks named", format: (v) => num(v) },
+  ideas_shortlisted: { label: "Shortlisted names", format: (v) => num(v) },
+  ideas_eligible: { label: "Carried both ranks", format: (v) => num(v) },
+  ideas_ineligible: { label: "Could not be compared", format: (v) => num(v) },
+  ideas_sectors_available: {
+    label: "Sectors represented",
+    format: (v) => num(v),
+  },
+  // A tile rather than a footnote, for the reason the relaxed gate above is
+  // one: it says the one name per sector rule actually removed something from
+  // this run, which is what makes the rule visible rather than stated.
+  ideas_displaced: {
+    label: "Displaced by the sector cap",
+    format: (v) => num(v),
+  },
+  ideas_top_symbol: {
+    label: "Highest combined rank",
+    format: (v) => String(v),
+  },
+  // The rank average itself, where 1 is strongest. Two decimals rather than a
+  // place: two names can share it, and it is a comparable figure rather than a
+  // position.
+  ideas_top_combined_rank: {
+    label: "Its combined rank",
+    format: (v) => num(v, 2),
+  },
 };
 
 /** One metric, ready for a stat tile. */

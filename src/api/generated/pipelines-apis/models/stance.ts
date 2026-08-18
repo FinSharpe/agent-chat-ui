@@ -7,10 +7,23 @@
 import type { SectionBadge } from "./sectionBadge";
 
 /**
- * The report-level verdict, derived from exactly the Section Badges.
+ * What a Report's header slot says, and what the slot is called.
+
+A longitudinal Pipeline fills it with a verdict derived from exactly the
+Section Badges. A market-wide one has no instrument to be constructive or
+cautious about, so it fills the same slot with what the Run *selected* —
+descriptive, and claiming nothing about what happens next.
+
+`heading` and `caption` are what let one slot carry both. They were hard
+coded per reader before, to the word "Stance" and to a sentence naming
+eight Sections, which is wrong for any Pipeline that is not the eight-Step
+flagship. A Report frozen before they existed carries neither, and every
+reader falls back to exactly the wording it was rendered with then.
  */
 export interface Stance {
   value: string;
   label: string;
   badges?: SectionBadge[];
+  heading?: string;
+  caption?: string;
 }

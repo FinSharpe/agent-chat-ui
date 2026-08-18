@@ -335,9 +335,19 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
   // the one stock a reader bought a report on. Nothing here is that fact -
   // these are totals across three names - so none of them may land on a key a
   // reader has already met as one company's reading.
-  newsflow_picks: { label: "Names covered", format: (v) => num(v) },
+  // "Selected names" rather than "names covered": `covered` is a coverage word
+  // in this report and the tile beside this one is a coverage count, so
+  // reusing it here would read as how many of the three filings reached.
+  newsflow_picks: { label: "Selected names", format: (v) => num(v) },
   newsflow_picks_with_news: { label: "News tape read", format: (v) => num(v) },
-  newsflow_headlines: { label: "Headlines, 30 days", format: (v) => num(v) },
+  // "read" is load bearing twice over. It is not the macro Section's
+  // "Headlines, 30 days" above, which is the feed's own match count over a
+  // whole theme; and it is not the Table below it, which prints the most
+  // recent eight per name. This is what the paragraph was grounded on.
+  newsflow_headlines: {
+    label: "Headlines read, 30 days",
+    format: (v) => num(v),
+  },
   // Both counts, and the gap between them is the finding: a name inside the
   // Nifty 50 that the store held no passage for is a different absence from a
   // name the store was never asked about.

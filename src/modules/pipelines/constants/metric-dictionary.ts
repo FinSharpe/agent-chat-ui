@@ -203,6 +203,57 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
     format: signedPct,
     tone: "signed",
   },
+  // top_down_research / fundamental_analysis
+  //
+  // The `fundamentals_` prefix is load bearing rather than tidy: this Section
+  // counts and summarises fifteen names, while Deep Dive's Fundamentals
+  // Section publishes `roce_pct`, `pe` and the rest as figures about the one
+  // stock a reader bought a report on. A key means the same thing in every
+  // report or it gets a different name.
+  fundamentals_shortlisted: {
+    label: "Shortlisted names",
+    format: (v) => num(v),
+  },
+  fundamentals_resolved: {
+    label: "Peer reads resolved",
+    format: (v) => num(v),
+  },
+  fundamentals_missed: { label: "Not resolved", format: (v) => num(v) },
+  fundamentals_ranked: { label: "Ranked on all seven", format: (v) => num(v) },
+  fundamentals_consolidated_basis: {
+    label: "Consolidated accounts",
+    format: (v) => num(v),
+  },
+  fundamentals_standalone_basis: {
+    label: "Standalone fallback",
+    format: (v) => num(v),
+  },
+  fundamentals_median_peer_count: {
+    label: "Median peer set",
+    format: (v) => num(v),
+  },
+  // A ratio rather than a valuation multiple, but it takes the multiple's
+  // formatter because both read as "so many times".
+  fundamentals_median_cash_conversion: {
+    label: "Median CFO / PBT",
+    format: mult,
+  },
+  // Percentage points, not percent: this is the difference between two
+  // percentages, and a percent sign would invite a reader to take a 1.6pp
+  // edge over the peer median for a 1.6% return.
+  fundamentals_median_roce_vs_peer_pp: {
+    label: "Median ROCE vs peer",
+    format: signedPp,
+    tone: "signed",
+  },
+  fundamentals_median_cash_flow_years: {
+    label: "Median years of cash flow",
+    format: (v) => num(v),
+  },
+  fundamentals_strongest: {
+    label: "Strongest on rank",
+    format: (v) => String(v),
+  },
 };
 
 /** One metric, ready for a stat tile. */

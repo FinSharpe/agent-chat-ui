@@ -4,8 +4,8 @@
  *
  * The wire deliberately ships bare numbers (`excess_return_1y_pct: 9.3`) with
  * no presentation strings, so every client supplies both — which couples this
- * table to `pipeline_version` 1 of the Stock Deep Dive (a contract fact
- * recorded in the Phase 6 sign-off; `finsharpe-mobile`'s
+ * table to `pipeline_version` 1 of each Pipeline that emits a key (a contract
+ * fact recorded in the Phase 6 sign-off; `finsharpe-mobile`'s
  * `metric_dictionary.dart` and the server's `METRIC_LABELS` are the other two
  * copies). A key this table does not know falls back to a humanised label and
  * a plain number, never a crash.
@@ -184,6 +184,25 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
   max_call_oi_strike: { label: "Peak call OI", format: inr },
   max_put_oi_strike: { label: "Peak put OI", format: inr },
   strike_count: { label: "Strikes", format: (v) => num(v) },
+  // top_down_research / sector_momentum
+  sectors_ranked: { label: "Sectors ranked", format: (v) => num(v) },
+  sectors_sourcing: {
+    label: "Can source candidates",
+    format: (v) => num(v),
+  },
+  sectors_advanced: { label: "Sectors advanced", format: (v) => num(v) },
+  top_sector: { label: "Strongest sector", format: (v) => String(v) },
+  top_sector_score: { label: "Top composite score", format: (v) => num(v) },
+  top_sector_return_3m_pct: {
+    label: "Strongest, 3M",
+    format: signedPct,
+    tone: "signed",
+  },
+  benchmark_return_3m_pct: {
+    label: "Nifty 50, 3M",
+    format: signedPct,
+    tone: "signed",
+  },
 };
 
 /** One metric, ready for a stat tile. */

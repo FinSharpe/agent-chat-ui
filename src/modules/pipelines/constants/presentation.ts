@@ -86,6 +86,8 @@ export function vintageSourceLabel(source: string): string {
       return "Prices";
     case "finsharpe_scores":
       return "FinSharpe scores";
+    case "definedge_fundamentals":
+      return "Fundamentals";
     case "filings":
       return "Filings";
     case "news":
@@ -109,6 +111,10 @@ export function vintageDetail(source: string, token: string): string {
     case "news":
     case "fno_positioning":
       return `${date} session`;
+    // Reported figures move on results days rather than every session, so the
+    // token is coarser than the data behind it and reads as "as at".
+    case "definedge_fundamentals":
+      return `as at ${date}`;
     case "filings":
       return `to ${date}`;
     default:

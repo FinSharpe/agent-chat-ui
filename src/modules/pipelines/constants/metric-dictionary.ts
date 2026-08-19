@@ -78,6 +78,19 @@ const signedPp = (v: MetricValue) =>
 const mult = (v: MetricValue) =>
   typeof v === "number" ? `${num(v)}×` : String(v);
 
+/**
+ * Crores carrying a direction, with the sign outside the rupee mark.
+ *
+ * A net institutional flow is not a size: printing the magnitude alone would
+ * tell a reader that foreign institutions bought what they in fact sold. The
+ * sign leads the whole figure rather than the digits, so `−₹4,214 cr` reads as
+ * one negative quantity and never as a rupee mark applied to a negative.
+ */
+const signedCrores = (v: MetricValue) =>
+  typeof v === "number"
+    ? `${v >= 0 ? "+" : "−"}₹${group(Math.abs(Math.round(v)))} cr`
+    : String(v);
+
 const yesNo = (v: MetricValue) => (v === true ? "Yes" : "No");
 
 const MONTHS = [
@@ -184,6 +197,60 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
   max_call_oi_strike: { label: "Peak call OI", format: inr },
   max_put_oi_strike: { label: "Peak put OI", format: inr },
   strike_count: { label: "Strikes", format: (v) => num(v) },
+  // top_down_research / macro_news
+  //
+  // The tape and the regime, counted rather than judged. The vendor sends the
+  // index move with no horizon on it and it is the current session's, so every
+  // label says so — the flow tiles below are five sessions and the two must
+  // not read as one span.
+  stocks_advancing: { label: "Advancing", format: (v) => num(v) },
+  stocks_declining: { label: "Declining", format: (v) => num(v) },
+  nifty500_double_top_breakouts: {
+    label: "Nifty 500 breakouts",
+    format: (v) => num(v),
+  },
+  nifty500_double_bottom_sells: {
+    label: "Nifty 500 breakdowns",
+    format: (v) => num(v),
+  },
+  nifty_50_session_change_pct: {
+    label: "Nifty 50, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  nifty_500_session_change_pct: {
+    label: "Nifty 500, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  nifty_midcap_150_session_change_pct: {
+    label: "Midcap 150, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  nifty_smallcap_250_session_change_pct: {
+    label: "Smallcap 250, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  fii_net_5d_cr: {
+    label: "FII net, 5 sessions",
+    format: signedCrores,
+    tone: "signed",
+  },
+  dii_net_5d_cr: {
+    label: "DII net, 5 sessions",
+    format: signedCrores,
+    tone: "signed",
+  },
+  institutional_net_5d_cr: {
+    label: "Institutional net, 5 sessions",
+    format: signedCrores,
+    tone: "signed",
+  },
+  macro_headlines_30d: { label: "Headlines, 30 days", format: (v) => num(v) },
+  macro_terms_reported: { label: "Themes read", format: (v) => num(v) },
+  macro_terms_queried: { label: "Themes queried", format: (v) => num(v) },
   // top_down_research / sector_momentum
   sectors_ranked: { label: "Sectors ranked", format: (v) => num(v) },
   sectors_sourcing: {
@@ -203,6 +270,25 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
     format: signedPct,
     tone: "signed",
   },
+  // top_down_research / stock_selection
+  //
+  // The funnel's arithmetic, printed so the screen's discards stay visible.
+  candidates_screened: { label: "Candidates screened", format: (v) => num(v) },
+  candidates_priced: { label: "Price history found", format: (v) => num(v) },
+  candidates_no_history: { label: "No price history", format: (v) => num(v) },
+  candidates_above_floor: { label: "Cleared the floor", format: (v) => num(v) },
+  candidates_below_floor: { label: "Below the floor", format: (v) => num(v) },
+  candidates_shortlisted: { label: "Shortlisted", format: (v) => num(v) },
+  // Deliberately not `sectors_sourced`, one letter from the sector Section's
+  // `sectors_sourcing`, which counts the sectors that *could* hand over
+  // candidates rather than the ones that did.
+  sectors_represented: { label: "Sectors represented", format: (v) => num(v) },
+  // Unsigned crores: a traded value is a size rather than a direction, so
+  // these three take the unit a market cap takes and not the one a net
+  // institutional flow takes.
+  traded_value_floor_cr: { label: "Traded value floor", format: crores },
+  shortlist_min_adtv_cr: { label: "Thinnest shortlisted", format: crores },
+  shortlist_median_adtv_cr: { label: "Median shortlisted", format: crores },
   // top_down_research / fundamental_analysis
   //
   // The `fundamentals_` prefix is load bearing rather than tidy: this Section

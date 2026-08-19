@@ -58,12 +58,16 @@ export function needsSymbol(entry: CatalogEntry | undefined): boolean {
 /**
  * Whether the Steps run in the order the catalog lists them.
  *
- * Read off the same declaration: a market Pipeline narrows the whole market
- * down to a few names, and that narrowing is a funnel — each Step consumes the
- * last one's output. An instrument Pipeline's Steps are independent views of
- * one stock, researched in parallel, so numbering them would assert an order
- * that is not there.
+ * The catalog declares it (#114). It used to be read off `target_kind`, which
+ * answers a different question — what a Pipeline runs *against* — and agreed
+ * with this one only because the single market Pipeline happens to be a
+ * funnel. A market Pipeline whose Steps were independent would have been
+ * numbered 1..N here, and promised a buyer a sequence that was not there.
+ *
+ * An entry that has not loaded yet reads as unordered, which is the
+ * conservative half: a bare list understates a funnel, where numbering a set
+ * asserts something false.
  */
 export function stepsAreOrdered(entry: CatalogEntry | undefined): boolean {
-  return entry?.target_kind === "market";
+  return entry?.steps_ordered === true;
 }

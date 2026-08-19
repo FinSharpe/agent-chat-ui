@@ -223,6 +223,16 @@ export function QuoteScreen({
               // so every Purchase inside one Data Vintage window resolves onto
               // the same frozen Report — which is what makes the second
               // buyer's copy instant, and equally what makes it common.
+              //
+              // Deliberately no count of the names (#114). How many stocks a
+              // Report ends up naming is a ceiling, not a promise — the
+              // one-per-sector cap publishes fewer when fewer sectors are
+              // represented — so a number here would be pre-payment copy the
+              // Report can contradict. The claim this sentence carries is
+              // that the document is not exclusive, which the count does not
+              // make truer. The Pipeline's own description states the width,
+              // with the qualifier that makes it honest, on the card the
+              // buyer came from.
               <p className="border-border-default bg-bg-subtle text-text-secondary mb-4 rounded-md border px-3 py-2 text-sm">
                 This report is not exclusive. Everyone who buys it on this data
                 receives the same document, naming the same stocks.

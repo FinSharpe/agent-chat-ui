@@ -18,4 +18,5 @@ export interface CatalogEntry {
   price_credits: number;
   target_kind?: PipelineTargetKind;
   steps?: CatalogStep[];
+  steps_ordered?: boolean;
 }

@@ -11,6 +11,13 @@ import { cn } from "@/lib/utils";
  * affordance, one place the title lives. The report page widens because eight
  * sections of charts need the room; everything else stays at the Discover
  * width so the section does not feel like a different product.
+ *
+ * `w-full` is load-bearing, not decoration: this box is a child of the app
+ * layout's column flex container, and auto cross-axis margins suppress the
+ * default stretch. Without it the box sizes to fit-content and `max-w-*` only
+ * caps a width the content chose — so a screen showing skeletons, whose
+ * `w-full` children contribute nothing intrinsic, collapses to the title and
+ * re-centres. Same reason `history/page.tsx` carries it.
  */
 export function ResearchShell({
   title,
@@ -30,7 +37,9 @@ export function ResearchShell({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("mx-auto pb-24", wide ? "max-w-6xl" : "max-w-5xl")}>
+    <div
+      className={cn("mx-auto w-full pb-24", wide ? "max-w-6xl" : "max-w-5xl")}
+    >
       <div className="space-y-6 p-6">
         {backHref && (
           <Link

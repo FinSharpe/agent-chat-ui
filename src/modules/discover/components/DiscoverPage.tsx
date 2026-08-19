@@ -243,7 +243,7 @@ export function DiscoverPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl pb-24">
+    <div className="mx-auto w-full max-w-5xl pb-24">
       <div className="space-y-6 p-6">
         {/* Carousel Banner */}
         <CarouselBanner slides={discoverSlides} />

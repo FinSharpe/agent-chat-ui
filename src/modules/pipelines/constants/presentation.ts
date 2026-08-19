@@ -187,6 +187,43 @@ export const SECTION_ABSENCE_COPY: Record<
   },
 };
 
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? one : many;
+}
+
+/**
+ * The counted form of the same three distinctions, for the Summary Card's
+ * run-level notice.
+ *
+ * The card shows each absence in place, so this is not the only place a
+ * reader meets one — but the card is compact and the app's card shows only
+ * its first three rows, so an absence past the fold would be silent again
+ * without a line that counts them.
+ *
+ * Beside `SECTION_ABSENCE_COPY` rather than in the card component for the
+ * reason that constant exists: three surfaces render these three absences and
+ * the wording must not drift between them.
+ */
+export const SECTION_ABSENCE_NOTICE: Record<string, (count: number) => string> =
+  {
+    coverage_gap: (n) =>
+      `${n} ${plural(n, "section is", "sections are")} not covered, and ${plural(n, "is", "are")} marked in the report.`,
+    failed: (n) =>
+      `${n} ${plural(n, "section", "sections")} could not be produced, and ${plural(n, "is", "are")} marked in the report.`,
+    not_wired: (n) =>
+      `${n} ${plural(n, "section is", "sections are")} not built yet, and ${plural(n, "is", "are")} marked in the report.`,
+  };
+
+/**
+ * What a card delivered before it carried its Sections says instead.
+ *
+ * Such a card has the `degraded` flag and no per-section status, so there is
+ * no count to put in a sentence — this is the wording that card was written
+ * with, and it still reads in the thread it was delivered to.
+ */
+export const LEGACY_DEGRADED_NOTICE =
+  "Some sections could not be produced — each is marked in the report.";
+
 /**
  * Formats an ISO timestamp as "12 Aug 2026, 14:32 IST".
  *

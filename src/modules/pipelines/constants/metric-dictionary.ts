@@ -56,8 +56,27 @@ function num(value: MetricValue, decimals = 1): string {
   return value.toFixed(decimals);
 }
 
+/**
+ * A rupee figure, at the precision the print path uses.
+ *
+ * Two decimals below ₹100 and none at or above it, which is the PDF's rule
+ * (`pipeline_report.py`) and therefore the report's. A share price is the
+ * figure this is read on: the technical ledger's `close` column is `inr` on a
+ * shortlist that is mostly small caps, so rounding ₹57.60 to ₹58 is a real
+ * loss of precision on a real row — and User Story 34 asks the report to read
+ * identically here, in the PDF and on a phone.
+ *
+ * Exported because the Table renderer needs exactly this rule for its own
+ * `inr` column. One rupee rule, or a tile and the Table under it print the
+ * same price two ways.
+ */
+export function rupees(value: number): string {
+  const mag = Math.abs(value);
+  return mag >= 100 ? `₹${group(Math.round(mag))}` : `₹${mag.toFixed(2)}`;
+}
+
 const inr = (v: MetricValue) =>
-  typeof v === "number" ? `₹${group(Math.round(v))}` : String(v);
+  typeof v === "number" ? `${v < 0 ? "−" : ""}${rupees(v)}` : String(v);
 
 const crores = (v: MetricValue) =>
   typeof v === "number" ? `₹${group(Math.round(v))} cr` : String(v);
@@ -424,8 +443,8 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
   // "Selected names" rather than "names covered": `covered` is a coverage word
   // in this report and the tile beside this one is a coverage count, so
   // reusing it here would read as how many of the three filings reached.
-  newsflow_picks: { label: "Selected names", format: (v) => num(v) },
-  newsflow_picks_with_news: { label: "News tape read", format: (v) => num(v) },
+  newsflow_ideas: { label: "Selected names", format: (v) => num(v) },
+  newsflow_ideas_with_news: { label: "News tape read", format: (v) => num(v) },
   // "read" is load bearing twice over. It is not the macro Section's
   // "Headlines, 30 days" above, which is the feed's own match count over a
   // whole theme; and it is not the Table below it, which prints the most

@@ -9,12 +9,31 @@
 
 import type { CatalogEntry } from "../types/pipelines.types";
 
+/**
+ * A resolved target as the wire carries it: one shape, read once.
+ *
+ * The server resolves the target and freezes it onto the Run, so every
+ * consumer here is reading the same four optional keys off a JSON blob. Naming
+ * the shape once means the three readers below narrow it in one place instead
+ * of each hand-rolling its own `typeof` cascade over `unknown`.
+ */
+export interface ResolvedTarget {
+  symbol?: string;
+  fincode?: number;
+  kind?: string;
+  market?: string;
+}
+
+/** Narrow a wire value to the target shape, or nothing. */
+function asTarget(target: unknown): ResolvedTarget | null {
+  return target && typeof target === "object"
+    ? (target as ResolvedTarget)
+    : null;
+}
+
 /** The target symbol, or the empty string — the target is a loose dict. */
 export function targetSymbol(target: unknown): string {
-  if (target && typeof target === "object" && "symbol" in target) {
-    return String((target as { symbol?: unknown }).symbol ?? "");
-  }
-  return "";
+  return String(asTarget(target)?.symbol ?? "");
 }
 
 /**
@@ -28,19 +47,14 @@ export function targetSymbol(target: unknown): string {
 export function targetLabel(target: unknown): string {
   const symbol = targetSymbol(target);
   if (symbol) return symbol;
-  if (!target || typeof target !== "object") return "";
-  const { kind, market } = target as { kind?: unknown; market?: unknown };
-  if (kind !== "market") return "";
-  return typeof market === "string" && market ? `${market} market` : "Market";
+  if (!isMarketTarget(target)) return "";
+  const market = asTarget(target)?.market;
+  return market ? `${market} market` : "Market";
 }
 
 /** Whether a resolved target is the market rather than one instrument. */
 export function isMarketTarget(target: unknown): boolean {
-  return (
-    !!target &&
-    typeof target === "object" &&
-    (target as { kind?: unknown }).kind === "market"
-  );
+  return asTarget(target)?.kind === "market";
 }
 
 /**

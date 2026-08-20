@@ -89,9 +89,11 @@ export function useStockSearch(query: string) {
 export function usePipelineQuote(
   pipelineId: string,
   symbol: string | null,
-  // A market Pipeline quotes with nothing named, so "has a symbol" is no
-  // longer the same question as "is there a target to quote".
-  { enabled = !!symbol }: { enabled?: boolean } = {},
+  // Required rather than defaulted to `!!symbol`: a market Pipeline quotes
+  // with nothing named, so "has a symbol" stopped being the same question as
+  // "is there a target to quote", and a default that answers the old question
+  // is one a caller can take by forgetting to think about it.
+  { enabled }: { enabled: boolean },
 ) {
   return useQuery({
     queryKey: ["pipelines", "quote", pipelineId, symbol] as const,

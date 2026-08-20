@@ -3,20 +3,13 @@
 import { AlertTriangle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { badgeTone, stanceTone } from "../../constants/presentation";
+import {
+  SECTION_ABSENCE_CHIP,
+  badgeTone,
+  stanceTone,
+} from "../../constants/presentation";
 import type { ReportDocument } from "../../types/pipelines.types";
 import { summariseSections } from "../../utils/report";
-
-/**
- * What a jump chip reads where the Section carries no Badge, keyed by status.
- * Each absence says its own thing: a coverage gap is about the stock, an
- * unbuilt section is about the report, and a failure is about the run.
- */
-const ABSENT_CHIP_LABEL: Record<string, string> = {
-  coverage_gap: "not covered",
-  not_wired: "not built",
-  failed: "unavailable",
-};
 
 /**
  * What a report frozen before the header took its own wording said.
@@ -102,7 +95,7 @@ export function StanceHeader({ document }: { document: ReportDocument }) {
                   <span className="font-medium">{section.title}</span>
                   <span className="opacity-70">
                     {isAbsent
-                      ? (ABSENT_CHIP_LABEL[section.status] ?? "unavailable")
+                      ? (SECTION_ABSENCE_CHIP[section.status] ?? "unavailable")
                       : (section.badge?.label ?? "—")}
                   </span>
                 </a>

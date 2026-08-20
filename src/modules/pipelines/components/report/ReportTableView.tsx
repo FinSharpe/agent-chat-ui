@@ -17,9 +17,10 @@
  */
 
 import { cn } from "@/lib/utils";
-// The digit grouping only — not the per-key dictionary, which a Table never
-// consults. Shared so one document cannot show two number formats.
-import { group } from "../../constants/metric-dictionary";
+// The digit grouping and the rupee rule only — not the per-key dictionary,
+// which a Table never consults. Shared so one document cannot show two number
+// formats, and so a price in a cell reads as it does in the tile above it.
+import { group, rupees } from "../../constants/metric-dictionary";
 import { vintageStampText } from "../../constants/presentation";
 import type { TableColumn, TableSpec } from "../../types/pipelines.types";
 
@@ -55,7 +56,7 @@ function formatCell(value: unknown, unit: string): string {
     case "cr":
       return `${sign}₹${group(Math.round(mag))} cr`;
     case "inr":
-      return `${sign}₹${group(Math.round(mag))}`;
+      return `${sign}${rupees(mag)}`;
     case "x":
       return `${sign}${mag.toFixed(1)}×`;
     default:

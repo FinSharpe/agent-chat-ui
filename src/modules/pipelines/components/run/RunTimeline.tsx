@@ -3,7 +3,10 @@
 import { AlertTriangle, Check, MinusCircle, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { STEP_STATUS_LABEL } from "../../constants/presentation";
+import {
+  STEP_ABSENCE_LINE,
+  STEP_STATUS_LABEL,
+} from "../../constants/presentation";
 import type { StepState } from "../../types/pipelines.types";
 
 /**
@@ -123,13 +126,12 @@ export function RunTimeline({
               {status === "coverage_gap" && !step.headline && (
                 <p className="text-warning-fg mt-1 flex items-center gap-1.5 text-xs">
                   <AlertTriangle className="size-3.5" />
-                  Declared out of coverage before you paid — this section was
-                  never run.
+                  {STEP_ABSENCE_LINE.coverage_gap}
                 </p>
               )}
               {status === "not_wired" && !step.headline && (
                 <p className="text-text-tertiary mt-1 text-xs">
-                  This section has not been built yet, so it did not run.
+                  {STEP_ABSENCE_LINE.not_wired}
                 </p>
               )}
             </div>

@@ -1,3 +1,5 @@
+import type { ResolvedTarget } from "../utils/target";
+
 /**
  * The Pipelines wire, named for the UI.
  *
@@ -89,12 +91,7 @@ export interface PipelineSummaryCardSection {
 export interface PipelineSummaryCard {
   run_id: string;
   pipeline_id: string;
-  target: {
-    symbol?: string;
-    fincode?: number;
-    kind?: string;
-    market?: string;
-  };
+  target: ResolvedTarget;
   stance: { value: string; label: string };
   degraded: boolean;
   coverage_gaps: string[];

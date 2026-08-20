@@ -126,6 +126,11 @@ export function QuoteScreen({
     }
   }
 
+  // What the copy calls the thing being quoted. Written once: the same word
+  // appears in both arms of the coverage notice below, and two spellings of
+  // one fact is where they drift.
+  const subject = isMarket ? "market" : "stock";
+
   return (
     <ResearchShell
       title={entry?.name ?? "Research report"}
@@ -171,8 +176,8 @@ export function QuoteScreen({
               <p className="flex items-center gap-2 text-sm font-medium">
                 <AlertTriangle className="size-4" />
                 {data.coverage_gaps!.length === 1
-                  ? `One section will not run for this ${isMarket ? "market" : "stock"}`
-                  : `${data.coverage_gaps!.length} sections will not run for this ${isMarket ? "market" : "stock"}`}
+                  ? `One section will not run for this ${subject}`
+                  : `${data.coverage_gaps!.length} sections will not run for this ${subject}`}
               </p>
               <ul className="mt-2 space-y-1 text-sm">
                 {data.coverage_gaps!.map((gap) => (

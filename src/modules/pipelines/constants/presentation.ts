@@ -187,6 +187,34 @@ export const SECTION_ABSENCE_COPY: Record<
   },
 };
 
+/**
+ * The same three distinctions as a chip word, for the report's jump strip.
+ *
+ * Here rather than in `StanceHeader` for the reason `SECTION_ABSENCE_COPY`
+ * is here: a reader meets an absence on the jump chip, in the Section, on the
+ * run timeline and on the Summary Card, and four wordings of one fact is four
+ * chances for them to disagree about which absence they are looking at.
+ */
+export const SECTION_ABSENCE_CHIP: Record<string, string> = {
+  coverage_gap: "not covered",
+  not_wired: "not built",
+  failed: "unavailable",
+};
+
+/**
+ * The one-line form the run timeline shows under a Step that produced no
+ * Headline, while the Run is still something a reader is watching.
+ *
+ * Shorter than `SECTION_ABSENCE_COPY` on purpose — the timeline row is a line,
+ * not a placeholder panel — but the same three meanings, kept beside it so a
+ * change to one is a change in front of the other.
+ */
+export const STEP_ABSENCE_LINE: Record<string, string> = {
+  coverage_gap:
+    "Declared out of coverage before you paid — this section was never run.",
+  not_wired: "This section has not been built yet, so it did not run.",
+};
+
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many;
 }

@@ -84,15 +84,28 @@ const crores = (v: MetricValue) =>
 const pct = (v: MetricValue) =>
   typeof v === "number" ? `${num(v)}%` : String(v);
 
+/**
+ * The sign a signed figure leads with — and nothing at all at zero.
+ *
+ * Zero has no direction, so "+0.0%" claims one. Not a corner case here: the
+ * distance from the 52 week high is measured over a window the last close sits
+ * inside, so a shortlist at its highs reads exactly zero, and that is the tile
+ * a reader is most likely to meet it on. The print path already drops the sign
+ * at zero; this is the same rule.
+ */
+const sign = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "");
+
+/**
+ * One decimal, always, for a signed percentage — `num` drops it on a whole
+ * number, which is right for a count and wrong here: the same figure would
+ * print "8.4%" on one row and "9%" on the next, and "0%" where the PDF prints
+ * "0.0%".
+ */
 const signedPct = (v: MetricValue) =>
-  typeof v === "number"
-    ? `${v >= 0 ? "+" : "−"}${num(Math.abs(v))}%`
-    : String(v);
+  typeof v === "number" ? `${sign(v)}${Math.abs(v).toFixed(1)}%` : String(v);
 
 const signedPp = (v: MetricValue) =>
-  typeof v === "number"
-    ? `${v >= 0 ? "+" : "−"}${num(Math.abs(v))}pp`
-    : String(v);
+  typeof v === "number" ? `${sign(v)}${Math.abs(v).toFixed(1)}pp` : String(v);
 
 const mult = (v: MetricValue) =>
   typeof v === "number" ? `${num(v)}×` : String(v);
@@ -107,7 +120,7 @@ const mult = (v: MetricValue) =>
  */
 const signedCrores = (v: MetricValue) =>
   typeof v === "number"
-    ? `${v >= 0 ? "+" : "−"}₹${group(Math.abs(Math.round(v)))} cr`
+    ? `${sign(v)}₹${group(Math.abs(Math.round(v)))} cr`
     : String(v);
 
 const yesNo = (v: MetricValue) => (v === true ? "Yes" : "No");

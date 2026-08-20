@@ -29,7 +29,9 @@ export type ChartTokens = Record<string, string>;
 const FALLBACK: ChartTokens = {
   "--chart-1": "#2563eb",
   "--chart-2": "#14b8a6",
+  "--chart-3": "#6366f1",
   "--chart-4": "#f59e0b",
+  "--chart-5": "#a855f7",
   "--chart-benchmark": "#57534e",
   "--chart-grid": "rgba(15, 23, 42, 0.08)",
   "--chart-negative": "#dc2626",

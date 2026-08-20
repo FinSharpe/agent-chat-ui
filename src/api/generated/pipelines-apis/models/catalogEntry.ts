@@ -4,6 +4,7 @@
  * FastAPI
  * OpenAPI spec version: 0.1.0
  */
+import type { PipelineTargetKind } from "./pipelineTargetKind";
 import type { CatalogStep } from "./catalogStep";
 
 /**
@@ -15,5 +16,7 @@ export interface CatalogEntry {
   name: string;
   description: string;
   price_credits: number;
+  target_kind?: PipelineTargetKind;
   steps?: CatalogStep[];
+  steps_ordered?: boolean;
 }

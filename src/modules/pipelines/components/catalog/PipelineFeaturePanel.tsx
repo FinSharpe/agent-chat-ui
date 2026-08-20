@@ -1,16 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Check, Coins, FileText, Lock, Share2 } from "lucide-react";
+import { Coins, FileText, Lock, Share2 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { creditsLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import type { CatalogEntry } from "../../types/pipelines.types";
+import { needsSymbol, stepsAreOrdered } from "../../utils/target";
+import { StepList } from "../shared/StepList";
 import { StockPicker } from "./StockPicker";
 
-const HOW_IT_WORKS = [
+const HOW_IT_WORKS_INSTRUMENT = [
   "Pick a stock and see the quote — price, your balance, and any section we cannot cover.",
   "The sections are fetched and written in parallel. You can leave the page; the run keeps going.",
+  "The finished report lands in Your reports, and in your chat if you started from there.",
+];
+
+const HOW_IT_WORKS_MARKET = [
+  "Run, and see the quote — price, your balance, and how old each source is.",
+  "The steps run in order, each narrowing the last. You can leave the page; the run keeps going.",
   "The finished report lands in Your reports, and in your chat if you started from there.",
 ];
 
@@ -33,6 +42,11 @@ const HOW_IT_WORKS = [
  */
 export function PipelineFeaturePanel({ entry }: { entry: CatalogEntry }) {
   const router = useRouter();
+  const wantsSymbol = needsSymbol(entry);
+  const ordered = stepsAreOrdered(entry);
+  const howItWorks = wantsSymbol
+    ? HOW_IT_WORKS_INSTRUMENT
+    : HOW_IT_WORKS_MARKET;
 
   return (
     <section className="border-border-default bg-bg-card rounded-xl border">
@@ -54,23 +68,35 @@ export function PipelineFeaturePanel({ entry }: { entry: CatalogEntry }) {
 
         <div className="border-brand-border-via bg-bg-card mt-5 rounded-xl border p-4 shadow-sm sm:p-5">
           <h3 className="text-text-primary text-base font-semibold">
-            Choose a stock to research
+            {wantsSymbol
+              ? "Choose a stock to research"
+              : "Nothing to choose — this report is about the whole market"}
           </h3>
           <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
-            {/* Bounded rather than full-bleed: a field the width of the panel
-                reads as a filter over the page, and it sets the width of the
-                results that drop out of it. */}
-            <div className="md:max-w-md md:flex-1">
-              <StockPicker
+            {wantsSymbol ? (
+              /* Bounded rather than full-bleed: a field the width of the panel
+                 reads as a filter over the page, and it sets the width of the
+                 results that drop out of it. */
+              <div className="md:max-w-md md:flex-1">
+                <StockPicker
+                  size="lg"
+                  onSelect={(symbol) =>
+                    router.push(researchRoutes.quote(entry.id, symbol))
+                  }
+                />
+              </div>
+            ) : (
+              <Button
                 size="lg"
-                onSelect={(symbol) =>
-                  router.push(researchRoutes.quote(entry.id, symbol))
-                }
-              />
-            </div>
+                onClick={() => router.push(researchRoutes.quote(entry.id))}
+              >
+                Run
+              </Button>
+            )}
             <p className="text-text-tertiary text-xs md:max-w-sm">
-              You will see the price, your balance and anything we cannot cover
-              for this stock before you pay. Nothing is spent until you confirm.
+              {wantsSymbol
+                ? "You will see the price, your balance and anything we cannot cover for this stock before you pay. Nothing is spent until you confirm."
+                : "You will see the price, your balance and how old each source is before you pay. Nothing is spent until you confirm."}
             </p>
           </div>
         </div>
@@ -81,19 +107,11 @@ export function PipelineFeaturePanel({ entry }: { entry: CatalogEntry }) {
           <h3 className="text-text-primary text-sm font-medium">
             What the report covers
           </h3>
-          {/* Unnumbered on purpose: the sections are researched in parallel and
-              carry no order, the same reason the run view refuses to imply one. */}
-          <ul className="mt-3 space-y-2">
-            {entry.steps?.map((step) => (
-              <li
-                key={step.id}
-                className="text-text-secondary flex items-baseline gap-2.5 text-sm"
-              >
-                <Check className="text-brand-teal size-3.5 shrink-0 translate-y-0.5" />
-                {step.name}
-              </li>
-            ))}
-          </ul>
+          <StepList
+            steps={entry.steps ?? []}
+            ordered={ordered}
+            className="mt-3"
+          />
         </div>
 
         <div>
@@ -101,7 +119,7 @@ export function PipelineFeaturePanel({ entry }: { entry: CatalogEntry }) {
             How it works
           </h3>
           <ol className="mt-3 space-y-3">
-            {HOW_IT_WORKS.map((step, index) => (
+            {howItWorks.map((step, index) => (
               <li
                 key={index}
                 className="text-text-secondary flex gap-3 text-sm"

@@ -72,7 +72,12 @@ export async function fetchCatalog(signal?: AbortSignal) {
   return unwrap<CatalogEntry[]>(await getCatalogApiPipelinesGet({ signal }));
 }
 
-export async function fetchQuote(pipelineId: string, symbol: string) {
+/**
+ * `symbol` is null for a market Pipeline, whose target is constant and built
+ * server-side. Sent anyway rather than omitted, so the request says outright
+ * that nothing was named.
+ */
+export async function fetchQuote(pipelineId: string, symbol: string | null) {
   return unwrap<QuoteResponse>(
     await quotePipelineApiPipelinesPipelineIdQuotePost(pipelineId, { symbol }),
   );
@@ -80,7 +85,7 @@ export async function fetchQuote(pipelineId: string, symbol: string) {
 
 export async function purchasePipeline(
   pipelineId: string,
-  symbol: string,
+  symbol: string | null,
   threadId?: string | null,
 ) {
   return unwrap<PurchaseResponse>(

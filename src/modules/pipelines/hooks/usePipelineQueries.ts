@@ -86,11 +86,19 @@ export function useStockSearch(query: string) {
  * (pipeline, symbol) and refetches when the user comes back to it — the
  * balance and the vintage both move.
  */
-export function usePipelineQuote(pipelineId: string, symbol: string | null) {
+export function usePipelineQuote(
+  pipelineId: string,
+  symbol: string | null,
+  // Required rather than defaulted to `!!symbol`: a market Pipeline quotes
+  // with nothing named, so "has a symbol" stopped being the same question as
+  // "is there a target to quote", and a default that answers the old question
+  // is one a caller can take by forgetting to think about it.
+  { enabled }: { enabled: boolean },
+) {
   return useQuery({
     queryKey: ["pipelines", "quote", pipelineId, symbol] as const,
-    queryFn: () => fetchQuote(pipelineId, symbol as string),
-    enabled: !!symbol,
+    queryFn: () => fetchQuote(pipelineId, symbol),
+    enabled,
     // A quote carries a live balance and a live vintage; never serve a stale
     // one to the screen that takes the money.
     staleTime: 0,
@@ -109,7 +117,7 @@ export function usePurchasePipeline() {
   const mutation = useMutation({
     mutationFn: async (vars: {
       pipelineId: string;
-      symbol: string;
+      symbol: string | null;
       threadId?: string | null;
     }) => {
       if (inFlight.current) throw new Error("Purchase already in progress");

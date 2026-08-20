@@ -6,6 +6,7 @@ import { presentMetrics } from "../../constants/metric-dictionary";
 import type { ReportSection } from "../../types/pipelines.types";
 import { sectionAnchorId } from "../../utils/report";
 import { ReportChart } from "../charts/ReportChart";
+import { ReportTableView } from "./ReportTableView";
 
 function MetricGrid({ metrics }: { metrics: Record<string, unknown> }) {
   const tiles = presentMetrics(metrics);
@@ -122,6 +123,19 @@ export function ReportSectionView({ section }: { section: ReportSection }) {
             <ReportChart
               key={chart.id}
               spec={chart}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Rule-authored rows, last: a longitudinal Section carries none, so
+          this block simply does not render for the Stock Deep Dive. */}
+      {(output.tables?.length ?? 0) > 0 && (
+        <div className="mt-5 space-y-4">
+          {output.tables!.map((table) => (
+            <ReportTableView
+              key={table.id}
+              table={table}
             />
           ))}
         </div>

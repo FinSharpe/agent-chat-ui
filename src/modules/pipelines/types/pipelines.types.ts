@@ -1,3 +1,5 @@
+import type { ResolvedTarget } from "../utils/target";
+
 /**
  * The Pipelines wire, named for the UI.
  *
@@ -27,6 +29,8 @@ export type {
   Stance,
   StepOutput,
   StepState,
+  TableColumn,
+  TableSpec,
   VintageStamp,
 } from "@/api/generated/pipelines-apis/models";
 
@@ -38,13 +42,18 @@ export type RunStatus =
   | "failed"
   | "cancelled";
 
-/** Per-step status. `coverage_gap` is first-class, not an absence. */
+/**
+ * Per-step status. `coverage_gap` and `not_wired` are first-class, not
+ * absences: the first was never scheduled because the stock is out of the
+ * step's reach, the second because the step has not been built yet.
+ */
 export type StepStatus =
   | "pending"
   | "running"
   | "succeeded"
   | "failed"
-  | "coverage_gap";
+  | "coverage_gap"
+  | "not_wired";
 
 /** The three-level Section Badge scale. */
 export type BadgeValue = "positive" | "neutral" | "caution";
@@ -62,6 +71,18 @@ export function isRunTerminal(status: string | undefined): boolean {
   return !!status && TERMINAL_RUN_STATUSES.includes(status);
 }
 
+/** One Section as the Summary Card carries it: enough to name it and to say
+ * whether it produced anything. The full Section lives in the Report. */
+export interface PipelineSummaryCardSection {
+  step_id: string;
+  /** Carried because an absent Section has no headline to name itself with. */
+  title: string;
+  /** succeeded | failed | coverage_gap | not_wired. */
+  status: string;
+  /** Empty for every Section that produced nothing. */
+  headline: string;
+}
+
 /**
  * The Summary Card as `pipelines/delivery.py` writes it into a thread, under
  * `additional_kwargs.pipeline_summary_card`. Not an endpoint response — the
@@ -70,12 +91,23 @@ export function isRunTerminal(status: string | undefined): boolean {
 export interface PipelineSummaryCard {
   run_id: string;
   pipeline_id: string;
-  target: { symbol?: string; fincode?: number };
+  target: ResolvedTarget;
   stance: { value: string; label: string };
   degraded: boolean;
   coverage_gaps: string[];
   /** step_id -> headline, in the document's section order. */
   headlines: Record<string, string>;
+  /**
+   * Every Section the Report froze, in manifest order, with its status —
+   * absences included. `headlines` above cannot carry one, so a `not_wired`
+   * Section used to fall out of the card and the card read as a Run that
+   * fully succeeded.
+   *
+   * Empty on a card delivered before the server carried it. The renderer
+   * falls back to `headlines` there rather than showing an empty card: a card
+   * is a frozen notice sitting in a thread, and an old one still gets read.
+   */
+  sections: PipelineSummaryCardSection[];
   published_at?: string | null;
   report_path: string;
 }

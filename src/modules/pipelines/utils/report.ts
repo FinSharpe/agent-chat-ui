@@ -19,7 +19,7 @@ import type {
 export interface SectionSummary {
   stepId: string;
   title: string;
-  /** succeeded | failed | coverage_gap */
+  /** succeeded | failed | coverage_gap | not_wired */
   status: string;
   badge: SectionBadge | null;
   headline: string;
@@ -46,14 +46,6 @@ export function summariseSections(
 
 export function hasCharts(section: ReportSection): boolean {
   return (section.output?.charts?.length ?? 0) > 0;
-}
-
-/** The target symbol, or the empty string — the target is a loose dict. */
-export function targetSymbol(target: unknown): string {
-  if (target && typeof target === "object" && "symbol" in target) {
-    return String((target as { symbol?: unknown }).symbol ?? "");
-  }
-  return "";
 }
 
 /**

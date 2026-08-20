@@ -31,8 +31,8 @@ function readPermission(): NotifyPermission {
 interface Options {
   runId: string | null;
   status: string | undefined;
-  /** "TCS" — what the notification is about. */
-  symbol: string;
+  /** "TCS", or "NSE market" — what the notification is about. */
+  subject: string;
   /** Where a click on the notification should land. */
   href?: string;
 }
@@ -40,7 +40,7 @@ interface Options {
 export function useRunCompletionNotification({
   runId,
   status,
-  symbol,
+  subject,
   href,
 }: Options) {
   const [permission, setPermission] = useState<NotifyPermission>("default");
@@ -65,15 +65,15 @@ export function useRunCompletionNotification({
 
     const ready = status === "published";
     const title = ready
-      ? `${symbol} report is ready`
-      : `${symbol} report could not be produced`;
+      ? `${subject} report is ready`
+      : `${subject} report could not be produced`;
     const body = ready
       ? "Your research report has finished. Your credits were spent."
       : "The run failed and your credits have been refunded.";
 
     // Channel 1 — the tab title, restored the moment the user comes back.
     if (baseTitle.current === null) baseTitle.current = document.title;
-    document.title = ready ? `✓ ${symbol} ready` : `× ${symbol} failed`;
+    document.title = ready ? `✓ ${subject} ready` : `× ${subject} failed`;
 
     // Channel 2 — a system notification, only if the user asked for one.
     if (readPermission() === "granted") {
@@ -92,7 +92,7 @@ export function useRunCompletionNotification({
         // worker. The title channel has already done its job.
       }
     }
-  }, [runId, status, symbol, href]);
+  }, [runId, status, subject, href]);
 
   // Restore the title as soon as the user looks at the tab again.
   useEffect(() => {

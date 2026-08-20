@@ -3,7 +3,10 @@
 import { AlertTriangle, Check, MinusCircle, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { STEP_STATUS_LABEL } from "../../constants/presentation";
+import {
+  STEP_ABSENCE_LINE,
+  STEP_STATUS_LABEL,
+} from "../../constants/presentation";
 import type { StepState } from "../../types/pipelines.types";
 
 /**
@@ -47,6 +50,15 @@ function StatusMark({ status }: { status: string }) {
           )}
         >
           <MinusCircle className="size-3.5" />
+        </span>
+      );
+    // Skipped like a coverage gap and marked like one, but never coloured
+    // like one: nothing is out of coverage here, the step simply has not
+    // been built yet, so the mark stays muted rather than cautionary.
+    case "not_wired":
+      return (
+        <span className={cn(base, "border-border-default bg-bg-subtle")}>
+          <MinusCircle className="text-text-muted size-3.5" />
         </span>
       );
     case "running":
@@ -114,8 +126,12 @@ export function RunTimeline({
               {status === "coverage_gap" && !step.headline && (
                 <p className="text-warning-fg mt-1 flex items-center gap-1.5 text-xs">
                   <AlertTriangle className="size-3.5" />
-                  Declared out of coverage before you paid — this section was
-                  never run.
+                  {STEP_ABSENCE_LINE.coverage_gap}
+                </p>
+              )}
+              {status === "not_wired" && !step.headline && (
+                <p className="text-text-tertiary mt-1 text-xs">
+                  {STEP_ABSENCE_LINE.not_wired}
                 </p>
               )}
             </div>

@@ -86,6 +86,8 @@ export function vintageSourceLabel(source: string): string {
       return "Prices";
     case "finsharpe_scores":
       return "FinSharpe scores";
+    case "definedge_fundamentals":
+      return "Fundamentals";
     case "filings":
       return "Filings";
     case "news":
@@ -109,6 +111,10 @@ export function vintageDetail(source: string, token: string): string {
     case "news":
     case "fno_positioning":
       return `${date} session`;
+    // Reported figures move on results days rather than every session, so the
+    // token is coarser than the data behind it and reads as "as at".
+    case "definedge_fundamentals":
+      return `as at ${date}`;
     case "filings":
       return `to ${date}`;
     default:
@@ -140,6 +146,7 @@ export const STEP_STATUS_LABEL: Record<string, string> = {
   succeeded: "Done",
   failed: "Unavailable",
   coverage_gap: "Not covered",
+  not_wired: "Not built",
 };
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
@@ -155,6 +162,12 @@ export const RUN_STATUS_LABEL: Record<string, string> = {
  * *tone* but not its meaning: both are disclosed, neither is hidden, and the
  * report keeps a visible placeholder for each. The distinction the copy has to
  * carry is "we could not" versus "there is nothing to".
+ *
+ * `not_wired` gets a third wording rather than borrowing either. A coverage
+ * gap is a fact about the stock, disclosed on the quote before payment; an
+ * unbuilt section is a fact about the report itself, and telling a reader
+ * their stock was out of coverage when nobody had built the section yet
+ * would simply be untrue.
  */
 export const SECTION_ABSENCE_COPY: Record<
   string,
@@ -168,7 +181,76 @@ export const SECTION_ABSENCE_COPY: Record<
     title: "Could not be produced",
     body: "This section's data could not be fetched for this run. Nothing here was estimated or filled in.",
   },
+  not_wired: {
+    title: "Not built yet",
+    body: "This section is part of this report and has not been built yet, so it did not run. Nothing about this stock was out of reach.",
+  },
 };
+
+/**
+ * The same three distinctions as a chip word, for the report's jump strip.
+ *
+ * Here rather than in `StanceHeader` for the reason `SECTION_ABSENCE_COPY`
+ * is here: a reader meets an absence on the jump chip, in the Section, on the
+ * run timeline and on the Summary Card, and four wordings of one fact is four
+ * chances for them to disagree about which absence they are looking at.
+ */
+export const SECTION_ABSENCE_CHIP: Record<string, string> = {
+  coverage_gap: "not covered",
+  not_wired: "not built",
+  failed: "unavailable",
+};
+
+/**
+ * The one-line form the run timeline shows under a Step that produced no
+ * Headline, while the Run is still something a reader is watching.
+ *
+ * Shorter than `SECTION_ABSENCE_COPY` on purpose — the timeline row is a line,
+ * not a placeholder panel — but the same three meanings, kept beside it so a
+ * change to one is a change in front of the other.
+ */
+export const STEP_ABSENCE_LINE: Record<string, string> = {
+  coverage_gap:
+    "Declared out of coverage before you paid — this section was never run.",
+  not_wired: "This section has not been built yet, so it did not run.",
+};
+
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? one : many;
+}
+
+/**
+ * The counted form of the same three distinctions, for the Summary Card's
+ * run-level notice.
+ *
+ * The card shows each absence in place, so this is not the only place a
+ * reader meets one — but the card is compact and the app's card shows only
+ * its first three rows, so an absence past the fold would be silent again
+ * without a line that counts them.
+ *
+ * Beside `SECTION_ABSENCE_COPY` rather than in the card component for the
+ * reason that constant exists: three surfaces render these three absences and
+ * the wording must not drift between them.
+ */
+export const SECTION_ABSENCE_NOTICE: Record<string, (count: number) => string> =
+  {
+    coverage_gap: (n) =>
+      `${n} ${plural(n, "section is", "sections are")} not covered, and ${plural(n, "is", "are")} marked in the report.`,
+    failed: (n) =>
+      `${n} ${plural(n, "section", "sections")} could not be produced, and ${plural(n, "is", "are")} marked in the report.`,
+    not_wired: (n) =>
+      `${n} ${plural(n, "section is", "sections are")} not built yet, and ${plural(n, "is", "are")} marked in the report.`,
+  };
+
+/**
+ * What a card delivered before it carried its Sections says instead.
+ *
+ * Such a card has the `degraded` flag and no per-section status, so there is
+ * no count to put in a sentence — this is the wording that card was written
+ * with, and it still reads in the thread it was delivered to.
+ */
+export const LEGACY_DEGRADED_NOTICE =
+  "Some sections could not be produced — each is marked in the report.";
 
 /**
  * Formats an ISO timestamp as "12 Aug 2026, 14:32 IST".

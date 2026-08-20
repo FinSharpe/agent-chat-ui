@@ -3,18 +3,45 @@
 import { AlertTriangle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { badgeTone, stanceTone } from "../../constants/presentation";
+import {
+  SECTION_ABSENCE_CHIP,
+  badgeTone,
+  stanceTone,
+} from "../../constants/presentation";
 import type { ReportDocument } from "../../types/pipelines.types";
 import { summariseSections } from "../../utils/report";
 
 /**
- * The verdict, and the way into the report.
+ * What a report frozen before the header took its own wording said.
  *
- * Built from `document.sections`, never from `Stance.badges`: that list is
- * positional and silently omits the Sections that produced nothing, so zipping
- * it against the section list mislabels every badge after the first gap.
- * Sections is the only source that keeps names, order, and the gap/failed
- * states — which are exactly what a reader needs to decide where to jump.
+ * Every such document is a Deep Dive, whose header was exactly this sentence,
+ * so an older report renders what it was published with rather than a blank
+ * line. The section count is dropped rather than guessed: this fallback exists
+ * precisely where nothing authored one.
+ */
+const LEGACY_CAPTION =
+  "A summary of the section verdicts below. Not advice, not a price target, " +
+  "and not a position size.";
+
+/** What the slot is called on a report that named neither. */
+const LEGACY_HEADING = "Stance";
+
+/**
+ * The header, and the way into the report.
+ *
+ * The heading and the caption are the Pipeline's, not this component's. They
+ * were hard coded here to the word "Stance" and to a sentence naming eight
+ * section verdicts, which is true of the eight-Step flagship and of no other
+ * Pipeline: a market wide report fills this slot with the stocks its run
+ * selected rather than with a verdict, and printing "Stance" over three
+ * symbols would label a selection as a call on the market.
+ *
+ * The jump chips are built from `document.sections`, never from
+ * `Stance.badges`: that list is positional and silently omits the Sections that
+ * produced nothing, so zipping it against the section list mislabels every
+ * badge after the first gap. Sections is the only source that keeps names,
+ * order, and the gap/failed states — which are exactly what a reader needs to
+ * decide where to jump.
  */
 export function StanceHeader({ document }: { document: ReportDocument }) {
   const sections = summariseSections(document);
@@ -25,7 +52,7 @@ export function StanceHeader({ document }: { document: ReportDocument }) {
     <header className="border-border-default bg-bg-card overflow-hidden rounded-xl border">
       <div className="border-border-subtle from-brand-gradient-from via-brand-gradient-via to-brand-gradient-to border-b bg-gradient-to-r px-6 py-5">
         <p className="text-text-tertiary text-xs tracking-wide uppercase">
-          Stance
+          {stance?.heading || LEGACY_HEADING}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <span className={cn("size-2.5 rounded-full", tone.dot)} />
@@ -34,8 +61,7 @@ export function StanceHeader({ document }: { document: ReportDocument }) {
           </h2>
         </div>
         <p className="text-text-tertiary mt-2 max-w-2xl text-xs">
-          A summary of the eight section verdicts below — not advice, not a
-          price target, and not a position size.
+          {stance?.caption || LEGACY_CAPTION}
         </p>
       </div>
 
@@ -69,9 +95,7 @@ export function StanceHeader({ document }: { document: ReportDocument }) {
                   <span className="font-medium">{section.title}</span>
                   <span className="opacity-70">
                     {isAbsent
-                      ? section.status === "coverage_gap"
-                        ? "not covered"
-                        : "unavailable"
+                      ? (SECTION_ABSENCE_CHIP[section.status] ?? "unavailable")
                       : (section.badge?.label ?? "—")}
                   </span>
                 </a>

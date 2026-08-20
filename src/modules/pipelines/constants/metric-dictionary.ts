@@ -4,8 +4,8 @@
  *
  * The wire deliberately ships bare numbers (`excess_return_1y_pct: 9.3`) with
  * no presentation strings, so every client supplies both — which couples this
- * table to `pipeline_version` 1 of the Stock Deep Dive (a contract fact
- * recorded in the Phase 6 sign-off; `finsharpe-mobile`'s
+ * table to `pipeline_version` 1 of each Pipeline that emits a key (a contract
+ * fact recorded in the Phase 6 sign-off; `finsharpe-mobile`'s
  * `metric_dictionary.dart` and the server's `METRIC_LABELS` are the other two
  * copies). A key this table does not know falls back to a humanised label and
  * a plain number, never a crash.
@@ -27,8 +27,14 @@ interface MetricDisplay {
 
 export type MetricValue = boolean | number | string | null;
 
-/** Indian-market digit grouping (12,34,567). */
-function group(value: number): string {
+/**
+ * Indian-market digit grouping (12,34,567).
+ *
+ * Exported for the report Table, which reads no *dictionary* — every column
+ * declares its own unit — but must group its digits the same way, or one
+ * frozen document would show two number formats on one page.
+ */
+export function group(value: number): string {
   const s = Math.abs(value).toString();
   const sign = value < 0 ? "-" : "";
   if (s.length <= 3) return sign + s;
@@ -50,8 +56,27 @@ function num(value: MetricValue, decimals = 1): string {
   return value.toFixed(decimals);
 }
 
+/**
+ * A rupee figure, at the precision the print path uses.
+ *
+ * Two decimals below ₹100 and none at or above it, which is the PDF's rule
+ * (`pipeline_report.py`) and therefore the report's. A share price is the
+ * figure this is read on: the technical ledger's `close` column is `inr` on a
+ * shortlist that is mostly small caps, so rounding ₹57.60 to ₹58 is a real
+ * loss of precision on a real row — and User Story 34 asks the report to read
+ * identically here, in the PDF and on a phone.
+ *
+ * Exported because the Table renderer needs exactly this rule for its own
+ * `inr` column. One rupee rule, or a tile and the Table under it print the
+ * same price two ways.
+ */
+export function rupees(value: number): string {
+  const mag = Math.abs(value);
+  return mag >= 100 ? `₹${group(Math.round(mag))}` : `₹${mag.toFixed(2)}`;
+}
+
 const inr = (v: MetricValue) =>
-  typeof v === "number" ? `₹${group(Math.round(v))}` : String(v);
+  typeof v === "number" ? `${v < 0 ? "−" : ""}${rupees(v)}` : String(v);
 
 const crores = (v: MetricValue) =>
   typeof v === "number" ? `₹${group(Math.round(v))} cr` : String(v);
@@ -59,18 +84,44 @@ const crores = (v: MetricValue) =>
 const pct = (v: MetricValue) =>
   typeof v === "number" ? `${num(v)}%` : String(v);
 
+/**
+ * The sign a signed figure leads with — and nothing at all at zero.
+ *
+ * Zero has no direction, so "+0.0%" claims one. Not a corner case here: the
+ * distance from the 52 week high is measured over a window the last close sits
+ * inside, so a shortlist at its highs reads exactly zero, and that is the tile
+ * a reader is most likely to meet it on. The print path already drops the sign
+ * at zero; this is the same rule.
+ */
+const sign = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "");
+
+/**
+ * One decimal, always, for a signed percentage — `num` drops it on a whole
+ * number, which is right for a count and wrong here: the same figure would
+ * print "8.4%" on one row and "9%" on the next, and "0%" where the PDF prints
+ * "0.0%".
+ */
 const signedPct = (v: MetricValue) =>
-  typeof v === "number"
-    ? `${v >= 0 ? "+" : "−"}${num(Math.abs(v))}%`
-    : String(v);
+  typeof v === "number" ? `${sign(v)}${Math.abs(v).toFixed(1)}%` : String(v);
 
 const signedPp = (v: MetricValue) =>
-  typeof v === "number"
-    ? `${v >= 0 ? "+" : "−"}${num(Math.abs(v))}pp`
-    : String(v);
+  typeof v === "number" ? `${sign(v)}${Math.abs(v).toFixed(1)}pp` : String(v);
 
 const mult = (v: MetricValue) =>
   typeof v === "number" ? `${num(v)}×` : String(v);
+
+/**
+ * Crores carrying a direction, with the sign outside the rupee mark.
+ *
+ * A net institutional flow is not a size: printing the magnitude alone would
+ * tell a reader that foreign institutions bought what they in fact sold. The
+ * sign leads the whole figure rather than the digits, so `−₹4,214 cr` reads as
+ * one negative quantity and never as a rupee mark applied to a negative.
+ */
+const signedCrores = (v: MetricValue) =>
+  typeof v === "number"
+    ? `${sign(v)}₹${group(Math.abs(Math.round(v)))} cr`
+    : String(v);
 
 const yesNo = (v: MetricValue) => (v === true ? "Yes" : "No");
 
@@ -178,6 +229,263 @@ const METRIC_DICTIONARY: Record<string, MetricDisplay> = {
   max_call_oi_strike: { label: "Peak call OI", format: inr },
   max_put_oi_strike: { label: "Peak put OI", format: inr },
   strike_count: { label: "Strikes", format: (v) => num(v) },
+  // top_down_research / macro_news
+  //
+  // The tape and the regime, counted rather than judged. The vendor sends the
+  // index move with no horizon on it and it is the current session's, so every
+  // label says so — the flow tiles below are five sessions and the two must
+  // not read as one span.
+  stocks_advancing: { label: "Advancing", format: (v) => num(v) },
+  stocks_declining: { label: "Declining", format: (v) => num(v) },
+  nifty500_double_top_breakouts: {
+    label: "Nifty 500 breakouts",
+    format: (v) => num(v),
+  },
+  nifty500_double_bottom_sells: {
+    label: "Nifty 500 breakdowns",
+    format: (v) => num(v),
+  },
+  nifty_50_session_change_pct: {
+    label: "Nifty 50, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  nifty_500_session_change_pct: {
+    label: "Nifty 500, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  nifty_midcap_150_session_change_pct: {
+    label: "Midcap 150, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  nifty_smallcap_250_session_change_pct: {
+    label: "Smallcap 250, session",
+    format: signedPct,
+    tone: "signed",
+  },
+  fii_net_5d_cr: {
+    label: "FII net, 5 sessions",
+    format: signedCrores,
+    tone: "signed",
+  },
+  dii_net_5d_cr: {
+    label: "DII net, 5 sessions",
+    format: signedCrores,
+    tone: "signed",
+  },
+  institutional_net_5d_cr: {
+    label: "Institutional net, 5 sessions",
+    format: signedCrores,
+    tone: "signed",
+  },
+  macro_headlines_30d: { label: "Headlines, 30 days", format: (v) => num(v) },
+  macro_terms_reported: { label: "Themes read", format: (v) => num(v) },
+  macro_terms_queried: { label: "Themes queried", format: (v) => num(v) },
+  // top_down_research / sector_momentum
+  sectors_ranked: { label: "Sectors ranked", format: (v) => num(v) },
+  sectors_sourcing: {
+    label: "Can source candidates",
+    format: (v) => num(v),
+  },
+  sectors_advanced: { label: "Sectors advanced", format: (v) => num(v) },
+  top_sector: { label: "Strongest sector", format: (v) => String(v) },
+  top_sector_score: { label: "Top composite score", format: (v) => num(v) },
+  top_sector_return_3m_pct: {
+    label: "Strongest, 3M",
+    format: signedPct,
+    tone: "signed",
+  },
+  benchmark_return_3m_pct: {
+    label: "Nifty 50, 3M",
+    format: signedPct,
+    tone: "signed",
+  },
+  // top_down_research / stock_selection
+  //
+  // The funnel's arithmetic, printed so the screen's discards stay visible.
+  candidates_screened: { label: "Candidates screened", format: (v) => num(v) },
+  candidates_priced: { label: "Price history found", format: (v) => num(v) },
+  candidates_no_history: { label: "No price history", format: (v) => num(v) },
+  candidates_above_floor: { label: "Cleared the floor", format: (v) => num(v) },
+  candidates_below_floor: { label: "Below the floor", format: (v) => num(v) },
+  candidates_shortlisted: { label: "Shortlisted", format: (v) => num(v) },
+  // Deliberately not `sectors_sourced`, one letter from the sector Section's
+  // `sectors_sourcing`, which counts the sectors that *could* hand over
+  // candidates rather than the ones that did.
+  sectors_represented: { label: "Sectors represented", format: (v) => num(v) },
+  // Unsigned crores: a traded value is a size rather than a direction, so
+  // these three take the unit a market cap takes and not the one a net
+  // institutional flow takes.
+  traded_value_floor_cr: { label: "Traded value floor", format: crores },
+  shortlist_min_adtv_cr: { label: "Thinnest shortlisted", format: crores },
+  shortlist_median_adtv_cr: { label: "Median shortlisted", format: crores },
+  // top_down_research / fundamental_analysis
+  //
+  // The `fundamentals_` prefix is load bearing rather than tidy: this Section
+  // counts and summarises fifteen names, while Deep Dive's Fundamentals
+  // Section publishes `roce_pct`, `pe` and the rest as figures about the one
+  // stock a reader bought a report on. A key means the same thing in every
+  // report or it gets a different name.
+  fundamentals_shortlisted: {
+    label: "Shortlisted names",
+    format: (v) => num(v),
+  },
+  fundamentals_resolved: {
+    label: "Peer reads resolved",
+    format: (v) => num(v),
+  },
+  fundamentals_missed: { label: "Not resolved", format: (v) => num(v) },
+  fundamentals_ranked: { label: "Ranked on all seven", format: (v) => num(v) },
+  fundamentals_consolidated_basis: {
+    label: "Consolidated accounts",
+    format: (v) => num(v),
+  },
+  fundamentals_standalone_basis: {
+    label: "Standalone fallback",
+    format: (v) => num(v),
+  },
+  fundamentals_median_peer_count: {
+    label: "Median peer set",
+    format: (v) => num(v),
+  },
+  // A ratio rather than a valuation multiple, but it takes the multiple's
+  // formatter because both read as "so many times".
+  fundamentals_median_cash_conversion: {
+    label: "Median CFO / PBT",
+    format: mult,
+  },
+  // Percentage points, not percent: this is the difference between two
+  // percentages, and a percent sign would invite a reader to take a 1.6pp
+  // edge over the peer median for a 1.6% return.
+  fundamentals_median_roce_vs_peer_pp: {
+    label: "Median ROCE vs peer",
+    format: signedPp,
+    tone: "signed",
+  },
+  fundamentals_median_cash_flow_years: {
+    label: "Median years of cash flow",
+    format: (v) => num(v),
+  },
+  fundamentals_strongest: {
+    label: "Strongest on rank",
+    format: (v) => String(v),
+  },
+  // top_down_research / technical_analysis
+  //
+  // The `technicals_` prefix carries the load the `fundamentals_` one above
+  // does, against a closer neighbour: Deep Dive's Trend Section publishes
+  // `rsi_14`, `dma_50`, `dma_200` and `above_dma_200` as one stock's readings,
+  // off the same arithmetic. These are counts and medians across fifteen
+  // names, which is not that fact.
+  technicals_shortlisted: { label: "Shortlisted names", format: (v) => num(v) },
+  technicals_resolved: { label: "Price history read", format: (v) => num(v) },
+  technicals_missed: { label: "Not resolved", format: (v) => num(v) },
+  technicals_ranked: { label: "Ranked on all three", format: (v) => num(v) },
+  technicals_gate_passed: {
+    label: "Passed the trend gate",
+    format: (v) => num(v),
+  },
+  // A tile rather than a footnote, because a relaxed gate changes what the
+  // ranking beside it means: the names under it were not all in uptrends.
+  technicals_gate_relaxed: {
+    label: "Trend gate relaxed",
+    format: yesNo,
+    tone: "boolean",
+  },
+  // Signed, and never positive: the last close sits inside the window its own
+  // high is taken over, so a shortlist at its highs reads 0.0%.
+  technicals_median_pct_from_52w_high: {
+    label: "Median from 52w high",
+    format: signedPct,
+    tone: "signed",
+  },
+  // A ratio rather than a valuation multiple, taking the multiple's formatter
+  // for the reason the cash conversion tile above does: both read as "so many
+  // times", here of the fifty session average volume.
+  technicals_median_volume_ratio: {
+    label: "Median volume 10d / 50d",
+    format: mult,
+  },
+  technicals_strongest: {
+    label: "Strongest on technicals",
+    format: (v) => String(v),
+  },
+  // top_down_research / stock_ideas
+  //
+  // Counts and two identities, and deliberately nothing that reads as a
+  // return. This is the Section a reader arrives at for the answer, so a tile
+  // carrying a percentage beside three symbols would be the forward claim the
+  // whole Section is built to refuse.
+  ideas_published: { label: "Stocks named", format: (v) => num(v) },
+  ideas_shortlisted: { label: "Shortlisted names", format: (v) => num(v) },
+  ideas_eligible: { label: "Carried both ranks", format: (v) => num(v) },
+  ideas_ineligible: { label: "Could not be compared", format: (v) => num(v) },
+  ideas_sectors_available: {
+    label: "Sectors represented",
+    format: (v) => num(v),
+  },
+  // A tile rather than a footnote, for the reason the relaxed gate above is
+  // one: it says the one name per sector rule actually removed something from
+  // this run, which is what makes the rule visible rather than stated.
+  ideas_displaced: {
+    label: "Displaced by the sector cap",
+    format: (v) => num(v),
+  },
+  ideas_top_symbol: {
+    label: "Highest combined rank",
+    format: (v) => String(v),
+  },
+  // The rank average itself, where 1 is strongest. Two decimals rather than a
+  // place: two names can share it, and it is a comparable figure rather than a
+  // position.
+  ideas_top_combined_rank: {
+    label: "Its combined rank",
+    format: (v) => num(v, 2),
+  },
+  // top_down_research / newsflow_filings
+  //
+  // Counts of what was read about three names, and one date. The `newsflow_`
+  // prefix carries the same load the two above it do, against a much closer
+  // neighbour: Deep Dive's own Filings and News Sections publish
+  // `chunk_count`, `latest_filing_date` and `article_count` as figures about
+  // the one stock a reader bought a report on. Nothing here is that fact -
+  // these are totals across three names - so none of them may land on a key a
+  // reader has already met as one company's reading.
+  // "Selected names" rather than "names covered": `covered` is a coverage word
+  // in this report and the tile beside this one is a coverage count, so
+  // reusing it here would read as how many of the three filings reached.
+  newsflow_ideas: { label: "Selected names", format: (v) => num(v) },
+  newsflow_ideas_with_news: { label: "News tape read", format: (v) => num(v) },
+  // "read" is load bearing twice over. It is not the macro Section's
+  // "Headlines, 30 days" above, which is the feed's own match count over a
+  // whole theme; and it is not the Table below it, which prints the most
+  // recent eight per name. This is what the paragraph was grounded on.
+  newsflow_headlines: {
+    label: "Headlines read, 30 days",
+    format: (v) => num(v),
+  },
+  // Both counts, and the gap between them is the finding: a name inside the
+  // Nifty 50 that the store held no passage for is a different absence from a
+  // name the store was never asked about.
+  newsflow_in_filings_roster: {
+    label: "In filings coverage",
+    format: (v) => num(v),
+  },
+  newsflow_filings_covered: {
+    label: "Filings drawn on",
+    format: (v) => num(v),
+  },
+  newsflow_filings_documents: { label: "Filings read", format: (v) => num(v) },
+  newsflow_filings_passages: { label: "Passages read", format: (v) => num(v) },
+  // The newest filing any pick was read on. A date rather than an age in
+  // days, because filings are not a declared vintage of this report and an age
+  // would imply one clock over three companies that file on their own.
+  newsflow_latest_filing_date: {
+    label: "Newest filing drawn on",
+    format: date,
+  },
 };
 
 /** One metric, ready for a stat tile. */

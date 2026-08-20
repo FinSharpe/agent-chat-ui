@@ -19,7 +19,7 @@ import {
   useShareActions,
 } from "../../hooks/usePipelineQueries";
 import type { OwnedPurchase } from "../../types/pipelines.types";
-import { targetSymbol } from "../../utils/report";
+import { targetLabel } from "../../utils/target";
 import { ResearchShell } from "../shared/ResearchShell";
 
 /**
@@ -36,10 +36,10 @@ import { ResearchShell } from "../shared/ResearchShell";
 function rowHref(row: OwnedPurchase): string {
   return row.run_status === "published"
     ? researchRoutes.report(row.run_id)
-    : // The run status carries no target, so the row hands the symbol over —
-      // otherwise a run reached from this list loses the name of the stock it
-      // is about.
-      researchRoutes.run(row.run_id, targetSymbol(row.target));
+    : // The run status carries no target, so the row hands the label over —
+      // otherwise a run reached from this list loses the name of what it is
+      // about.
+      researchRoutes.run(row.run_id, targetLabel(row.target));
 }
 
 function StateChip({ row }: { row: OwnedPurchase }) {
@@ -72,7 +72,10 @@ function StateChip({ row }: { row: OwnedPurchase }) {
 
 function PurchaseRow({ row }: { row: OwnedPurchase }) {
   const { remove } = useShareActions();
-  const symbol = targetSymbol(row.target);
+  // A market Run has no ticker, so the row names the market. Falling all the
+  // way through to the Pipeline is for a target this build cannot read at all.
+  const about =
+    targetLabel(row.target) || row.pipeline_name || "Unknown target";
 
   return (
     <li className="border-border-default bg-bg-card flex flex-wrap items-center gap-3 rounded-xl border px-5 py-4">
@@ -82,7 +85,7 @@ function PurchaseRow({ row }: { row: OwnedPurchase }) {
       >
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="text-text-primary font-medium group-hover:underline">
-            {symbol || "Unknown target"}
+            {about}
           </span>
           <span className="text-text-secondary text-sm">
             {row.pipeline_name || row.pipeline_id}
@@ -129,7 +132,7 @@ function PurchaseRow({ row }: { row: OwnedPurchase }) {
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`Remove ${symbol} report`}
+              aria-label={`Remove ${about} report`}
               onClick={() => setOpen(true)}
             >
               {remove.isPending ? (

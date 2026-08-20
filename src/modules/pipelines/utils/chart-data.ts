@@ -18,14 +18,31 @@
  * pattern (a price and its two moving averages are not three peers) and marks
  * — which have no stroke to dash — step through the validated categorical
  * order instead.
+ *
+ * `peer` is the case that rule was written against. Five sectors rebased
+ * against the market ARE peers: one hue for all of them, separated only by
+ * dash, is unreadable at exactly the moment a chart carries the most. So
+ * peers take the categorical order whether or not they are strokes, and keep
+ * a solid line so the hue is what the reader compares.
  */
 
 import type { ChartSeries, ChartSpec } from "../types/pipelines.types";
 
 export type XKind = "date" | "number" | "category";
 
-/** The validated categorical order for a chart's own (non-benchmark) series. */
-export const SELF_HUE_VARS = ["--chart-1", "--chart-2", "--chart-4"] as const;
+/** The validated categorical order for a chart's own (non-benchmark) series.
+ *
+ * Five, not three: a cross-sectional Section advances five sectors and draws
+ * every one of them. The two added are the remaining validated steps already
+ * defined in `globals.css`, in both themes.
+ */
+export const SELF_HUE_VARS = [
+  "--chart-1",
+  "--chart-2",
+  "--chart-4",
+  "--chart-3",
+  "--chart-5",
+] as const;
 
 export const BENCHMARK_HUE_VAR = "--chart-benchmark";
 
@@ -36,7 +53,7 @@ export interface PreparedSeries {
   /** Row key in the prepared dataset. */
   key: string;
   name: string;
-  role: "self" | "benchmark";
+  role: "self" | "peer" | "benchmark";
   /** CSS custom property holding this series' colour. */
   colorVar: string;
   /** SVG dash array, or undefined for a solid stroke. */
@@ -113,24 +130,43 @@ export function prepareChart(spec: ChartSpec): PreparedChart {
   const strokeChart = isStrokeChart(spec.kind);
 
   let selfIndex = 0;
+  let peerIndex = 0;
   const series: PreparedSeries[] = rawSeries.map((s, index) => {
-    const role = s.role === "benchmark" ? "benchmark" : "self";
-    const colorVar =
-      role === "benchmark"
-        ? BENCHMARK_HUE_VAR
-        : strokeChart
-          ? // Strokes hold one hue for the subject; dash separates them.
-            SELF_HUE_VARS[0]
-          : SELF_HUE_VARS[Math.min(selfIndex, SELF_HUE_VARS.length - 1)];
-    if (role === "self") selfIndex += 1;
+    // An unknown role reads as `self`, which is what every series was before
+    // `peer` existed — the role is additive, never a breaking change.
+    const role: PreparedSeries["role"] =
+      s.role === "benchmark"
+        ? "benchmark"
+        : s.role === "peer"
+          ? "peer"
+          : "self";
+    let colorVar: string;
+    if (role === "benchmark") {
+      colorVar = BENCHMARK_HUE_VAR;
+    } else if (role === "peer") {
+      colorVar = SELF_HUE_VARS[Math.min(peerIndex, SELF_HUE_VARS.length - 1)];
+      peerIndex += 1;
+    } else {
+      // Strokes hold one hue for the subject and let dash separate them;
+      // marks, which have no stroke to dash, step through the categorical
+      // order. A chart is one kind or the other, so the counter is only read
+      // on the branch that indexes with it.
+      colorVar = strokeChart
+        ? SELF_HUE_VARS[0]
+        : SELF_HUE_VARS[Math.min(selfIndex, SELF_HUE_VARS.length - 1)];
+      selfIndex += 1;
+    }
     return {
       key: `s${index}`,
       name: s.name,
       role,
       colorVar,
-      dash: strokeChart
-        ? DASHES[Math.min(index, DASHES.length - 1)]
-        : undefined,
+      // Peers are told apart by hue, so a dash would only muddy the one thing
+      // the reader is comparing.
+      dash:
+        strokeChart && role !== "peer"
+          ? DASHES[Math.min(index, DASHES.length - 1)]
+          : undefined,
     };
   });
 

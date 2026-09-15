@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useAuth, isHydratedUser } from "@/providers/AuthProvider";
-import { LogOut, Plug } from "lucide-react";
+import { LogOut, Plug, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 function getInitials(name: string | null | undefined): string {
@@ -68,6 +68,19 @@ export function UserMenu({ size = "default" }: { size?: "default" | "sm" }) {
             <Link href="/settings/mcp">
               <Plug className="size-4" />
               MCP Access
+            </Link>
+          </Button>
+        </PopoverClose>
+        <PopoverClose asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            asChild
+          >
+            <Link href="/delete-account">
+              <Trash2 className="size-4" />
+              Delete account
             </Link>
           </Button>
         </PopoverClose>

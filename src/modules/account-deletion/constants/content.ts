@@ -30,11 +30,18 @@ export const REGISTERED_ADDRESS =
  */
 export const BACKUP_ROLLOVER_PERIOD: string | null = null;
 
+/**
+ * The path as the app actually draws it (finsharpe-mobile#163, built
+ * 2026-09-16): deletion sits one sheet below the account sheet, and the
+ * confirmation is a two-second hold rather than a button. Play checks these
+ * steps against the app, so they change with it.
+ */
 export const IN_APP_STEPS = [
   "Open the FinSharpe app and sign in.",
   "Tap your initials at the top right.",
-  "Tap Delete account.",
-  "Confirm.",
+  "Tap Signed in, at the top of the sheet.",
+  "Tap Delete account, at the bottom.",
+  "Press and hold Hold to delete account for 2 seconds.",
 ];
 
 export interface DeletedDataRow {

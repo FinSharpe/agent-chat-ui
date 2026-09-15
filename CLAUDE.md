@@ -129,6 +129,12 @@ src/modules/
 - `useImportHoldingsMutation.ts` - Import holdings to chat as markdown table
 - `useRefreshFiData` - Manual FI data refresh functionality
 
+### account-deletion module
+`src/modules/account-deletion/` backs the public `/delete-account` page — the URL Google Play's Data-safety form links to, so it must render with no app and no session (it is in `PUBLIC_PAGE_PATHS`).
+
+- The policy copy lives in `constants/content.ts` and mirrors finsharpe-mobile `docs/legal/delete-account.md`; change the two together. Play checks the page names the app and developer, gives the deletion steps, and says what is deleted and what is kept for how long.
+- `DeleteAccountPanel` adds the web deletion path for a signed-in visitor: type DELETE to confirm, then `useDeleteAccountMutation` calls `DELETE /api/auth/me`, which proxies to the backend's `DELETE /auth/me` (finsharpe-agents#210) and clears the auth cookies on `204`. Every other status leaves the account and the session untouched, so the dialog stays open with the reason.
+
 ### Component Decomposition Guidelines
 
 When creating or modifying components:

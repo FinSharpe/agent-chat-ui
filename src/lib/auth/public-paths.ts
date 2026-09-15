@@ -15,6 +15,8 @@ export const PUBLIC_PAGE_PATHS = [
   "/register",
   "/verify-email",
   "/welcome",
+  // Google Play's account-deletion URL: must work with no app and no session.
+  "/delete-account",
 ];
 
 /** Page path prefixes served without a session. */

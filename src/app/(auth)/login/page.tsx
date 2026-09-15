@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +27,7 @@ import {
   type LoginFormValues,
   type AuthLoginResponse,
 } from "@/modules/auth";
+import { safeReturnPath } from "@/lib/auth/return-path";
 
 const inputClass =
   "h-12 rounded-xl bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus-visible:bg-white/[0.07] focus-visible:border-[#42d4a3]/40 focus-visible:ring-[#42d4a3]/15 transition-all duration-300";
@@ -33,9 +35,13 @@ const inputClass =
 const btnClass =
   "relative h-12 w-full overflow-hidden rounded-xl border-0 bg-gradient-to-r from-[#2563eb] to-[#0d9488] text-white font-medium shadow-lg shadow-blue-500/25 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(37,99,235,0.35)] hover:from-[#3b82f6] hover:to-[#14b8a6] active:scale-[0.98]";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const { updateUser } = useAuth();
+  // Where to go once signed in. `/delete-account` sends visitors here and
+  // wants them back afterwards; anything else falls back to the chat home.
+  const searchParams = useSearchParams();
+  const next = safeReturnPath(searchParams.get("next"));
   const mutation = useMutation<AuthLoginResponse, Error, LoginFormValues>({
     mutationFn: async (body) => {
       const res = await fetch("/api/auth/login", {
@@ -64,12 +70,12 @@ export default function LoginPage() {
       onSuccess: (data) => {
         if (data.requires_verification) {
           router.push(
-            `/verify-email?email=${encodeURIComponent(getValues("email"))}`,
+            `/verify-email?email=${encodeURIComponent(getValues("email"))}&next=${encodeURIComponent(next)}`,
           );
           return;
         }
         if (data.user) updateUser(data.user);
-        router.push("/");
+        router.push(next);
       },
     });
   };
@@ -176,5 +182,26 @@ export default function LoginPage() {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card className="border-white/[0.08] bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/30 rounded-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-white tracking-tight">
+              Welcome back
+            </CardTitle>
+            <CardDescription className="text-white/40">
+              Loading...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

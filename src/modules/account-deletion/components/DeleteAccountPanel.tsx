@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isHydratedUser, useAuth } from "@/providers/AuthProvider";
+import { DELETE_ACCOUNT_PATH } from "../constants/content";
 import DeleteAccountDialog from "./modals/DeleteAccountDialog";
 
 interface DeleteAccountPanelProps {
@@ -62,7 +63,9 @@ export default function DeleteAccountPanel({
           variant="outline"
           className="shrink-0"
         >
-          <Link href="/login">Sign in</Link>
+          <Link href={`/login?next=${encodeURIComponent(DELETE_ACCOUNT_PATH)}`}>
+            Sign in
+          </Link>
         </Button>
       </div>
     );

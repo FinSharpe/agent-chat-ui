@@ -25,6 +25,7 @@ import {
   type VerifyEmailFormValues,
   type AuthUserResponse,
 } from "@/modules/auth";
+import { safeReturnPath } from "@/lib/auth/return-path";
 
 const inputClass =
   "h-12 rounded-xl bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus-visible:bg-white/[0.07] focus-visible:border-[#42d4a3]/40 focus-visible:ring-[#42d4a3]/15 transition-all duration-300";
@@ -39,6 +40,9 @@ function VerifyEmailForm() {
   const { updateUser } = useAuth();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  // Carried through from `/login`, so a visitor who had to verify on the way
+  // still lands where they were headed.
+  const next = safeReturnPath(searchParams.get("next"));
 
   const verifyMutation = useMutation<
     AuthUserResponse,
@@ -110,7 +114,7 @@ function VerifyEmailForm() {
     verifyMutation.mutate(values, {
       onSuccess: (data) => {
         updateUser(data.user);
-        router.push("/");
+        router.push(next);
       },
     });
   };

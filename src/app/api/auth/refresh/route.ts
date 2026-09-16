@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setAuthCookies, clearAuthCookies } from "@/lib/auth/cookies";
+import { clientAddressHeaders } from "@/lib/auth/client-address";
 
 const BACKEND_URL = process.env.LANGGRAPH_API_URL || "http://localhost:2024";
 
@@ -14,8 +15,18 @@ export async function POST(request: NextRequest) {
     headers: {
       "Content-Type": "application/json",
       "X-Refresh-Token": refreshToken,
+      ...clientAddressHeaders(request),
     },
   });
+
+  // Rate limited (finsharpe-agents#205): the session is still good, so its
+  // cookies stay — clearing them would sign the user out over a short wait.
+  if (res.status === 429) {
+    return NextResponse.json(await res.json().catch(() => ({})), {
+      status: 429,
+      headers: { "Retry-After": res.headers.get("Retry-After") ?? "60" },
+    });
+  }
 
   if (!res.ok) {
     const response = NextResponse.json({ error: "Session expired" }, { status: 401 });

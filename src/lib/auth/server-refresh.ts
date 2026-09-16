@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { clientAddressHeaders } from "@/lib/auth/client-address";
 
 const BACKEND_URL = process.env.LANGGRAPH_API_URL || "http://localhost:2024";
 const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 604800;
@@ -56,18 +57,43 @@ function buildRefreshSetCookieHeaders(tokens: RefreshTokens): string[] {
   return headers;
 }
 
+/**
+ * The backend refused the refresh for now (429, finsharpe-agents#205). The
+ * session itself is fine, so this must not read as "session expired" — a 401
+ * sends the browser to /login.
+ */
+interface RefreshRateLimited {
+  rateLimited: true;
+  retryAfter: string;
+  body: unknown;
+}
+
+type RefreshOutcome = RefreshTokens | RefreshRateLimited | null;
+
 // Keyed by refresh token to prevent cross-user token leakage.
 // Each unique refresh token gets its own in-flight promise.
-const inflightRefreshes = new Map<string, Promise<RefreshTokens | null>>();
+const inflightRefreshes = new Map<string, Promise<RefreshOutcome>>();
 
-async function refreshTokens(refreshToken: string): Promise<RefreshTokens | null> {
+async function refreshTokens(
+  refreshToken: string,
+  forwardHeaders: Record<string, string>,
+): Promise<RefreshOutcome> {
   const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Refresh-Token": refreshToken,
+      ...forwardHeaders,
     },
   });
+
+  if (res.status === 429) {
+    return {
+      rateLimited: true,
+      retryAfter: res.headers.get("Retry-After") ?? "60",
+      body: await res.json().catch(() => ({})),
+    };
+  }
 
   if (!res.ok) {
     return null;
@@ -82,11 +108,14 @@ async function refreshTokens(refreshToken: string): Promise<RefreshTokens | null
   };
 }
 
-async function deduplicatedRefresh(refreshToken: string): Promise<RefreshTokens | null> {
+async function deduplicatedRefresh(
+  refreshToken: string,
+  forwardHeaders: Record<string, string>,
+): Promise<RefreshOutcome> {
   const existing = inflightRefreshes.get(refreshToken);
   if (existing) return existing;
 
-  const promise = refreshTokens(refreshToken).finally(() => {
+  const promise = refreshTokens(refreshToken, forwardHeaders).finally(() => {
     inflightRefreshes.delete(refreshToken);
   });
   inflightRefreshes.set(refreshToken, promise);
@@ -129,7 +158,21 @@ export async function fetchWithRefresh(
       };
     }
 
-    const tokens = await deduplicatedRefresh(refreshToken);
+    const tokens = await deduplicatedRefresh(
+      refreshToken,
+      clientAddressHeaders(request),
+    );
+    if (tokens && "rateLimited" in tokens) {
+      return {
+        response: new Response(JSON.stringify(tokens.body), {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": tokens.retryAfter,
+          },
+        }),
+      };
+    }
     if (!tokens) {
       return {
         response: new Response(JSON.stringify({ error: "Session expired" }), {

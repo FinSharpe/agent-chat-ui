@@ -11,6 +11,7 @@ import {
 } from "date-fns";
 import { Search } from "lucide-react";
 import { useState } from "react";
+import { useLegacyBookmarkMigration } from "../hooks/useLegacyBookmarkMigration";
 import { getThreadInfo } from "../utils/threadUtils";
 import ThreadGroupSection from "./ThreadGroupSection";
 import ThreadHistoryLoading from "./ThreadHistoryLoading";
@@ -27,6 +28,7 @@ export default function ThreadHistoryList({
 }) {
   const { data: threads, isLoading } = useThreadsQuery();
   const [searchQuery, setSearchQuery] = useState("");
+  useLegacyBookmarkMigration(threads);
 
   const mutedText = dark ? "text-white/45" : "text-muted-foreground";
 
@@ -49,11 +51,10 @@ export default function ThreadHistoryList({
 
   const filteredThreads = threads.filter((thread) => {
     if (!searchQuery) return true;
-    const { title, preview } = getThreadInfo(thread);
+    const { title, derivedTitle, preview } = getThreadInfo(thread);
     const query = searchQuery.toLowerCase();
-    return (
-      title.toLowerCase().includes(query) ||
-      preview.toLowerCase().includes(query)
+    return [title, derivedTitle, preview].some((text) =>
+      text.toLowerCase().includes(query),
     );
   });
 

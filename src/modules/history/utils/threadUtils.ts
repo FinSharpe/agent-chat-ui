@@ -2,9 +2,11 @@ import { Thread } from "@langchain/langgraph-sdk";
 import { format, parseISO } from "date-fns";
 import { getContentString } from "@/components/thread/utils";
 import { stripCitationMarkers } from "@/lib/citations";
+import { getUserTitle } from "./threadMetadata";
 
 export function getThreadInfo(thread: Thread) {
-  let title = thread.thread_id;
+  // What the first message says; the user's own title, when set, wins.
+  let derivedTitle = thread.thread_id;
   let preview = "No preview available";
   let messageCount = 0;
   const timestamp = thread.created_at
@@ -21,7 +23,7 @@ export function getThreadInfo(thread: Thread) {
     const messages = thread.values.messages;
     messageCount = messages.length;
     const firstMessage = messages[0];
-    title = getContentString(firstMessage.content);
+    derivedTitle = getContentString(firstMessage.content);
 
     // Get preview from the last message or second message if available
     if (messages.length > 1) {
@@ -30,9 +32,11 @@ export function getThreadInfo(thread: Thread) {
       // markers are stripped here — a raw tag must never reach the reader.
       preview = stripCitationMarkers(getContentString(lastMessage.content));
     } else {
-      preview = title;
+      preview = derivedTitle;
     }
   }
 
-  return { title, preview, messageCount, timestamp };
+  const title = getUserTitle(thread) ?? derivedTitle;
+
+  return { title, derivedTitle, preview, messageCount, timestamp };
 }

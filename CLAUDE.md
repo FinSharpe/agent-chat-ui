@@ -135,6 +135,13 @@ src/modules/
 - The policy copy lives in `constants/content.ts` and mirrors finsharpe-mobile `docs/legal/delete-account.md`; change the two together. Play checks the page names the app and developer, gives the deletion steps, and says what is deleted and what is kept for how long.
 - `DeleteAccountPanel` adds the web deletion path for a signed-in visitor: type DELETE to confirm, then `useDeleteAccountMutation` calls `DELETE /api/auth/me`, which proxies to the backend's `DELETE /auth/me` (finsharpe-agents#210) and clears the auth cookies on `204`. Every other status leaves the account and the session untouched, so the dialog stays open with the reason.
 
+### history module
+`src/modules/history/` renders the Memory page and the drawer's chat list from `useThreadsQuery`.
+
+- A chat's bookmark and user-set title live in LangGraph thread metadata (`bookmarked`, `bookmarked_at`, `title`), a contract shared with finsharpe-mobile (its ADR-0008 §8 is the authority; `utils/threadMetadata.ts` holds the keys). Change the two apps together.
+- `useThreadMetadataMutation` writes them optimistically into every cached `["threads"]` list and does not re-fetch; a refused write restores only the keys it changed. The runtime merges metadata, so an un-bookmark nulls `bookmarked_at` and a cleared rename writes `""`.
+- `useLegacyBookmarkMigration` moves the old `localStorage.bookmarked_threads` ids into metadata once, only for threads in the signed-in user's list; ids it cannot place stay in storage.
+
 ### Component Decomposition Guidelines
 
 When creating or modifying components:

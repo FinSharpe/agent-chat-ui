@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "in.finsharpe.app",
       "sha256_cert_fingerprints": [
-        "12:C3:D4:18:0C:29:D4:D1:D2:06:E0:9A:23:C0:F4:24:AA:09:8B:DD:90:FB:49:F7:AF:4A:EA:23:E1:4C:4E:DA"
+        "12:C3:D4:18:0C:29:D4:D1:D2:06:E0:9A:23:C0:F4:24:AA:09:8B:DD:90:FB:49:F7:AF:4A:EA:23:E1:4C:4E:DA",
+        "96:D1:2D:69:E3:C3:17:6A:FC:E8:A6:FD:D6:70:B7:81:3F:70:E7:3A:5E:05:2E:A8:B2:24:B0:11:83:56:24:76"
       ]
     }
   }

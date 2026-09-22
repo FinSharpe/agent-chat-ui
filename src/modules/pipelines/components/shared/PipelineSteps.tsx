@@ -50,9 +50,17 @@ const LINE: Record<string, string> = {
 export function PipelineSteps({
   steps,
   ordered,
+  stalled = false,
 }: {
   steps: StepRow[];
   ordered: boolean;
+  /**
+   * Set while the screen has lost contact with the server. The rows are then
+   * the last thing we heard rather than what is happening, so the running
+   * step's spinner stops: a spinner that keeps turning on frozen data promises
+   * live progress the screen cannot see.
+   */
+  stalled?: boolean;
 }) {
   return (
     <ol className="divide-y divide-slate-100 border-y border-slate-100 dark:divide-slate-800/60 dark:border-slate-800/60">
@@ -81,7 +89,10 @@ export function PipelineSteps({
               ) : status === "running" ? (
                 <Loader2
                   size={13}
-                  className="animate-spin motion-reduce:animate-none"
+                  className={cn(
+                    "motion-reduce:animate-none",
+                    !stalled && "animate-spin",
+                  )}
                 />
               ) : status === "failed" ? (
                 <X

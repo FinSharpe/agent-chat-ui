@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
 import { researchRoutes } from "../../constants/routes";
 import { useOwnedReports } from "../../hooks/usePipelineQueries";
@@ -30,7 +31,7 @@ import { PurchaseRow } from "./PurchaseRow";
  */
 export function LibraryScreen() {
   const router = useRouter();
-  const { data, isLoading, error } = useOwnedReports();
+  const { data, isLoading, isError, isFetching, refetch } = useOwnedReports();
 
   const inFlight =
     data?.filter(
@@ -74,10 +75,14 @@ export function LibraryScreen() {
             </div>
           )}
 
-          {error && (
-            <p className="text-[11px] text-rose-500">
-              Your reports could not be loaded.
-            </p>
+          {/* "You have not commissioned a report yet" is a claim about the
+              account, and a failed list cannot make it. */}
+          {isError && (
+            <SectionErrorState
+              label="your reports"
+              onRetry={() => refetch()}
+              retrying={isFetching}
+            />
           )}
 
           {data && data.length === 0 && (

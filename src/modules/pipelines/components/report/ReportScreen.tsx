@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
-import { PipelineApiError, reportPdfUrl } from "../../api/pipelines-client";
+import SectionErrorState from "@/components/shared/SectionErrorState";
+import { reportPdfUrl } from "../../api/pipelines-client";
 import { formatTimestamp } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import {
@@ -12,6 +13,7 @@ import {
   usePipelineCatalog,
   usePipelineReport,
 } from "../../hooks/usePipelineQueries";
+import { reportErrorCopy } from "../../utils/errors";
 import { targetLabel } from "../../utils/target";
 import { CIRCLE_BUTTON, Placeholder, SCROLL_BODY } from "../shared/kit";
 import { ResearchPage } from "../shared/ResearchPage";
@@ -30,7 +32,8 @@ import { ShareDialog } from "./ShareDialog";
  */
 export function ReportScreen({ runId }: { runId: string }) {
   const router = useRouter();
-  const { data, isLoading, error } = usePipelineReport(runId);
+  const { data, isLoading, isError, error, isFetching, refetch } =
+    usePipelineReport(runId);
   const { data: owned } = useOwnedReports();
   const { data: catalog } = usePipelineCatalog();
 
@@ -46,6 +49,8 @@ export function ReportScreen({ runId }: { runId: string }) {
         .filter(Boolean)
         .join(" · ")
     : undefined;
+
+  const reportCopy = reportErrorCopy(error);
 
   return (
     <ResearchPage>
@@ -84,12 +89,15 @@ export function ReportScreen({ runId }: { runId: string }) {
             </div>
           )}
 
-          {error && (
-            <p className="text-[11px] text-rose-500">
-              {error instanceof PipelineApiError && error.isNotFound
-                ? "This report is not one of yours, or has not published yet."
-                : "The report could not be loaded."}
-            </p>
+          {/* "Not yours", "not published yet" and "we couldn't reach the
+              server" are three different answers; only the last is a retry. */}
+          {isError && (
+            <SectionErrorState
+              title={reportCopy.title}
+              description={reportCopy.description}
+              onRetry={reportCopy.retryable ? () => refetch() : undefined}
+              retrying={isFetching}
+            />
           )}
 
           {document && <ReportDocumentView document={document} />}

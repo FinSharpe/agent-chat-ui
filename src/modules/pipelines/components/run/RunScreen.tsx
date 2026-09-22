@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { Bell, Loader2 } from "lucide-react";
+import { Bell, Loader2, RefreshCw } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
-import { PipelineApiError } from "../../api/pipelines-client";
 import {
   RUN_STATUS_LABEL,
   STEP_ABSENCE_LINE,
@@ -18,6 +18,7 @@ import {
   usePipelineRun,
 } from "../../hooks/usePipelineQueries";
 import { useRunCompletionNotification } from "../../hooks/useRunCompletionNotification";
+import { runErrorCopy } from "../../utils/errors";
 import { stepsAreOrdered, targetLabel } from "../../utils/target";
 import {
   ActionBar,
@@ -52,7 +53,14 @@ export function RunScreen({
   label?: string;
 }) {
   const router = useRouter();
-  const { data: run, isLoading, error } = usePipelineRun(runId);
+  const {
+    data: run,
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    refetch,
+  } = usePipelineRun(runId);
   // The run status carries neither a target nor a Pipeline, so both are read
   // off the Purchase that owns this Run — already cached. The URL label
   // stands in until it lands.
@@ -90,7 +98,26 @@ export function RunScreen({
   }, [run]);
 
   const isRunning = run?.status === "queued" || run?.status === "running";
-  const statusLabel = run ? (RUN_STATUS_LABEL[run.status] ?? run.status) : "";
+
+  /**
+   * The run dying and the *connection* dying are different events, and the
+   * screen has to name which one happened.
+   *
+   * A failed run is terminal and arrives as `status: "failed"` — RunOutcome
+   * shows it, with the refund. This is the other one: the poll could not reach
+   * the server, so the last status we hold is still "running" and everything
+   * below it is frozen at whatever it said then. Left alone it would be a
+   * progress bar that never moves and a spinner that never stops, which reads
+   * as a run that has hung.
+   */
+  const lostContact = isError && !!run && isRunning;
+  const runCopy = runErrorCopy(error);
+
+  const statusLabel = lostContact
+    ? "Not connected"
+    : run
+      ? (RUN_STATUS_LABEL[run.status] ?? run.status)
+      : "";
   const title = entry?.name ?? purchase?.pipeline_name ?? "Agent workflow";
   const subtitle = [about, statusLabel].filter(Boolean).join(" · ");
 
@@ -124,12 +151,24 @@ export function RunScreen({
           </div>
         )}
 
-        {error && (
-          <p className="text-[11px] text-rose-500">
-            {error instanceof PipelineApiError && error.isNotFound
-              ? "This run is not one of yours, or no longer exists."
-              : "The run status could not be loaded."}
-          </p>
+        {/* Nothing ever arrived: there is no progress to qualify, only a
+            reason. */}
+        {isError && !run && (
+          <SectionErrorState
+            title={runCopy.title}
+            description={runCopy.description}
+            onRetry={runCopy.retryable ? () => refetch() : undefined}
+            retrying={isFetching}
+          />
+        )}
+
+        {lostContact && (
+          <SectionErrorState
+            compact
+            title="Lost contact with the server — the progress below has stopped updating"
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
         )}
 
         {run && (
@@ -138,19 +177,22 @@ export function RunScreen({
               done={done}
               total={steps.length}
               note={
-                isRunning
-                  ? `${
-                      ordered
-                        ? "Each step narrows the one before it, so they finish in order."
-                        : "Sections are fetched and written in parallel, so they finish out of order."
-                    } You can leave — the run keeps going, and the report will be waiting in Your Reports.`
-                  : undefined
+                lostContact
+                  ? "This is where the run had got to when we last reached the server. The run itself carries on without this screen — we keep trying, and the report will be waiting in Your Reports either way."
+                  : isRunning
+                    ? `${
+                        ordered
+                          ? "Each step narrows the one before it, so they finish in order."
+                          : "Sections are fetched and written in parallel, so they finish out of order."
+                      } You can leave — the run keeps going, and the report will be waiting in Your Reports.`
+                    : undefined
               }
             />
 
             <PipelineSteps
               steps={steps}
               ordered={ordered}
+              stalled={lostContact}
             />
 
             {!isRunning && (
@@ -168,7 +210,30 @@ export function RunScreen({
         )}
       </div>
 
-      {(isLoading || isRunning) && (
+      {/* While we are out of contact the bar stops asserting "Running…" and
+          becomes the way back — a live button, not a spinner to watch. */}
+      {lostContact && (
+        <ActionBar>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className={cn(PRIMARY_BUTTON, "disabled:opacity-70")}
+          >
+            {isFetching ? (
+              <Loader2
+                size={15}
+                className="animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <RefreshCw size={15} />
+            )}
+            {isFetching ? "Reconnecting…" : "Reconnect"}
+          </button>
+        </ActionBar>
+      )}
+
+      {!lostContact && (isLoading || isRunning) && (
         <ActionBar>
           <button
             type="button"

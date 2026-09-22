@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Library } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
 import { creditsLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
@@ -45,7 +46,13 @@ function catalogStats(catalog: CatalogEntry[] | undefined) {
  */
 export function ResearchCatalogPage() {
   const router = useRouter();
-  const { data: catalog, isLoading, error } = usePipelineCatalog();
+  const {
+    data: catalog,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = usePipelineCatalog();
 
   return (
     <div className="relative flex h-full flex-1 flex-col overflow-hidden bg-transparent">
@@ -86,10 +93,14 @@ export function ResearchCatalogPage() {
           </div>
         )}
 
-        {error && (
-          <p className="text-[11px] text-rose-500">
-            The workflows could not be loaded. Please try again.
-          </p>
+        {/* A failed catalog is not an empty catalog: without this the screen
+            below would claim there are no workflows to run. */}
+        {isError && (
+          <SectionErrorState
+            label="the agent workflows"
+            onRetry={() => refetch()}
+            retrying={isFetching}
+          />
         )}
 
         {catalog && catalog.length === 0 && (

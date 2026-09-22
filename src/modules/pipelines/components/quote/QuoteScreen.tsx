@@ -6,6 +6,7 @@ import { Loader2, Play, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { PipelineApiError } from "../../api/pipelines-client";
 import { creditsLabel, pipelineKindLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
@@ -14,6 +15,7 @@ import {
   usePipelineQuote,
   usePurchasePipeline,
 } from "../../hooks/usePipelineQueries";
+import { quoteErrorCopy, workflowErrorCopy } from "../../utils/errors";
 import {
   isMarketTarget,
   needsSymbol,
@@ -59,7 +61,13 @@ export function QuoteScreen({
   threadId?: string | null;
 }) {
   const router = useRouter();
-  const { data: catalog, isLoading: catalogLoading } = usePipelineCatalog();
+  const {
+    data: catalog,
+    isLoading: catalogLoading,
+    error: catalogError,
+    isFetching: catalogFetching,
+    refetch: refetchCatalog,
+  } = usePipelineCatalog();
   const purchase = usePurchasePipeline();
 
   const entry = catalog?.find((item) => item.id === pipelineId);
@@ -126,13 +134,21 @@ export function QuoteScreen({
     ? `${pipelineKindLabel(entry.target_kind)} · ${creditsLabel(entry.price_credits)}`
     : undefined;
 
+  const workflowCopy = workflowErrorCopy(catalogError ?? undefined);
+  const quoteCopy = quoteErrorCopy(quote.error, symbol);
+
   const runLabel = !entry
     ? "Run"
     : wantsSymbol && !symbol
       ? "Choose a stock to run"
-      : data?.instant_reuse
-        ? "Get the report"
-        : `Run ${entry.name}`;
+      : // The button is disabled either way; saying why beats a dead "Run".
+        quote.isError
+        ? quoteCopy.retryable
+          ? "Can't reach the server"
+          : "Can't run this yet"
+        : data?.instant_reuse
+          ? "Get the report"
+          : `Run ${entry.name}`;
 
   return (
     <div className="flex h-full flex-1 flex-col overflow-hidden bg-transparent">
@@ -151,10 +167,17 @@ export function QuoteScreen({
           </div>
         )}
 
+        {/* A catalog that failed to load has not told us this workflow is
+            gone — only a catalog that came back without it has. */}
         {!catalogLoading && !entry && (
-          <p className="text-[11px] text-rose-500">
-            This workflow is not in the catalog any more.
-          </p>
+          <SectionErrorState
+            title={workflowCopy.title}
+            description={workflowCopy.description}
+            onRetry={
+              workflowCopy.retryable ? () => refetchCatalog() : undefined
+            }
+            retrying={catalogFetching}
+          />
         )}
 
         {entry && (
@@ -178,13 +201,18 @@ export function QuoteScreen({
 
             {quote.isLoading && <Placeholder className="h-[62px] w-full" />}
 
-            {quote.error && (
-              <p className="text-[11px] text-rose-500">
-                {quote.error instanceof PipelineApiError &&
-                quote.error.isNotFound
-                  ? `We do not recognise the stock “${symbol}”.`
-                  : "The quote could not be loaded. Please try again."}
-              </p>
+            {/* No price, no balance, no purchase — say which of those is the
+                server refusing and which is a connection we couldn't make. */}
+            {quote.isError && (
+              <SectionErrorState
+                className="py-6"
+                title={quoteCopy.title}
+                description={quoteCopy.description}
+                onRetry={
+                  quoteCopy.retryable ? () => quote.refetch() : undefined
+                }
+                retrying={quote.isFetching}
+              />
             )}
 
             {data && (

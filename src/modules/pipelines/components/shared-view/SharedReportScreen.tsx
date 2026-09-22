@@ -4,14 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { Download, Eye } from "lucide-react";
 
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
 import { AppViewport } from "@/modules/shell";
-import {
-  PipelineApiError,
-  sharedReportPdfUrl,
-} from "../../api/pipelines-client";
+import { sharedReportPdfUrl } from "../../api/pipelines-client";
 import { formatTimestamp } from "../../constants/presentation";
 import { useSharedReport } from "../../hooks/usePipelineQueries";
+import { sharedReportErrorCopy, sharedReportIsGone } from "../../utils/errors";
 import { targetLabel } from "../../utils/target";
 import { ReportDocumentView } from "../report/ReportDocumentView";
 import {
@@ -36,9 +35,14 @@ const CTA_PILL =
  * the report is or what it does not claim.
  */
 export function SharedReportScreen({ token }: { token: string }) {
-  const { data, isLoading, error } = useSharedReport(token);
+  const { data, isLoading, isError, error, isFetching, refetch } =
+    useSharedReport(token);
   const document = data?.document;
   const about = document ? targetLabel(document.target) : "";
+  // A dead link and a dead server look identical from here unless we insist
+  // they don't: only 404/410 may say the link is finished.
+  const gone = sharedReportIsGone(error);
+  const errorCopy = sharedReportErrorCopy(error);
 
   return (
     <AppViewport>
@@ -90,17 +94,15 @@ export function SharedReportScreen({ token }: { token: string }) {
               </div>
             )}
 
-            {error && (
+            {/* The link is finished: a real answer, and the only one that
+                gets the sign-up route out of a dead end. */}
+            {isError && gone && (
               <div className="space-y-2 py-16 text-center">
                 <h1 className="font-geist text-base font-medium text-[#0A1F4D] dark:text-white">
-                  {error instanceof PipelineApiError && error.isNotFound
-                    ? "This link is no longer active"
-                    : "This report could not be loaded"}
+                  {errorCopy.title}
                 </h1>
                 <p className="mx-auto max-w-md text-[11px] leading-relaxed text-slate-500">
-                  {error instanceof PipelineApiError && error.isNotFound
-                    ? "Whoever shared this report has revoked the link, or it never existed."
-                    : "Please try again in a moment."}
+                  {errorCopy.description}
                 </p>
                 <Link
                   href="/register"
@@ -109,6 +111,20 @@ export function SharedReportScreen({ token }: { token: string }) {
                   Explore FinSharpe
                 </Link>
               </div>
+            )}
+
+            {/* We never reached the server. This reader has no account to
+                blame and nothing else to try, so the page keeps the link
+                alive, says the report is still there, and hands them the one
+                action that can help — no sign-up wall, no sign-in. */}
+            {isError && !gone && (
+              <SectionErrorState
+                className="py-16"
+                title={errorCopy.title}
+                description={errorCopy.description}
+                onRetry={() => refetch()}
+                retrying={isFetching}
+              />
             )}
 
             {document && (

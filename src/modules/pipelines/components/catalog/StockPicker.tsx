@@ -3,6 +3,7 @@
 import { ArrowRight, Loader2, Search } from "lucide-react";
 import { useState } from "react";
 
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
 import { useStockSearch } from "../../hooks/usePipelineQueries";
 
@@ -27,7 +28,8 @@ export function StockPicker({
   selectedSymbol?: string | null;
 }) {
   const [query, setQuery] = useState("");
-  const { results, isSearching, isPending, error } = useStockSearch(query);
+  const { results, isSearching, isPending, error, retry } =
+    useStockSearch(query);
   const showResults = query.trim().length >= 2;
 
   return (
@@ -55,10 +57,15 @@ export function StockPicker({
 
       {showResults && (
         <div className="glass-card rounded-nested absolute top-full right-0 left-0 z-30 mt-2 max-h-72 overflow-y-auto shadow-[0_18px_40px_-18px_rgba(10,31,77,0.35)]">
+          {/* A search that failed has not established that nothing matches. */}
           {error ? (
-            <p className="px-4 py-6 text-center text-[11px] text-rose-500">
-              Search is unavailable right now.
-            </p>
+            <SectionErrorState
+              compact
+              className="border-0"
+              title="We couldn't search for that just now"
+              onRetry={() => retry()}
+              retrying={isSearching}
+            />
           ) : results.length === 0 && !isSearching && !isPending ? (
             <p className="px-4 py-6 text-center text-[11px] text-slate-400">
               No stock matches “{query.trim()}”.

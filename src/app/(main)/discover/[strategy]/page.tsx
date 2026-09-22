@@ -1,39 +1,33 @@
-import { StrategyAnalyticsResponse } from "@/api/generated/strategy-apis/models";
-import { AdvisorStrategyDetailsPage } from "@/modules/discover/components/advisor-details/AdvisorStrategyDetailsPage";
-import { notFound } from "next/navigation";
+"use client";
 
-type PageProps = {
-  params: Promise<{ strategy: string }>;
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
+const safeDecode = (s: string) => {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 };
 
-export default async function StrategyDetailsPage({ params }: PageProps) {
-  const { strategy: strategyId } = await params;
+/**
+ * Deep link to one strategy (shared links, older bookmarks). The strategy
+ * detail lives in Discover's Explore Investment Ideas — a popup over the list
+ * on desktop, full screen on mobile — so hand the visitor over to it.
+ *
+ * Replaced on the client: a server `redirect()` here streams inside the main
+ * layout's Suspense boundary and trips React during the hand-off.
+ */
+export default function StrategyDeepLinkPage() {
+  const { strategy } = useParams<{ strategy: string }>();
+  const router = useRouter();
 
-  // For server-side rendering, construct the full URL
-  const baseUrl = process.env.LANGGRAPH_API_URL || "http://127.0.0.1:2024";
-  const url = `${baseUrl}/api/strategies/${strategyId}`;
-
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("Error response:", errorText);
-
-    if (res.status === 404) {
-      notFound();
-    }
-    // For other errors, throw to trigger error boundary
-    throw new Error(
-      `Failed to fetch strategy: ${res.status} ${res.statusText}`,
+  useEffect(() => {
+    router.replace(
+      `/discover?feature=ideas&strategy=${encodeURIComponent(safeDecode(strategy))}`,
     );
-  }
+  }, [router, strategy]);
 
-  const strategy: StrategyAnalyticsResponse = await res.json();
-
-  return <AdvisorStrategyDetailsPage strategy={strategy} />;
+  return null;
 }

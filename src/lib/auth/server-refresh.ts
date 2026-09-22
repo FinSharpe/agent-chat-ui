@@ -1,9 +1,16 @@
 import { NextRequest } from "next/server";
 import { clientAddressHeaders } from "@/lib/auth/client-address";
+import {
+  DEFAULT_REFRESH_TOKEN_MAX_AGE,
+  USER_INFO_COOKIE,
+  serializeUserInfo,
+} from "@/lib/auth/user-info";
 
 const BACKEND_URL = process.env.LANGGRAPH_API_URL || "http://localhost:2024";
-const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 604800;
-const IS_HTTPS = process.env.NEXT_PUBLIC_API_URL?.startsWith("https://") ?? false;
+const REFRESH_TOKEN_MAX_AGE =
+  Number(process.env.REFRESH_TOKEN_MAX_AGE) || DEFAULT_REFRESH_TOKEN_MAX_AGE;
+const IS_HTTPS =
+  process.env.NEXT_PUBLIC_API_URL?.startsWith("https://") ?? false;
 const FGP_COOKIE_NAME = IS_HTTPS ? "__Secure-Fgp" : "fgp";
 
 /**
@@ -45,13 +52,11 @@ function buildRefreshSetCookieHeaders(tokens: RefreshTokens): string[] {
     `${FGP_COOKIE_NAME}=${tokens.fingerprint}; HttpOnly; Path=/; Max-Age=${REFRESH_TOKEN_MAX_AGE}; SameSite=Strict${secure}`,
   );
 
-  const userInfo = JSON.stringify({
-    id: tokens.user.id,
-    name: tokens.user.name,
-    roles: tokens.user.roles,
-  });
+  // Same lifetime as the refresh token: this cookie is the shell's first-paint
+  // identity for the whole session, not access-token bookkeeping (T-01).
+  const userInfo = serializeUserInfo(tokens.user);
   headers.push(
-    `user_info=${encodeURIComponent(userInfo)}; Path=/; Max-Age=900; SameSite=Lax${secure}`,
+    `${USER_INFO_COOKIE}=${encodeURIComponent(userInfo)}; Path=/; Max-Age=${REFRESH_TOKEN_MAX_AGE}; SameSite=Lax${secure}`,
   );
 
   return headers;
@@ -127,7 +132,9 @@ function isTokenExpired(token: string): boolean {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return true;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+    );
     if (!payload.exp) return false;
     // Consider expired if within 30s of expiry (clock skew buffer)
     return payload.exp * 1000 <= Date.now() + 30_000;
@@ -141,7 +148,8 @@ export async function fetchWithRefresh(
   fetchFn: BackendFetchFn,
 ): Promise<FetchWithRefreshResult> {
   let accessToken = request.cookies.get("access_token")?.value;
-  let fingerprint: string | undefined = request.cookies.get(FGP_COOKIE_NAME)?.value;
+  let fingerprint: string | undefined =
+    request.cookies.get(FGP_COOKIE_NAME)?.value;
   let refreshSetCookieHeaders: string[] | undefined;
 
   // If no access token or token is expired, try refreshing first

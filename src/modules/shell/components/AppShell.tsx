@@ -4,7 +4,6 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
-  User,
   Sparkles,
   Home,
   MessageSquare,
@@ -14,14 +13,13 @@ import {
 } from "lucide-react";
 import { useAppNavigation, TabState } from "@/hooks/useAppNavigation";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
-import { useAuth } from "@/providers/AuthProvider";
 import { useUiStore } from "@/store/useUiStore";
-import AccountSettingsModal from "@/modules/account/components/AccountSettingsModal";
 import ProfileSettingsPage from "@/modules/account/components/ProfileSettingsPage";
 import AssistantModeOverlay from "@/modules/account/components/AssistantModeOverlay";
 import ChatHistoryDrawer from "./ChatHistoryDrawer";
+import MobileAccountMenu from "./MobileAccountMenu";
+import ServerUnreachableBanner from "./ServerUnreachableBanner";
 import WebSidebar from "./WebSidebar";
-import { getInitials } from "../utils/initials";
 
 // Chat is placed in the centre and rendered as a standout button.
 const NAV_ITEMS: {
@@ -50,10 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { activeTab, setActiveTab, createNewChat, pathname } =
     useAppNavigation();
   const isDesktopWeb = useIsDesktopWeb();
-  const { user } = useAuth();
 
-  const showAccountSettings = useUiStore((s) => s.accountSettingsOpen);
-  const setShowAccountSettings = useUiStore((s) => s.setAccountSettingsOpen);
   const showProfileSettings = useUiStore((s) => s.profileSettingsOpen);
   const setShowProfileSettings = useUiStore((s) => s.setProfileSettingsOpen);
   const showAssistant = useUiStore((s) => s.assistantOpen);
@@ -68,7 +63,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     setActiveTab(tab);
   };
-  const handleAccountClick = () => setShowAccountSettings(true);
 
   // Pages animate in when the tab changes, not on every sub-route or query.
   const screenKey = activeTab ?? pathname;
@@ -88,15 +82,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {/* Mobile layout only — the desktop sidebar lists history inline. */}
       {!isDesktopWeb && <ChatHistoryDrawer />}
-
-      <AnimatePresence>
-        {showAccountSettings && (
-          <AccountSettingsModal
-            onClose={() => setShowAccountSettings(false)}
-            onOpenProfileSettings={() => setShowProfileSettings(true)}
-          />
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showProfileSettings && (
@@ -121,6 +106,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           data-popup-root
           className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden"
         >
+          <ServerUnreachableBanner />
           {/* Full panel width — each screen centres its own content column
               (and Chat its reading column), so the wave footer can run edge
               to edge. */}
@@ -169,19 +155,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Sparkles size={15} />
             </button>
-            <button
-              onClick={handleAccountClick}
-              className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#063BAA]/10 bg-[#DFF9EF] text-[10px] font-medium text-[#0A1F4D] transition-colors"
-              title="Profile"
-            >
-              {user?.name ? (
-                <span>{getInitials(user.name)}</span>
-              ) : (
-                <User size={15} />
-              )}
-            </button>
+            {/* Identity, theme, MCP Access, Delete Account and Sign out live
+                under this avatar (T-02); the bottom bar stays a pure 5-tab. */}
+            <MobileAccountMenu />
           </div>
         </header>
+
+        <ServerUnreachableBanner />
 
         {/* Main Page Area */}
         <main className="relative flex w-full flex-1 flex-col overflow-hidden">

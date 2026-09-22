@@ -30,6 +30,7 @@ export function useAccountUser() {
   return {
     name,
     email,
+    roles: user?.roles ?? [],
     // Null until a name is known; the avatars then show a person icon, as
     // the shell's header avatar does.
     initials: name ? getInitials(name) : null,

@@ -9,8 +9,6 @@ import {
   Trash2,
   Edit3,
   Check,
-  User,
-  LogOut,
   Sparkles,
   X,
   Home,
@@ -21,7 +19,8 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { useAppNavigation, TabState } from "@/hooks/useAppNavigation";
-import { useAuth } from "@/providers/AuthProvider";
+import { useThreadsQuery } from "@/hooks/useThreadsQuery";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { useUiStore } from "@/store/useUiStore";
 import {
   ChatSummary,
@@ -29,7 +28,7 @@ import {
   TIME_GROUPS,
   useChatHistory,
 } from "@/modules/history/hooks/useChatHistory";
-import { getInitials } from "../utils/initials";
+import SidebarAccountFooter from "./SidebarAccountFooter";
 
 const NAV_ITEMS: {
   id: TabState;
@@ -50,11 +49,16 @@ export default function WebSidebar() {
     useAppNavigation();
   const [threadId] = useQueryState("threadId");
   const { chats, isLoading, renameChat, deleteChat } = useChatHistory();
-  const { user } = useAuth();
+  // Same query key as useChatHistory, so this is the cache entry it already
+  // reads — no second request. It is only here for the failure path: a failed
+  // thread search must not read as "you have no conversations" (T-10).
+  const {
+    isError: chatsFailed,
+    isFetching: chatsRefetching,
+    refetch: refetchChats,
+  } = useThreadsQuery();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const onToggleCollapsed = useUiStore((s) => s.toggleSidebar);
-  const onOpenAccountSettings = () =>
-    useUiStore.getState().setAccountSettingsOpen(true);
   const onOpenAssistant = () => useUiStore.getState().setAssistantOpen(true);
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -86,7 +90,6 @@ export default function WebSidebar() {
   };
 
   const { filtered: filteredChats, groups } = groupChats(chats, searchQuery);
-  const userName = user?.name ?? null;
 
   // Collapsed: a slim icon rail. Rows keep the same vertical positions as the
   // full sidebar (New chat still starts at 52px), so pages line up either way.
@@ -149,7 +152,7 @@ export default function WebSidebar() {
 
         <div className="flex-1" />
 
-        <div className="w-full shrink-0 space-y-1 px-2 pb-2">
+        <div className="w-full shrink-0 px-2">
           <button
             onClick={onOpenAssistant}
             title="AI Assistant"
@@ -157,22 +160,8 @@ export default function WebSidebar() {
           >
             <Sparkles size={19} />
           </button>
-          <button
-            onClick={onOpenAccountSettings}
-            title={userName ?? "Account"}
-            className="rounded-tile hover-tint flex h-12 w-full items-center justify-center transition-colors"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
-              {userName ? (
-                <span className="text-[11.5px] font-medium">
-                  {getInitials(userName)}
-                </span>
-              ) : (
-                <User size={16} />
-              )}
-            </span>
-          </button>
         </div>
+        <SidebarAccountFooter collapsed />
       </aside>
     );
   }
@@ -372,39 +361,26 @@ export default function WebSidebar() {
             </div>
           );
         })}
-        {!isLoading && filteredChats.length === 0 && (
-          <div className="py-6 text-center text-[13px] text-slate-400">
-            No conversations found.
-          </div>
+        {chatsFailed ? (
+          <SectionErrorState
+            compact
+            className="mt-2"
+            label="your chats"
+            onRetry={() => refetchChats()}
+            retrying={chatsRefetching}
+          />
+        ) : (
+          !isLoading &&
+          filteredChats.length === 0 && (
+            <div className="py-6 text-center text-[13px] text-slate-400">
+              No conversations found.
+            </div>
+          )
         )}
       </div>
 
-      {/* Profile footer — avatar + name, nothing else */}
-      <div className="shrink-0 p-2">
-        <button
-          onClick={onOpenAccountSettings}
-          className="rounded-tile hover-tint flex h-12 w-full items-center gap-2.5 px-2.5 text-left transition-colors"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
-            {userName ? (
-              <span className="text-[11.5px] font-medium">
-                {getInitials(userName)}
-              </span>
-            ) : (
-              <User size={16} />
-            )}
-          </div>
-          <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-[#0A1F4D] dark:text-white">
-            {userName ?? "Account"}
-          </span>
-          {userName && (
-            <LogOut
-              size={16}
-              className="shrink-0 text-slate-300"
-            />
-          )}
-        </button>
-      </div>
+      {/* MCP Access · Delete Account · theme · identity + sign out (T-02) */}
+      <SidebarAccountFooter />
     </aside>
   );
 }

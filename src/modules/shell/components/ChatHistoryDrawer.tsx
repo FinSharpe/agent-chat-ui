@@ -15,6 +15,8 @@ import {
   History,
 } from "lucide-react";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
+import { useThreadsQuery } from "@/hooks/useThreadsQuery";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUiStore } from "@/store/useUiStore";
 import {
@@ -31,6 +33,13 @@ export default function ChatHistoryDrawer() {
   const { createNewChat, openThread } = useAppNavigation();
   const [threadId] = useQueryState("threadId");
   const { chats, isLoading, renameChat, deleteChat } = useChatHistory();
+  // Shares useChatHistory's cache entry; only the failure path is read here,
+  // so a failed search never shows the "no conversations" copy (T-10).
+  const {
+    isError: chatsFailed,
+    isFetching: chatsRefetching,
+    refetch: refetchChats,
+  } = useThreadsQuery();
   const { user, logout } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -225,10 +234,20 @@ export default function ChatHistoryDrawer() {
                 );
               })}
 
-              {!isLoading && filteredChats.length === 0 && (
-                <div className="py-6 text-center text-sm text-[#0A1F4D]">
-                  No conversations found.
-                </div>
+              {chatsFailed ? (
+                <SectionErrorState
+                  compact
+                  label="your chats"
+                  onRetry={() => refetchChats()}
+                  retrying={chatsRefetching}
+                />
+              ) : (
+                !isLoading &&
+                filteredChats.length === 0 && (
+                  <div className="py-6 text-center text-sm text-[#0A1F4D]">
+                    No conversations found.
+                  </div>
+                )
               )}
             </div>
 

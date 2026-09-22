@@ -24,8 +24,7 @@ interface UiStore {
   isHistoryDrawerOpen: boolean;
   setHistoryDrawerOpen: (open: boolean) => void;
 
-  accountSettingsOpen: boolean;
-  setAccountSettingsOpen: (open: boolean) => void;
+  /** Profile overlay, opened from the identity row / header avatar menu. */
   profileSettingsOpen: boolean;
   setProfileSettingsOpen: (open: boolean) => void;
   assistantOpen: boolean;
@@ -62,9 +61,6 @@ export const useUiStore = create<UiStore>()(
       setHistoryDrawerOpen: (isHistoryDrawerOpen) =>
         set({ isHistoryDrawerOpen }),
 
-      accountSettingsOpen: false,
-      setAccountSettingsOpen: (accountSettingsOpen) =>
-        set({ accountSettingsOpen }),
       profileSettingsOpen: false,
       setProfileSettingsOpen: (profileSettingsOpen) =>
         set({ profileSettingsOpen }),

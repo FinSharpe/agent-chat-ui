@@ -11,6 +11,27 @@ type QueryProviderProps = {
     children: React.ReactNode;
 };
 
+/** Status of a failed query, when the failure carried one. */
+function statusOf(error: unknown): number | undefined {
+    if (typeof error !== 'object' || error === null) return undefined;
+    const e = error as { status?: unknown; response?: { status?: unknown } };
+    const status = typeof e.status === 'number' ? e.status : e.response?.status;
+    return typeof status === 'number' ? status : undefined;
+}
+
+/**
+ * Retry twice, with backoff, when the failure could plausibly go away on its
+ * own — a network error (no status at all) or a 5xx (T-10 item 2). A 4xx is
+ * the server answering clearly: not found, forbidden, bad request. Retrying
+ * those only delays the error state the UI needs to show, and a 401 is
+ * already handled by AuthProvider's interceptor.
+ */
+function retryOnTransient(failureCount: number, error: unknown): boolean {
+    const status = statusOf(error);
+    if (status !== undefined && status < 500) return false;
+    return failureCount < 2;
+}
+
 export function QueryProvider({ children }: QueryProviderProps) {
     const [queryClient] = useState(() => {
         const client = new QueryClient({
@@ -18,8 +39,15 @@ export function QueryProvider({ children }: QueryProviderProps) {
                 queries: {
                     gcTime: 0, // Don't persist queries by default
                     staleTime: 60 * 1000, // 1 minute
-                    retry: 1,
+                    retry: retryOnTransient,
+                    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
                     refetchOnWindowFocus: false,
+                },
+                mutations: {
+                    // A mutation is a write: replaying it is only safe for a
+                    // request that never reached the server, so this stays at
+                    // one attempt and lets each call site decide otherwise.
+                    retry: false,
                 },
             },
         });

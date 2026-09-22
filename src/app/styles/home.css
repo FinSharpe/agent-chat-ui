@@ -1,1 +1,8 @@
 /* home page styles — owned by the home screen. Tailwind classes first; add rules here only when a class cannot express it. Scope every rule under [data-app-mode]. */
+
+/* Guide tips are slate-600, which the design system does not remap for dark
+   mode, so on the dark mint tint they were near-invisible (as in the
+   reference). Give them the muted text colour the other guide copy uses. */
+.dark [data-app-mode] .home-guide-tip {
+  color: var(--text-muted);
+}

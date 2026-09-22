@@ -1,6 +1,7 @@
 "use client";
 
-// Placeholder — replaced by the port of the reference Home screen.
-export default function HomePage() {
-  return <div className="flex-1" />;
+import { HomePage } from "@/modules/home";
+
+export default function HomeRoute() {
+  return <HomePage />;
 }

@@ -41,7 +41,7 @@ Every signed-in page (`src/app/(main)/`) renders through `src/app/(main)/layout.
 ```
 ClientProviders (Toaster, ThreadProvider, StreamProvider)
   └─ AppViewport (theme class, desktop zoom-to-window scaling, Radix portal roots)
-      └─ AppShell (desktop sidebar or mobile header + bottom nav, account/assistant overlays)
+      └─ AppShell (desktop sidebar or mobile header + bottom nav, profile/assistant overlays)
           └─ the route's page (owns its own scrolling)
 ```
 The chat itself (`/`) wraps `Thread` in `ArtifactProvider`.
@@ -142,7 +142,8 @@ src/modules/
 - `DeleteAccountPanel` adds the web deletion path for a signed-in visitor: type DELETE to confirm, then `useDeleteAccountMutation` calls `DELETE /api/auth/me`, which proxies to the backend's `DELETE /auth/me` (finsharpe-agents#210) and clears the auth cookies on `204`. Every other status leaves the account and the session untouched, so the dialog stays open with the reason.
 
 ### shell module
-`src/modules/shell/` is the signed-in frame: `AppViewport`, `AppShell`, the desktop `WebSidebar` (nav, New chat, chat history with search/rename/delete, account footer; collapsible to an icon rail) and the mobile `ChatHistoryDrawer`.
+`src/modules/shell/` is the signed-in frame: `AppViewport`, `AppShell`, the desktop `WebSidebar` (nav, New chat, chat history with search/rename/delete; collapsible to an icon rail) and the mobile `ChatHistoryDrawer`.
+- `SidebarAccountFooter` carries MCP Access, Delete Account, the light/dark switch and the identity row — the name opens Profile, a separate button signs out — or a Login button when signed out. On mobile the same menu hangs off the header avatar (`MobileAccountMenu`); the bottom tab bar holds navigation only.
 - Navigation is Next routing, wrapped by `useAppNavigation()` (`src/hooks/`): tabs chat `/`, home `/home`, discover `/discover`, import `/import`, memory `/history`. `createNewChat(prompt?)` opens a fresh chat; with a prompt it sets `useUiStore.pendingPrompt`, which the chat page sends once as the first message.
 - `useUiStore` (`src/store/`, zustand, persists only theme and sidebar state) holds the shell's overlay flags, `pendingPrompt` and `pendingDiscoverFeature`.
 - Reference layout kit shared by the pages: `src/components/shared/{SectionKit,WavePattern,HeroCarousel,Popup,OverlayColumn}`, `src/components/discover/FeatureHeader`, `CarouselDots`, `SoftLoader`. On desktop, detail views open as `PopupFrame`/`OverlayRoot` popups portalled into `<main data-popup-root>`; feature pages sit in the centred `OverlayColumn`.
@@ -153,14 +154,28 @@ src/modules/
 - The middleware sends a visitor with no session to Welcome with `?next=`; every screen carries `next` forward and `safeReturnPath` checks it. A session that dies mid-use (401 in `AuthProvider`) goes straight to Sign In; signing out returns to Welcome.
 
 ### account module
-`src/modules/account/` holds the overlays `AppShell` hosts: `AccountSettingsModal` (Profile / Usage / Security / Billing / Settings — the Settings tab has the theme switch, MCP Access and Delete Account), `ProfileSettingsPage` and `AssistantModeOverlay` (wheel of tools; Start Chat calls `createNewChat` with the tool's prompt). Usage, billing, security and subscription figures are placeholder content in `constants/placeholderContent.ts` until a backend exists.
+`src/modules/account/` holds `ProfileSettingsPage` (real user data only — name, email, roles, sign out) and `AssistantModeOverlay` (wheel of tools; Start Chat calls `createNewChat` with the tool's prompt). There is no Account Settings screen: identity, sign out, the theme switch, MCP Access and Delete Account live in the shell's nav (see the shell module).
 
 ### home, chat, discover, pipelines, import-data modules
-- `home/` — the `/home` page. Market news, publications and videos are placeholder content in `constants/`. The personal-intelligence section follows the accounts linked on Import.
-- `chat/` — composer, empty state, toolbar, model picker (the real tiers in `src/configs/models.ts`), Hear Output. Every send goes through `useChatSubmit`; `usePendingPromptHandoff` sends a prompt handed over from another page.
-- `discover/` — landing, Explore Investment Ideas on the real strategy catalog, strategy detail, and the placeholder News Impact / Trading Ideas / Global Investing features; the open feature and strategy live in the URL (`?feature=&strategy=`). `components/custom-basket/` is the Build Your Own Portfolios wizard over the real basket APIs.
-- `pipelines/` — Agent Workflows (`/discover/research/**`): catalog, quote, run, report, library, shared report.
-- `import-data/` — the Import page and its forms/analysis modals. Manual assets and the (hidden) watchlist are kept in browser storage (`store/`).
+- `home/` — the `/home` page: features carousel, what-you-can-do, starter questions and the market-news carousel (`MarketNewsRow`, drawn from discover's real feed).
+- `chat/` — composer, empty state, toolbar, model picker (the real tiers in `src/configs/models.ts`), Hear Output. Every send goes through `useChatSubmit`; `usePendingPromptHandoff` sends a prompt handed over from another page. A send that cannot connect, an answer that stops early and a chat that cannot load each say so in the thread with a Retry (`components/thread/messages/stream-error.tsx`).
+- `discover/` — landing, Market news on `/api/utilities/news/market`, IPO Watch on `/api/utilities/ipo/*`, Explore Investment Ideas on the real strategy catalog, and strategy detail; the open feature and strategy live in the URL (`?feature=&strategy=`). `components/custom-basket/` is the Build Your Own Portfolios wizard over the real basket APIs. **Only Created by Advisors is enterable** — every other idea category, and the Coming Soon rows, are drawn disabled because nothing backs them. Do not add illustrative figures to fill them.
+- `pipelines/` — Agent Workflows (`/discover/research/**`): catalog, quote, run, report, library, shared report. `utils/errors.ts` decides "the server answered and refused" vs "we never reached it"; only the first may state a fact about the thing being asked for.
+- `import-data/` — the Import page, the connected accounts list and the analysis modals. The Account Aggregator flow goes through the backend's `/api/aa/*` under the session JWT, the same transport finsharpe-mobile uses — see below.
+
+### Account Aggregator (Import)
+Five consent types and no others: `EQUITIES, MUTUAL_FUNDS, ETF, BANK_ACCOUNTS, SIP`. The user never picks a FIP; that happens on OneMoney's hosted page, and FIP scoping is backend env (`MONEY_ONE_*_FIPS`).
+- Backend routes reach this app at **`/api/utilities/<path>`** (`src/app/api/utilities/[..._slug]/route.ts` re-adds `/api` and injects the JWT + `X-Fgp`). The `[..._path]` catch-all strips `/api` and cannot reach them.
+- `api/aa-client.ts` wraps discover / create / resolve / fi-data / refresh / list / revoke. Error mapping: `detail.kind`, else 410 → consent dead, 425 → data missing, else transient.
+- The return leg: the backend's `_redirect_url_for` sends MoneyOne to `{MONEY_ONE_REDIRECT_ORIGIN}/moneyone/{TYPE}~{accountID}~mobile`, which forwards the raw `ecres/resdate/fi` to `/app/consent-return`. A per-tab `sessionStorage` marker distinguishes a web journey from the Android App Link. **`MONEY_ONE_REDIRECT_ORIGIN` must be set per environment** or a consent started anywhere returns to production.
+- Never put consents or FI data in browser storage — that was the old transport and the reason a portfolio was per-browser.
+- The analysis modals still read raw MoneyOne shapes via `?includeRaw=true`; everything the page derives comes from `normalized`.
+
+### When there is no backend for something
+Do not ship invented figures. A screen with no data source is drawn disabled or left out — never filled with illustrative returns, fabricated news or placeholder billing. FinSharpe is a SEBI-registered investment adviser, so a made-up number on screen is a regulatory problem, not placeholder copy. The same goes for claims: every security or capability statement has to be traceable to something real.
+
+### Failure states
+`src/components/shared/SectionErrorState.tsx` is the shared inline error state (full and `compact`). Every list or section that can fail must tell **empty** (loaded, nothing there) from **failed** (we could not load) — a failed query must never render the empty copy, because that states a fact about the user's account. Root and shell error boundaries live in `src/app/{global-error,(main)/error}.tsx`; the shell shows `ServerUnreachableBanner` when `useAuth().authError` is set. React Query retries network/5xx twice and never a 4xx.
 
 ### history module
 `src/modules/history/` renders the Memory page (`/history`). The shell's sidebar and drawer read the same data through `useChatHistory`, which groups chats Today / Yesterday / This Week / Older and exposes rename, bookmark and delete.

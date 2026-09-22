@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { extractApiError } from "@/modules/auth";
+import { extractApiError } from "@/modules/auth/utils/extract-api-error";
 import { DELETE_ACCOUNT_PATH, SUPPORT_EMAIL } from "../constants/content";
 
 /** A deletion that did not happen. The account still exists. */

@@ -165,7 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
-    window.location.href = "/login";
+    // Signing out returns to the Welcome screen, as in the reference flow.
+    window.location.href = AUTH_ROUTES.welcome;
   }, []);
 
   return (

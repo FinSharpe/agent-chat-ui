@@ -147,6 +147,11 @@ src/modules/
 - `useUiStore` (`src/store/`, zustand, persists only theme and sidebar state) holds the shell's overlay flags, `pendingPrompt` and `pendingDiscoverFeature`.
 - Reference layout kit shared by the pages: `src/components/shared/{SectionKit,WavePattern,HeroCarousel,Popup,OverlayColumn}`, `src/components/discover/FeatureHeader`, `CarouselDots`, `SoftLoader`. On desktop, detail views open as `PopupFrame`/`OverlayRoot` popups portalled into `<main data-popup-root>`; feature pages sit in the centred `OverlayColumn`.
 
+### auth module
+`src/modules/auth/` is the sign-in flow: Welcome `/get-started`, Auth Choice `/get-started/choose`, Sign In `/login`, Sign Up `/register`, OTP `/verify-email` (routes in `constants/routes.ts`, which the middleware imports, so keep it free of React).
+- `(auth)/layout.tsx` renders `AuthFlowLayout`, which draws each screen from the pathname (`AuthScreenTransition`) so only the flow animates while the desktop media card stays still; the route `page.tsx` files return `null`. A new auth route needs an entry in that screen map.
+- The middleware sends a visitor with no session to Welcome with `?next=`; every screen carries `next` forward and `safeReturnPath` checks it. A session that dies mid-use (401 in `AuthProvider`) goes straight to Sign In; signing out returns to Welcome.
+
 ### account module
 `src/modules/account/` holds the overlays `AppShell` hosts: `AccountSettingsModal` (Profile / Usage / Security / Billing / Settings — the Settings tab has the theme switch, MCP Access and Delete Account), `ProfileSettingsPage` and `AssistantModeOverlay` (wheel of tools; Start Chat calls `createNewChat` with the tool's prompt). Usage, billing, security and subscription figures are placeholder content in `constants/placeholderContent.ts` until a backend exists.
 

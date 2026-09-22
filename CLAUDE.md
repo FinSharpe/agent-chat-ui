@@ -12,8 +12,8 @@ This is a Next.js application based on LangChain's Agent Chat UI, enabling chat 
 - **Package Manager**: pnpm (v10.5.1)
 - **Runtime**: React 19
 - **LangGraph SDK**: `@langchain/langgraph-sdk` for graph interactions
-- **UI**: Radix UI components + Tailwind CSS
-- **State Management**: React Context (Stream, Thread, Artifact providers)
+- **UI**: Radix UI components + Tailwind CSS v4, framer-motion, recharts
+- **State Management**: React Context (Stream, Thread, Artifact providers); zustand for UI state (`src/store/useUiStore.ts`, module stores)
 - **URL State**: `nuqs` for query state management
 - **TypeScript**: v5.7.2 with strict mode enabled
 
@@ -36,14 +36,15 @@ pnpm format:check # Check formatting without changes
 
 ## Architecture Overview
 
-### Provider Hierarchy
-The app uses a nested provider architecture in `src/app/page.tsx`:
+### Provider Hierarchy and App Shell
+Every signed-in page (`src/app/(main)/`) renders through `src/app/(main)/layout.tsx`:
 ```
-ThreadProvider (manages thread list and fetching)
-  └─ StreamProvider (handles LangGraph streaming and config)
-      └─ ArtifactProvider (manages artifact rendering in side panel)
-          └─ Thread (main UI component)
+ClientProviders (Toaster, ThreadProvider, StreamProvider)
+  └─ AppViewport (theme class, desktop zoom-to-window scaling, Radix portal roots)
+      └─ AppShell (desktop sidebar or mobile header + bottom nav, account/assistant overlays)
+          └─ the route's page (owns its own scrolling)
 ```
+The chat itself (`/`) wraps `Thread` in `ArtifactProvider`.
 
 ### Key Providers
 
@@ -95,10 +96,15 @@ ThreadProvider (manages thread list and fetching)
 ### Path Aliases
 TypeScript configured with `@/*` alias mapping to `./src/*` (see `tsconfig.json`)
 
-### Styling
-- Global styles in `src/app/globals.css`
-- Prettier configured with Tailwind plugin for class sorting
-- Component styling uses `cn()` utility from `src/lib/utils.ts` (clsx + tailwind-merge)
+### Styling and Design System
+The UI is a port of the finsharpegpt-desktop-web reference design; that repo's code (web build, `NEXT_PUBLIC_APP_MODE=web`) is the visual source of truth.
+- Tokens, surfaces and utilities live in `src/app/design-system.css` (imported by `globals.css`): `glass-card` / `glass-nav` / `glass-tile`, `bg-brand-gradient`, `hover-tint`, `rounded-tile|nested|card`, `v3-display` (Inria Serif) and `v3-eyebrow`, `tone-*`, dark-mode overrides for the literal light classes, and a one-step-up type scale for the small arbitrary sizes (`text-[11px]` etc.). The `slate-*` scale is remapped to navy tints.
+- Rules that would leak into PDF templates or public pages are scoped to `[data-app-mode]`, which only `AppViewport` sets. Inside it the root font size is 16px; standalone pages (PDF templates, shared reports, `/welcome`) keep the legacy 14px root.
+- Page-specific CSS goes in `src/app/styles/<page>.css`, scoped under `[data-app-mode]`. Prefer Tailwind classes.
+- Type rules: Inter for UI (`font-geist` / `font-funnel` both map to it), weights 400–600 only, tabular numbers.
+- Dark mode is the `dark` class on `AppViewport`, from `useUiStore().themeMode`. Never use `bg-white/80`, `from-white` or `ring-white` for a surface — the dark overrides only match exact class names; use `bg-background` or `var(--card-bg)`.
+- Desktop (≥1024px) is scaled with CSS `zoom` to a 1536×826 reference and `--wx` stretches layout widths. Radix dialogs/sheets portal into the zoomed frame; anchored overlays (popover, select, dropdown, tooltip) portal into an unzoomed sibling root and zoom only their content (`src/components/ui/portal-container.tsx`), because floating-ui offsets inside a zoomed box get scaled twice. Size things in px, not `vw`/`dvh`, inside the frame.
+- Prettier is configured with the Tailwind plugin for class sorting; `cn()` in `src/lib/utils.ts` merges classes.
 
 ### Agent Inbox/Interrupts
 - Components in `src/components/thread/agent-inbox/` handle LangGraph interrupt patterns
@@ -135,11 +141,27 @@ src/modules/
 - The policy copy lives in `constants/content.ts` and mirrors finsharpe-mobile `docs/legal/delete-account.md`; change the two together. Play checks the page names the app and developer, gives the deletion steps, and says what is deleted and what is kept for how long.
 - `DeleteAccountPanel` adds the web deletion path for a signed-in visitor: type DELETE to confirm, then `useDeleteAccountMutation` calls `DELETE /api/auth/me`, which proxies to the backend's `DELETE /auth/me` (finsharpe-agents#210) and clears the auth cookies on `204`. Every other status leaves the account and the session untouched, so the dialog stays open with the reason.
 
+### shell module
+`src/modules/shell/` is the signed-in frame: `AppViewport`, `AppShell`, the desktop `WebSidebar` (nav, New chat, chat history with search/rename/delete, account footer; collapsible to an icon rail) and the mobile `ChatHistoryDrawer`.
+- Navigation is Next routing, wrapped by `useAppNavigation()` (`src/hooks/`): tabs chat `/`, home `/home`, discover `/discover`, import `/import`, memory `/history`. `createNewChat(prompt?)` opens a fresh chat; with a prompt it sets `useUiStore.pendingPrompt`, which the chat page sends once as the first message.
+- `useUiStore` (`src/store/`, zustand, persists only theme and sidebar state) holds the shell's overlay flags, `pendingPrompt` and `pendingDiscoverFeature`.
+- Reference layout kit shared by the pages: `src/components/shared/{SectionKit,WavePattern,HeroCarousel,Popup,OverlayColumn}`, `src/components/discover/FeatureHeader`, `CarouselDots`, `SoftLoader`. On desktop, detail views open as `PopupFrame`/`OverlayRoot` popups portalled into `<main data-popup-root>`; feature pages sit in the centred `OverlayColumn`.
+
+### account module
+`src/modules/account/` holds the overlays `AppShell` hosts: `AccountSettingsModal` (Profile / Usage / Security / Billing / Settings — the Settings tab has the theme switch, MCP Access and Delete Account), `ProfileSettingsPage` and `AssistantModeOverlay` (wheel of tools; Start Chat calls `createNewChat` with the tool's prompt). Usage, billing, security and subscription figures are placeholder content in `constants/placeholderContent.ts` until a backend exists.
+
+### home, chat, discover, pipelines, import-data modules
+- `home/` — the `/home` page. Market news, publications and videos are placeholder content in `constants/`. The personal-intelligence section follows the accounts linked on Import.
+- `chat/` — composer, empty state, toolbar, model picker (the real tiers in `src/configs/models.ts`), Hear Output. Every send goes through `useChatSubmit`; `usePendingPromptHandoff` sends a prompt handed over from another page.
+- `discover/` — landing, Explore Investment Ideas on the real strategy catalog, strategy detail, and the placeholder News Impact / Trading Ideas / Global Investing features; the open feature and strategy live in the URL (`?feature=&strategy=`). `components/custom-basket/` is the Build Your Own Portfolios wizard over the real basket APIs.
+- `pipelines/` — Agent Workflows (`/discover/research/**`): catalog, quote, run, report, library, shared report.
+- `import-data/` — the Import page and its forms/analysis modals. Manual assets and the (hidden) watchlist are kept in browser storage (`store/`).
+
 ### history module
-`src/modules/history/` renders the Memory page and the drawer's chat list from `useThreadsQuery`.
+`src/modules/history/` renders the Memory page (`/history`). The shell's sidebar and drawer read the same data through `useChatHistory`, which groups chats Today / Yesterday / This Week / Older and exposes rename, bookmark and delete.
 
 - A chat's bookmark and user-set title live in LangGraph thread metadata (`bookmarked`, `bookmarked_at`, `title`), a contract shared with finsharpe-mobile (its ADR-0008 §8 is the authority; `utils/threadMetadata.ts` holds the keys). Change the two apps together.
-- `useThreadMetadataMutation` writes them optimistically into every cached `["threads"]` list and does not re-fetch; a refused write restores only the keys it changed. The runtime merges metadata, so an un-bookmark nulls `bookmarked_at` and a cleared rename writes `""`.
+- `useThreadMetadataMutation` writes them optimistically into every cached `["threads"]` list and does not re-fetch; a refused write restores only the keys it changed. Writes share one mutation scope, so they reach the server in the order they were made. The runtime merges metadata, so an un-bookmark nulls `bookmarked_at` and a cleared rename writes `""`.
 - `useLegacyBookmarkMigration` moves the old `localStorage.bookmarked_threads` ids into metadata once, only for threads in the signed-in user's list; ids it cannot place stay in storage.
 
 ### Component Decomposition Guidelines

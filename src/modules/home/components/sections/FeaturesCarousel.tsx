@@ -24,7 +24,7 @@ export function FeaturesCarousel({
       <div className="relative">
         <div
           ref={scrollRef}
-          className={`flex overflow-x-auto snap-x snap-mandatory ${isDesktopWeb ? "gap-4.5" : "gap-3"} scrollbar-none pb-1`}
+          className={`flex snap-x snap-mandatory overflow-x-auto ${isDesktopWeb ? "gap-4.5" : "gap-3"} scrollbar-none pb-1`}
         >
           {FEATURE_CARDS.map((card, idx) => {
             // Wave images cycle by index — white copy over the art, as on the banners.
@@ -32,17 +32,17 @@ export function FeaturesCarousel({
             return (
               <div
                 key={card.tag}
-                className={`${isDesktopWeb ? "min-w-[calc(50%-9px)] w-[calc(50%-9px)]" : "min-w-full w-full"} rounded-card p-7 snap-start flex flex-col justify-between h-[300px] relative overflow-hidden premium-shadow-sm text-white group/media`}
+                className={`${isDesktopWeb ? "w-[calc(50%-9px)] min-w-[calc(50%-9px)]" : "w-full min-w-full"} rounded-card premium-shadow-sm group/media relative flex h-[300px] snap-start flex-col justify-between overflow-hidden p-7 text-white`}
               >
                 <div
-                  className="absolute -inset-px pointer-events-none bg-cover bg-center transition-transform duration-700 ease-out group-hover/media:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover/media:scale-100"
+                  className="pointer-events-none absolute -inset-px bg-cover bg-center transition-transform duration-700 ease-out group-hover/media:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover/media:scale-100"
                   style={{ backgroundImage: `url(${image})` }}
                 />
-                <div className="space-y-2.5 relative z-10">
-                  <span className="text-xs uppercase tracking-widest font-medium block text-white">
+                <div className="relative z-10 space-y-2.5">
+                  <span className="block text-xs font-medium tracking-widest text-white uppercase">
                     {card.tag}
                   </span>
-                  <h3 className="text-xl font-geist font-medium leading-snug">
+                  <h3 className="font-geist text-xl leading-snug font-medium">
                     {card.title}
                   </h3>
                   <p className="text-[13px] leading-relaxed text-white">
@@ -51,11 +51,14 @@ export function FeaturesCarousel({
                 </div>
                 <button
                   onClick={() => onAction(card)}
-                  className="pl-5 pr-1.5 py-1.5 rounded-full text-sm font-medium w-fit flex items-center gap-3 transition-all active:scale-95 relative z-10 bg-white text-[#0A1F4D]"
+                  className="relative z-10 flex w-fit items-center gap-3 rounded-full bg-white py-1.5 pr-1.5 pl-5 text-sm font-medium text-[#0A1F4D] transition-all active:scale-95"
                 >
                   {card.cta}
-                  <span className="w-8 h-8 rounded-full bg-[#97edcc] flex items-center justify-center shrink-0">
-                    <ArrowRight size={15} className="text-[#0A1F4D]" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#97edcc]">
+                    <ArrowRight
+                      size={15}
+                      className="text-[#0A1F4D]"
+                    />
                   </span>
                 </button>
               </div>

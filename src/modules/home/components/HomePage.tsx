@@ -14,20 +14,24 @@ import { useHomeActions } from "../hooks/useHomeActions";
 import { GuideOverlay } from "./modals/GuideOverlay";
 import { FeaturesCarousel } from "./sections/FeaturesCarousel";
 import { MarketNewsRow } from "./sections/MarketNewsRow";
+import { PublicationsRow } from "./sections/PublicationsRow";
 import { StarterQuestions } from "./sections/StarterQuestions";
+import { WatchAndLearnRow } from "./sections/WatchAndLearnRow";
 import { WhatYouCanDo } from "./sections/WhatYouCanDo";
 
 /**
- * Home — features carousel, orientation cards, starter prompts and the live
- * market-news carousel, closed by the wave footer. Mobile is a single padded
+ * Home — features carousel, orientation cards, starter prompts, the live
+ * market-news carousel, FinSharpe Publications and Watch & Learn, closed by
+ * the wave footer. Mobile is a single padded
  * column; desktop centres an 844px column and runs the footer edge to edge.
  * The guide popup lives at the root, outside the scroller, so it covers the
  * screen wherever the user has scrolled to.
  *
- * Everything on this page either seeds a real chat, routes to a real tab, or
- * draws the real `/api/news/market` feed. The Personal Intelligence section,
- * the publications feed and the video row were invented content and are gone
- * (T-03); linked accounts are managed on Import, which is where they belong.
+ * Everything on this page either seeds a real chat, routes to a real tab,
+ * draws the real `/api/news/market` feed, or links out to a real FinSharpe
+ * article or talk (finsharpe-mobile's curated lists, `constants/learn.ts`).
+ * The reference's invented publications and videos stay gone (T-03), as does
+ * Personal Intelligence; linked accounts are managed on Import.
  */
 export function HomePage() {
   const isDesktopWeb = useIsDesktopWeb();
@@ -67,6 +71,10 @@ export function HomePage() {
           />
 
           <MarketNewsRow onAsk={askAi} />
+
+          <PublicationsRow />
+
+          <WatchAndLearnRow />
 
           {!isDesktopWeb && <ScreenFooter tagline={HOME_TAGLINE} />}
         </div>

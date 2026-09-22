@@ -129,11 +129,6 @@ src/modules/
     index.ts         # Public API exports
 ```
 
-**Hooks:**
-- `useConsentQuery.ts` - Real-time localStorage tracking for consent status
-- `useFiData.ts` - FI data fetching and consent flow management
-- `useImportHoldingsMutation.ts` - Import holdings to chat as markdown table
-- `useRefreshFiData` - Manual FI data refresh functionality
 
 ### account-deletion module
 `src/modules/account-deletion/` backs the public `/delete-account` page — the URL Google Play's Data-safety form links to, so it must render with no app and no session (it is in `PUBLIC_PAGE_PATHS`).

@@ -83,6 +83,8 @@ export function ScannerCSVDownloadButton({
             onDownload={handleDownload}
             disabled={disabled || totalElements === 0 || isPending}
             isLoading={isPending}
+            variant="ghost"
+            className="h-8 gap-1.5 rounded-full bg-[#DFF9EF] px-3 text-[11px] font-medium text-[#0A1F4D] hover:bg-[#DFF9EF] hover:text-[#0A1F4D] [&_svg]:size-3.5"
         />
     );
 }

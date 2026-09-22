@@ -31,11 +31,11 @@ export function CitationSourcesFooter({
   if (documents.length === 0) return null;
 
   return (
-    <div className="mt-3 mb-1">
-      <p className="text-muted-foreground mb-2 text-[10px] font-semibold tracking-wide uppercase">
+    <div className="mt-4 mb-1">
+      <p className="mb-2 px-1 text-[9px] font-medium tracking-wider text-slate-400 uppercase">
         Sources
       </p>
-      <div className="divide-border bg-card divide-y overflow-hidden rounded-lg border">
+      <div className="divide-y divide-slate-50 overflow-hidden rounded-nested border border-slate-100">
         {documents.map((citation) => (
           <button
             key={citation.documentId || citation.cite}
@@ -51,18 +51,20 @@ export function CitationSourcesFooter({
                   : [citation],
               )
             }
-            className="hover:bg-muted/50 flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors"
+            className="hover-tint flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors"
           >
-            <FileText className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-tile bg-[#063BAA]/8 text-[#063BAA]">
+              <FileText size={14} />
+            </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">
+              <span className="block truncate text-[12px] font-medium text-[#0A1F4D]">
                 {citationDisplayName(citation)}
               </span>
-              <span className="text-muted-foreground block truncate text-xs">
+              <span className="block truncate text-[10px] text-slate-400">
                 {citationMeta(citation, { withPage: false })}
               </span>
             </span>
-            <ChevronRight className="text-muted-foreground size-4 shrink-0" />
+            <ChevronRight className="size-4 shrink-0 text-slate-400" />
           </button>
         ))}
       </div>

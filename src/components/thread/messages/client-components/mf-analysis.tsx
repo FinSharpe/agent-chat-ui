@@ -7,32 +7,25 @@ import type {
 } from "@/api/generated/report-apis/models";
 import FinSharpeScoresRadarChart from "@/components/pdfs_templates/pf-report/FinSharpeScoresRadarChart";
 import { MonthlyReturnsHeatmapTables } from "@/components/pdfs_templates/pf-report/MonthlyReturnsHeatmap";
-import { Button } from "@/components/ui/button";
 import { SectionFormatter } from "@/lib/section-formatter";
 import type { MonthlyReturnsHeatmapData } from "@/types/pf-analysis";
 import type { Section } from "@/types/mf-analysis";
 import OverallScorePie from "@/modules/core/portfolio/charts/OverallScorePie";
 import RiskScorePie from "@/modules/core/portfolio/charts/RiskScorePie";
-import { ArrowUp } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useRef } from "react";
 import { MarkdownText } from "../../markdown-text";
+import { ANALYSIS_PROSE } from "./analysis-prose";
+import {
+  AnalysisCard,
+  AnalysisPanel,
+  BackToTopButton,
+} from "./analysis-chrome";
 import DistributionPieChart from "./DistributionPieChart";
 import DrawdownChart from "./DrawdownChart";
 import LineChart from "./LineChart";
 import { MfAnalysisDownloadDialog } from "./mf-analysis-download-dialog";
 import PeerComparisonChart from "./PeerComparisonChart";
-
-// Full class names so Tailwind JIT can detect them
-const ACCENT_BORDER: Record<string, string> = {
-  indigo: "border-l-indigo-500",
-  rose: "border-l-rose-500",
-  amber: "border-l-amber-500",
-  cyan: "border-l-cyan-500",
-  emerald: "border-l-emerald-500",
-  violet: "border-l-violet-500",
-  slate: "border-l-slate-400",
-};
 
 export default function MfAnalysisComponent(analysis: MFAnalysis) {
   console.log("Rendering MfAnalysisComponent with data:", analysis);
@@ -43,10 +36,10 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
   return (
     <div
       ref={topRef}
-      className="space-y-6"
+      className="space-y-3"
     >
       {/* 1. Fund Overview */}
-      <SectionCard accent="indigo">
+      <AnalysisCard>
         <FormatSection
           section={data.fund_overview.scheme_overview}
           seqNumber={1}
@@ -54,10 +47,10 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
         {data.fund_overview.fund_manager && (
           <FormatSection section={data.fund_overview.fund_manager as Section} />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 2. Performance */}
-      <SectionCard accent="rose">
+      <AnalysisCard>
         <FormatSection
           section={data.performance.analysis}
           seqNumber={2}
@@ -93,9 +86,11 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
               </div>
             )}
             {(data.performance.monthly_returns as any)?.summary && (
-              <MarkdownText>
-                {(data.performance.monthly_returns as any).summary}
-              </MarkdownText>
+              <div className={ANALYSIS_PROSE}>
+                <MarkdownText>
+                  {(data.performance.monthly_returns as any).summary}
+                </MarkdownText>
+              </div>
             )}
           </div>
         )}
@@ -105,10 +100,10 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
             className="!min-w-0"
           />
         )} */}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 3. Ratios */}
-      <SectionCard accent="amber">
+      <AnalysisCard>
         <FormatSection
           section={data.ratios.risk_metrics}
           seqNumber={3}
@@ -117,10 +112,10 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
         {data.ratios.valuation_metrics && (
           <FormatSection section={data.ratios.valuation_metrics as Section} />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 4. Portfolio */}
-      <SectionCard accent="cyan">
+      <AnalysisCard>
         <FormatSection
           section={data.portfolio.asset_allocation}
           seqNumber={4}
@@ -151,10 +146,10 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
             useSizeColors
           />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 5. Peer Comparison */}
-      <SectionCard accent="emerald">
+      <AnalysisCard>
         <FormatSection
           section={data.peer_comparison.analysis}
           seqNumber={5}
@@ -171,11 +166,11 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
             labelKey="fund"
           />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 6. FinSharpe Analysis */}
       {data.finsharpe_analysis && (
-        <SectionCard accent="violet">
+        <AnalysisCard>
           <FormatSection
             section={(data.finsharpe_analysis as any).analysis}
             seqNumber={6}
@@ -206,16 +201,11 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
                         ? RiskScorePie
                         : OverallScorePie;
                       return (
-                        <div
+                        <AnalysisPanel
                           key={`gauge-${idx}`}
-                          className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                          title={s.title}
                         >
-                          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-                            <h4 className="text-sm font-semibold text-slate-800">
-                              {s.title}
-                            </h4>
-                          </div>
-                          <div className="p-4">
+                          <div className="p-4 pt-2">
                             <div className="relative h-[28vh] w-full sm:h-[50vh] sm:max-h-[350px]">
                               <PieComponent
                                 data={s.chart_data}
@@ -223,12 +213,12 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
                               />
                             </div>
                             {s.summary && (
-                              <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
                                 {s.summary}
                               </p>
                             )}
                           </div>
-                        </div>
+                        </AnalysisPanel>
                       );
                     })}
                   </div>
@@ -236,32 +226,28 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
               </>
             );
           })()}
-        </SectionCard>
+        </AnalysisCard>
       )}
 
       {/* 7. Outlook */}
-      <SectionCard accent="slate">
+      <AnalysisCard>
         <FormatSection
           section={data.outlook.summary}
           seqNumber={7}
         />
         <FormatSection section={data.outlook.conclusion} />
-      </SectionCard>
+      </AnalysisCard>
 
       {/* Footer actions */}
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <BackToTopButton
           onClick={() =>
             topRef.current?.scrollIntoView({
               behavior: "smooth",
               block: "start",
             })
           }
-        >
-          <ArrowUp className="mr-2 h-4 w-4" />
-          Back to Top
-        </Button>
+        />
         <MfAnalysisDownloadDialog
           threadId={threadId}
           analysisId={analysis.id}
@@ -274,24 +260,6 @@ export default function MfAnalysisComponent(analysis: MFAnalysis) {
 
 /* ─── Helper components ──────────────────────────────────────────── */
 
-function SectionCard({
-  accent = "indigo",
-  children,
-  className = "",
-}: {
-  accent?: keyof typeof ACCENT_BORDER;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`space-y-4 rounded-xl border border-l-4 border-slate-200 ${ACCENT_BORDER[accent]} bg-white p-5 shadow-sm ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
 function FormatSection({
   section,
   seqNumber,
@@ -302,6 +270,10 @@ function FormatSection({
   if (!section) return null;
 
   const formatter = new SectionFormatter(section, seqNumber);
-  return <MarkdownText>{formatter.getMarkdown()}</MarkdownText>;
+  return (
+    <div className={ANALYSIS_PROSE}>
+      <MarkdownText>{formatter.getMarkdown()}</MarkdownText>
+    </div>
+  );
 }
 

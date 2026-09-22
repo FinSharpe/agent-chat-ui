@@ -11,7 +11,6 @@ import {
 import { TooltipIconButton } from "../tooltip-icon-button";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 
 function ContentCopyable({
   content,
@@ -48,7 +47,7 @@ function ContentCopyable({
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.15 }}
           >
-            <CopyCheck className="text-green-500" />
+            <CopyCheck className="text-[#0A9E6E]" />
           </motion.div>
         ) : (
           <motion.div
@@ -81,36 +80,32 @@ export function BranchSwitcher({
   const index = branchOptions.indexOf(branch);
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-6 p-1"
+    <div className="flex items-center gap-0.5">
+      <TooltipIconButton
+        tooltip="Previous version"
         onClick={() => {
           const prevBranch = branchOptions[index - 1];
           if (!prevBranch) return;
           onSelect(prevBranch);
         }}
-        disabled={isLoading}
+        disabled={isLoading || index <= 0}
       >
         <ChevronLeft />
-      </Button>
-      <span className="text-sm">
+      </TooltipIconButton>
+      <span className="text-[10px] font-medium text-slate-400 tabular-nums">
         {index + 1} / {branchOptions.length}
       </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-6 p-1"
+      <TooltipIconButton
+        tooltip="Next version"
         onClick={() => {
           const nextBranch = branchOptions[index + 1];
           if (!nextBranch) return;
           onSelect(nextBranch);
         }}
-        disabled={isLoading}
+        disabled={isLoading || index >= branchOptions.length - 1}
       >
         <ChevronRight />
-      </Button>
+      </TooltipIconButton>
     </div>
   );
 }
@@ -167,7 +162,7 @@ export function CommandBar({
 
   if (isHumanMessage && isEditing && !!setIsEditing && !!handleSubmitEdit) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <TooltipIconButton
           disabled={isLoading}
           tooltip="Cancel edit"
@@ -195,7 +190,7 @@ export function CommandBar({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-0.5">
       <ContentCopyable
         content={content}
         disabled={isLoading}
@@ -203,7 +198,7 @@ export function CommandBar({
       {isAiMessage && !!handleRegenerate && (
         <TooltipIconButton
           disabled={isLoading}
-          tooltip="Refresh"
+          tooltip="Regenerate"
           variant="ghost"
           onClick={handleRegenerate}
         >

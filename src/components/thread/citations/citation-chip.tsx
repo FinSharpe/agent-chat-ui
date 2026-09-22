@@ -31,7 +31,7 @@ export function CitationChip({
       onClick={() => viewer?.open([citation], number)}
       aria-label={citationLabel(citation, number)}
       title={citationLabel(citation, number)}
-      className="mx-0.5 inline-flex h-[17px] min-w-[17px] translate-y-[-1px] items-center justify-center rounded-full bg-blue-50 px-1.5 align-middle text-[10.5px] leading-none font-semibold text-blue-700 tabular-nums transition-colors hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
+      className="mx-0.5 inline-flex h-[17px] min-w-[17px] translate-y-[-1px] items-center justify-center rounded-full bg-[#063BAA]/8 px-1.5 align-middle text-[10.5px] leading-none font-medium text-[#063BAA] tabular-nums transition-colors hover:bg-[#063BAA]/14"
     >
       {number}
     </button>

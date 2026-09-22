@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CircleDashed, Clock, X } from "lucide-react";
+import { Check, Clock, RefreshCw, X } from "lucide-react";
 import React, { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
@@ -21,11 +21,39 @@ export interface ReportStatusProps {
     report_id?: string;
 }
 
+function StepIcon({ status }: { status: ReportStep["status"] }) {
+    if (status === "completed") {
+        return (
+            <span className="flex size-6 items-center justify-center rounded-full bg-[#97edcc]/25 text-[#0A9E6E]">
+                <Check size={13} strokeWidth={2.5} />
+            </span>
+        );
+    }
+    if (status === "in_progress") {
+        return (
+            <span className="flex size-6 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
+                <RefreshCw size={12} className="animate-spin" />
+            </span>
+        );
+    }
+    if (status === "error") {
+        return (
+            <span className="flex size-6 items-center justify-center rounded-full bg-rose-500/10 text-rose-600">
+                <X size={13} strokeWidth={2.5} />
+            </span>
+        );
+    }
+    return (
+        <span className="flex size-6 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+            <Clock size={12} />
+        </span>
+    );
+}
+
 export function ReportStatus(props: ReportStatusProps) {
-    const { title, steps, is_complete, report_id } = props;
-    // If the entire report is complete, we might want to hide this or just show a success message
-    // But for now, let's keep showing the completed steps until the final report message replaces it
-    // or until the user navigates away.
+    const { title, steps } = props;
+    // Stays on screen with its completed steps until the final report message
+    // replaces it or the user navigates away.
 
     const completedCount = useMemo(
         () => steps.filter((s) => s.status === "completed").length,
@@ -35,63 +63,49 @@ export function ReportStatus(props: ReportStatusProps) {
     const progressPercent = Math.round((completedCount / totalCount) * 100);
 
     return (
-        <div className="w-full max-w-md rounded-lg border bg-card p-4 shadow-sm">
-            <div className="mb-4">
-                <h3 className="text-lg font-semibold leading-none tracking-tight">
+        <div className="glass-card rounded-card w-full max-w-md space-y-4 p-5">
+            <div className="space-y-2.5">
+                <h3 className="font-geist text-sm font-medium leading-tight text-[#0A1F4D]">
                     {title}
                 </h3>
-                <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                        {completedCount} of {totalCount} steps completed
-                    </span>
-                    <span>{progressPercent}%</span>
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                        className="h-full bg-primary transition-all duration-500 ease-in-out"
-                        style={{ width: `${progressPercent}%` }}
-                    />
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-400">
+                            {completedCount} of {totalCount} steps completed
+                        </span>
+                        <span className="font-medium text-[#0A1F4D] tabular-nums">
+                            {progressPercent}%
+                        </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                            className="bg-brand-gradient h-full rounded-full transition-all duration-500 ease-in-out"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
                 </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
                 {steps.map((step, index) => (
                     <div key={index} className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                            {step.status === "completed" && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                </div>
-                            )}
-                            {step.status === "in_progress" && (
-                                <div className="flex h-6 w-6 items-center justify-center">
-                                    <CircleDashed className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
-                                </div>
-                            )}
-                            {step.status === "pending" && (
-                                <div className="flex h-6 w-6 items-center justify-center">
-                                    <Clock className="h-4 w-4 text-muted-foreground/40" />
-                                </div>
-                            )}
-                            {step.status === "error" && (
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-                                    <X className="h-4 w-4 text-red-600 dark:text-red-400" />
-                                </div>
-                            )}
+                        <div className="shrink-0">
+                            <StepIcon status={step.status} />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex min-w-0 flex-col">
                             <span
                                 className={cn(
-                                    "text-sm font-medium",
-                                    step.status === "pending" && "text-muted-foreground/60",
-                                    step.status === "in_progress" && "text-foreground",
-                                    step.status === "completed" && "text-muted-foreground"
+                                    "text-[11px] font-medium",
+                                    step.status === "pending" && "text-slate-400",
+                                    step.status === "in_progress" && "text-[#0A1F4D]",
+                                    step.status === "completed" && "text-slate-500",
+                                    step.status === "error" && "text-rose-600"
                                 )}
                             >
                                 {step.name}
                             </span>
                             {step.message && (
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-[10px] text-slate-400">
                                     {step.message}
                                 </span>
                             )}

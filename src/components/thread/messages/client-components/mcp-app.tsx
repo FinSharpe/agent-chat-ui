@@ -19,7 +19,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ToolMessage } from "@langchain/langgraph-sdk";
-import { cn } from "@/lib/utils";
 
 type McpAppPayload = {
   /** The view's self-contained HTML (fetched server-side from its ui:// resource). */
@@ -130,18 +129,13 @@ function McpAppFrame({
   const heading = title || prettyToolName(toolName);
 
   return (
-    <div className="bg-background mt-3 w-full overflow-hidden rounded-lg border">
-      <div className="bg-muted/40 flex items-center gap-2 border-b px-3 py-1.5">
-        <span className="size-1.5 flex-shrink-0 rounded-full bg-green-500" />
-        <span className="text-foreground truncate text-xs font-medium">
+    <div className="glass-card rounded-card mt-3 w-full overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-slate-50 px-4 py-3">
+        <span className="size-1.5 shrink-0 rounded-full bg-[#0A9E6E]" />
+        <span className="font-geist truncate text-xs font-medium text-[#0A1F4D]">
           {heading}
         </span>
-        <span
-          className={cn(
-            "ml-auto flex-shrink-0 rounded-full border px-1.5 py-0.5",
-            "text-muted-foreground text-[10px] font-medium",
-          )}
-        >
+        <span className="ml-auto shrink-0 rounded-full bg-[#97edcc]/25 px-2 py-0.5 text-[10px] font-medium text-[#0A9E6E]">
           Interactive
         </span>
       </div>

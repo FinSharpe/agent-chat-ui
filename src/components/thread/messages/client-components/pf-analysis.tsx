@@ -2,7 +2,6 @@
 
 import type { ScreenerCoverage } from "@/api/generated/report-apis/models";
 import ScreenerCoverageBadge from "@/components/pdfs_templates/pf-report/ScreenerCoverageBadge";
-import { Button } from "@/components/ui/button";
 import { convertToMarkdownTable } from "@/lib/convertToMarkdownTable";
 import { formatKey, getPortfolioDisplayTable } from "@/lib/format-utils";
 import groupSmallFragments from "@/lib/groupSmallFragments";
@@ -17,11 +16,18 @@ import type {
   PFFinSharpeAnalysisData,
   Section,
 } from "@/types/pf-analysis";
-import { ArrowUp } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useRef } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { cn } from "@/lib/utils";
 import { MarkdownText } from "../../markdown-text";
+import { ANALYSIS_PROSE } from "./analysis-prose";
+import {
+  AnalysisCard,
+  AnalysisCardTitle,
+  AnalysisPanel,
+  BackToTopButton,
+} from "./analysis-chrome";
 import CorrelationHeatmap from "@/components/pdfs_templates/pf-report/CorrelationHeatmap";
 import FinSharpeScoresRadarChart from "@/components/pdfs_templates/pf-report/FinSharpeScoresRadarChart";
 import { MonthlyReturnsHeatmapTables } from "@/components/pdfs_templates/pf-report/MonthlyReturnsHeatmap";
@@ -30,17 +36,6 @@ import LineChart from "./LineChart";
 import { PfAnalysisDownloadDialog } from "./pf-analysis-download-dialog";
 
 import { PIE_COLORS, SIZE_COLORS } from "@/configs/chart-colors";
-
-// Full class names so Tailwind JIT can detect them
-const ACCENT_BORDER: Record<string, string> = {
-  indigo: "border-l-indigo-500",
-  rose: "border-l-rose-500",
-  amber: "border-l-amber-500",
-  cyan: "border-l-cyan-500",
-  emerald: "border-l-emerald-500",
-  violet: "border-l-violet-500",
-  slate: "border-l-slate-400",
-};
 
 export default function PfAnalysisComponent(analysis: PfAnalysis) {
   const [threadId] = useQueryState("threadId");
@@ -108,44 +103,37 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
   return (
     <div
       ref={topRef}
-      className="space-y-5"
+      className="space-y-3"
     >
-      {/* Header */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-5 shadow-lg sm:p-6">
+      {/* Header — the reference's analysis-card head: name, meta line, type pill. */}
+      <AnalysisCard className="space-y-0">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold tracking-widest text-indigo-300 uppercase">
-                {analysis.portfolio_type === "mutual_fund"
-                  ? "Mutual Fund"
-                  : "Stock"}
-              </span>
-              <span className="text-[11px] text-slate-400 tabular-nums">
-                {analysis.holdings_count} holdings
-              </span>
-              {analysis.date && (
-                <span className="text-[11px] text-slate-500">
-                  {analysis.date}
-                </span>
-              )}
-            </div>
-            <h1 className="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">
+          <div className="min-w-0 space-y-1">
+            <h3 className="font-geist truncate text-base leading-tight font-medium text-[#0A1F4D]">
               {analysis.portfolio_name}
-            </h1>
+            </h3>
+            <p className="text-[10px] text-slate-400 tabular-nums">
+              {analysis.holdings_count} holdings
+              {analysis.date && <> · {analysis.date}</>}
+            </p>
+            <span className="inline-block rounded-full bg-[#063BAA]/8 px-2 py-0.5 text-[9px] font-medium tracking-wider text-[#063BAA] uppercase">
+              {analysis.portfolio_type === "mutual_fund"
+                ? "Mutual Fund"
+                : "Stock"}{" "}
+              portfolio
+            </span>
           </div>
-          <div className="shrink-0">
-            <PfAnalysisDownloadDialog
-              threadId={threadId}
-              analysisId={analysis.id}
-              portfolioName={analysis.portfolio_name}
-            />
-          </div>
+          <PfAnalysisDownloadDialog
+            threadId={threadId}
+            analysisId={analysis.id}
+            portfolioName={analysis.portfolio_name}
+          />
         </div>
-      </div>
+      </AnalysisCard>
 
       {/* Navigation */}
       <nav className="scrollbar-none overflow-x-auto">
-        <div className="flex gap-1.5 pb-1">
+        <div className="flex gap-2 pb-1">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -155,7 +143,7 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
                   .getElementById(`pf-${item.id}`)
                   ?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
-              className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-500 transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.97]"
+              className="shrink-0 rounded-full bg-[#063BAA]/6 px-3.5 py-2 text-[11px] font-medium text-slate-500 transition-colors hover:text-[#063BAA] active:scale-[0.97]"
             >
               {item.label}
             </button>
@@ -174,17 +162,15 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
 
       {/* 2. Performance Analysis + Returns Chart */}
       <div id="pf-performance">
-        <SectionCard
-          section={data.performance_analysis}
-          accent="indigo"
-        />
+        <SectionCard section={data.performance_analysis} />
         {returnsChart && (
-          <div className="mt-3">
+          <div className="mt-3 overflow-hidden">
             <LineChart
               data={returnsChart.data}
               colors={returnsChart.colors}
               title={returnsChart.title}
               description={returnsChart.description}
+              className="!min-w-0"
             />
           </div>
         )}
@@ -192,42 +178,29 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
 
       {/* 3. Risk Assessment */}
       <div id="pf-risk">
-        <SectionCard
-          section={data.risk_assessment}
-          accent="rose"
-        />
+        <SectionCard section={data.risk_assessment} />
       </div>
 
       {/* 4. Risk-Adjusted Returns */}
       <div id="pf-risk-adj">
-        <SectionCard
-          section={data.risk_adjusted_returns}
-          accent="amber"
-        />
+        <SectionCard section={data.risk_adjusted_returns} />
       </div>
 
       {/* 5. Drawdown Analysis + Chart */}
       {drawdownSection?.analysis && (
         <div id="pf-drawdown">
-          <SectionCard
-            section={drawdownSection.analysis}
-            accent="rose"
-          />
+          <SectionCard section={drawdownSection.analysis} />
           {drawdownChart && (
             <div className="mt-3">
-              <div className="mx-auto grid min-w-[calc(100dvw-2rem)] grid-rows-[auto] gap-6 md:min-w-3xl">
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                  <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-                    <h3 className="text-sm font-semibold text-slate-800">
-                      {drawdownChart.title}
-                    </h3>
-                  </div>
-                  <DrawdownChart
-                    data={drawdownChart}
-                    returnsData={returnsChart?.data}
-                  />
+              <AnalysisCard className="space-y-2 overflow-hidden p-0 pt-5">
+                <div className="px-5">
+                  <AnalysisCardTitle>{drawdownChart.title}</AnalysisCardTitle>
                 </div>
-              </div>
+                <DrawdownChart
+                  data={drawdownChart}
+                  returnsData={returnsChart?.data}
+                />
+              </AnalysisCard>
             </div>
           )}
         </div>
@@ -236,12 +209,12 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
       {/* 6. Correlation Analysis */}
       {correlationSection?.analysis && (
         <div id="pf-correlation">
-          <div className="overflow-hidden rounded-xl border border-l-4 border-slate-200 border-l-cyan-500 bg-white shadow-sm">
+          <AnalysisCard className="space-y-0 overflow-hidden p-0">
             {/* Heading */}
-            <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-              <h4 className="text-sm font-semibold text-slate-800">
+            <div className="px-5 pt-5 pb-2">
+              <AnalysisCardTitle>
                 {correlationSection.analysis.title}
-              </h4>
+              </AnalysisCardTitle>
             </div>
 
             {/* Chart */}
@@ -258,7 +231,7 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
               )}
 
             {/* Content / Summary */}
-            <div className="p-5">
+            <div className={cn("p-5", ANALYSIS_PROSE)}>
               <MarkdownText>{correlationSection.analysis.content}</MarkdownText>
 
               {/* In-depth Analysis */}
@@ -286,22 +259,18 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
                 </div>
               )}
             </div>
-          </div>
+          </AnalysisCard>
         </div>
       )}
 
       {/* 7. Monthly Returns */}
       {(monthlyReturnsSection?.summary || monthlyReturnsSection?.heatmap) && (
         <div id="pf-monthly">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-              <h4 className="text-sm font-semibold text-slate-800">
-                Monthly Returns
-              </h4>
-            </div>
-            <div className="p-4">
+          <AnalysisCard>
+            <AnalysisCardTitle>Monthly Returns</AnalysisCardTitle>
+            <div>
               {monthlyReturnsSection.summary && (
-                <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                <p className="mb-4 text-[11px] leading-relaxed text-slate-500">
                   {monthlyReturnsSection.summary}
                 </p>
               )}
@@ -314,7 +283,7 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
                 </div>
               ) : null}
             </div>
-          </div>
+          </AnalysisCard>
         </div>
       )}
 
@@ -340,60 +309,31 @@ export default function PfAnalysisComponent(analysis: PfAnalysis) {
 
       {/* 10. Summary */}
       <div id="pf-summary">
-        <SectionCard
-          section={data.summary}
-          accent="emerald"
-        />
+        <SectionCard section={data.summary} />
       </div>
 
       {/* 11. Recommendation */}
       <div id="pf-recommendation">
-        <SectionCard
-          section={data.recommendation}
-          accent="indigo"
-        />
+        <SectionCard section={data.recommendation} />
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end pt-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-full text-xs"
+      <div className="flex justify-end pt-1">
+        <BackToTopButton
+          label="Top"
           onClick={() =>
             topRef.current?.scrollIntoView({
               behavior: "smooth",
               block: "start",
             })
           }
-        >
-          <ArrowUp className="mr-1 h-3 w-3" />
-          Top
-        </Button>
+        />
       </div>
     </div>
   );
 }
 
 /* ─── Reusable layout components ─────────────────────────────────── */
-
-function AccentCard({
-  accent = "slate",
-  children,
-  className = "",
-}: {
-  accent?: keyof typeof ACCENT_BORDER;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`rounded-xl border border-l-4 border-slate-200 ${ACCENT_BORDER[accent]} bg-white p-5 shadow-sm ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
 
 /* ─── Section components ─────────────────────────────────────────── */
 
@@ -419,20 +359,11 @@ function PortfolioOverviewSection({
   };
 
   return (
-    <SectionCard
-      section={_section}
-      accent="slate"
-    />
+    <SectionCard section={_section} />
   );
 }
 
-function SectionCard({
-  section,
-  accent = "slate",
-}: {
-  section: Section;
-  accent?: keyof typeof ACCENT_BORDER;
-}) {
+function SectionCard({ section }: { section: Section }) {
   if (!section) return null;
 
   const title = `## ${section.title}\n`;
@@ -444,14 +375,16 @@ function SectionCard({
   const markdown = `${title}${content}${inDepth}${sources}`;
 
   return (
-    <AccentCard accent={accent}>
-      <MarkdownText>{markdown}</MarkdownText>
+    <AnalysisCard>
+      <div className={ANALYSIS_PROSE}>
+        <MarkdownText>{markdown}</MarkdownText>
+      </div>
       {section.sources &&
         typeof section.sources === "object" &&
         !Array.isArray(section.sources) && (
           <JsonSourcesDisplay sources={section.sources} />
         )}
-    </AccentCard>
+    </AnalysisCard>
   );
 }
 
@@ -473,14 +406,12 @@ function FinSharpeAnalysisSection({
   );
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-xl border border-l-4 border-slate-200 border-l-violet-500 bg-white shadow-sm">
+    <div className="space-y-3">
+      <AnalysisCard className="space-y-0 overflow-hidden p-0">
         {/* Heading */}
         {analysis && (
-          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-            <h4 className="text-sm font-semibold text-slate-800">
-              {analysis.title}
-            </h4>
+          <div className="px-5 pt-5 pb-1">
+            <AnalysisCardTitle>{analysis.title}</AnalysisCardTitle>
           </div>
         )}
 
@@ -490,16 +421,11 @@ function FinSharpeAnalysisSection({
             {gaugeSections.map((section) => {
               const isRisk = section.title.toLowerCase().includes("risk");
               return (
-                <div
+                <AnalysisPanel
                   key={section.title}
-                  className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                  title={section.title}
                 >
-                  <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-                    <h4 className="text-sm font-semibold text-slate-800">
-                      {section.title}
-                    </h4>
-                  </div>
-                  <div className="p-4">
+                  <div className="p-4 pt-2">
                     <div className="relative h-[28vh] w-full sm:h-[50vh] sm:max-h-[350px]">
                       {isRisk ? (
                         <RiskScorePie
@@ -514,12 +440,12 @@ function FinSharpeAnalysisSection({
                       )}
                     </div>
                     {section.summary && (
-                      <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                      <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
                         {section.summary}
                       </p>
                     )}
                   </div>
-                </div>
+                </AnalysisPanel>
               );
             })}
           </div>
@@ -531,7 +457,7 @@ function FinSharpeAnalysisSection({
             key={section.title}
             className="p-4"
           >
-            <h5 className="mb-2 text-xs font-semibold text-slate-600">
+            <h5 className="mb-2 text-[9px] font-medium tracking-wider text-slate-400 uppercase">
               {section.title}
             </h5>
             <FinSharpeScoresRadarChart
@@ -539,7 +465,7 @@ function FinSharpeAnalysisSection({
               className="h-64 w-full sm:h-96"
             />
             {section.summary && (
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
                 {section.summary}
               </p>
             )}
@@ -548,7 +474,7 @@ function FinSharpeAnalysisSection({
 
         {/* Content / Summary */}
         {analysis && (
-          <div className="p-5">
+          <div className={cn("p-5", ANALYSIS_PROSE)}>
             <MarkdownText>{analysis.content}</MarkdownText>
 
             {analysis.in_depth_analysis && (
@@ -580,7 +506,7 @@ function FinSharpeAnalysisSection({
           showMissing={true}
           className="px-5 pb-4"
         />
-      </div>
+      </AnalysisCard>
     </div>
   );
 }
@@ -617,18 +543,14 @@ function DistributionChartsSection({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       {/* Sector Distribution */}
       {industryWithColors.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-            <h4 className="text-sm font-semibold text-slate-800">
-              Sector Allocation
-            </h4>
-          </div>
-          <div className="p-5">
+        <AnalysisCard>
+          <AnalysisCardTitle>Sector Allocation</AnalysisCardTitle>
+          <div>
             {sectorAllocationSummary && (
-              <p className="mb-4 text-xs leading-relaxed text-slate-500">
+              <p className="mb-4 text-[11px] leading-relaxed text-slate-500">
                 {sectorAllocationSummary}
               </p>
             )}
@@ -672,11 +594,11 @@ function DistributionChartsSection({
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: industry.color }}
                       />
-                      <span className="truncate text-xs text-slate-600">
+                      <span className="truncate text-[11px] text-slate-500">
                         {industry.name}
                       </span>
                     </div>
-                    <span className="shrink-0 text-xs font-medium text-slate-800 tabular-nums">
+                    <span className="shrink-0 text-[11px] font-medium text-[#0A1F4D] tabular-nums">
                       {Number(industry.value).toFixed(1)}%
                     </span>
                   </div>
@@ -684,20 +606,16 @@ function DistributionChartsSection({
               </div>
             </div>
           </div>
-        </div>
+        </AnalysisCard>
       )}
 
       {/* Market Cap Distribution */}
       {sizeWithColors.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-            <h4 className="text-sm font-semibold text-slate-800">
-              Market Cap Allocation
-            </h4>
-          </div>
-          <div className="p-5">
+        <AnalysisCard>
+          <AnalysisCardTitle>Market Cap Allocation</AnalysisCardTitle>
+          <div>
             {marketCapAllocationSummary && (
-              <p className="mb-4 text-xs leading-relaxed text-slate-500">
+              <p className="mb-4 text-[11px] leading-relaxed text-slate-500">
                 {marketCapAllocationSummary}
               </p>
             )}
@@ -705,10 +623,10 @@ function DistributionChartsSection({
               {sizeWithColors.map((size, index) => (
                 <div key={index}>
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-medium text-slate-700">
+                    <span className="text-[11px] font-medium text-[#0A1F4D]">
                       {size.name}
                     </span>
-                    <span className="text-xs font-semibold text-slate-900 tabular-nums">
+                    <span className="text-[11px] text-slate-500 tabular-nums">
                       {Number(size.value).toFixed(1)}%
                     </span>
                   </div>
@@ -725,7 +643,7 @@ function DistributionChartsSection({
               ))}
             </div>
           </div>
-        </div>
+        </AnalysisCard>
       )}
     </div>
   );
@@ -762,8 +680,8 @@ function formatSources(
 
 function JsonSourcesDisplay({ sources }: { sources: Record<string, any> }) {
   return (
-    <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-      <summary className="cursor-pointer text-sm font-medium text-slate-700">
+    <details className="rounded-nested mt-4 border border-slate-100 bg-slate-50 p-4">
+      <summary className="cursor-pointer text-[11px] font-medium text-[#0A1F4D]">
         Sources (Data)
       </summary>
       <div className="mt-4 space-y-4">
@@ -772,9 +690,9 @@ function JsonSourcesDisplay({ sources }: { sources: Record<string, any> }) {
             key={key}
             className="space-y-2"
           >
-            <h4 className="text-sm font-semibold text-slate-800">
+            <span className="text-[9px] font-medium tracking-wider text-slate-400 uppercase">
               {formatKey(key)}
-            </h4>
+            </span>
             <JsonDataDisplay data={value} />
           </div>
         ))}
@@ -785,23 +703,23 @@ function JsonSourcesDisplay({ sources }: { sources: Record<string, any> }) {
 
 function JsonDataDisplay({ data }: { data: any }) {
   if (data === null || data === undefined) {
-    return <span className="text-xs text-slate-400">N/A</span>;
+    return <span className="text-[10px] text-slate-400">N/A</span>;
   }
 
   if (typeof data !== "object") {
-    return <span className="text-sm text-slate-600">{String(data)}</span>;
+    return <span className="text-[11px] text-[#0A1F4D]">{String(data)}</span>;
   }
 
   if (Array.isArray(data)) {
     if (data.length === 0) {
-      return <span className="text-xs text-slate-400">Empty</span>;
+      return <span className="text-[10px] text-slate-400">Empty</span>;
     }
     return (
-      <ul className="list-inside list-disc space-y-1 text-sm">
+      <ul className="list-inside list-disc space-y-1 text-[11px] marker:text-[#063BAA]">
         {data.map((item, idx) => (
           <li
             key={idx}
-            className="text-slate-600"
+            className="text-[#0A1F4D]"
           >
             <JsonDataDisplay data={item} />
           </li>
@@ -812,22 +730,22 @@ function JsonDataDisplay({ data }: { data: any }) {
 
   const entries = Object.entries(data);
   if (entries.length === 0) {
-    return <span className="text-xs text-slate-400">Empty object</span>;
+    return <span className="text-[10px] text-slate-400">Empty object</span>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
-      <table className="min-w-full divide-y divide-slate-200 text-sm">
-        <tbody className="divide-y divide-slate-100">
+    <div className="rounded-nested overflow-x-auto border border-slate-100 bg-white">
+      <table className="min-w-full text-[11px]">
+        <tbody className="divide-y divide-slate-50">
           {entries.map(([key, value]) => (
             <tr
               key={key}
-              className="hover:bg-slate-50"
+              className="hover-tint"
             >
-              <td className="px-4 py-2 text-xs font-medium whitespace-nowrap text-slate-800">
+              <td className="px-4 py-2 text-[10px] whitespace-nowrap text-slate-400">
                 {formatKey(key)}
               </td>
-              <td className="px-4 py-2 text-xs text-slate-600">
+              <td className="px-4 py-2 text-[11px] font-medium text-[#0A1F4D] tabular-nums">
                 {typeof value === "object" ? (
                   <JsonDataDisplay data={value} />
                 ) : (

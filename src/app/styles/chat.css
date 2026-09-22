@@ -1,1 +1,104 @@
 /* chat page styles — owned by the chat screen. Tailwind classes first; add rules here only when a class cannot express it. Scope every rule under [data-app-mode]. */
+
+/* Dark mode for the few literal light tints the chat is drawn with that
+   design-system.css does not remap. `.dark [data-app-mode]` is the page;
+   `[data-app-mode].dark` is the unzoomed popover root. */
+:is(.dark [data-app-mode], [data-app-mode].dark) .chat-stop-btn,
+:is(.dark [data-app-mode], [data-app-mode].dark) .chat-error-tile {
+  background-color: rgba(244, 63, 94, 0.14);
+  border-color: rgba(244, 63, 94, 0.28);
+  color: #fda4af;
+}
+:is(.dark [data-app-mode], [data-app-mode].dark) .chat-error-tile :is(p, pre) {
+  color: #fda4af;
+}
+:is(.dark [data-app-mode], [data-app-mode].dark) .chat-error-tile pre {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Idle send button: navy at 30% vanishes on the dark canvas. */
+:is(.dark [data-app-mode], [data-app-mode].dark) .chat-send-idle {
+  color: rgba(248, 250, 252, 0.35);
+}
+
+/* Hover-to-blue text (prompt rows, follow-ups, tabs) keeps the light-blue
+   tone the base class maps to. */
+:is(.dark [data-app-mode], [data-app-mode].dark) .hover\:text-\[\#063BAA\]:hover {
+  color: var(--tone-blue-fg);
+}
+
+/* Message actions (copy / regenerate / edit / versions). With a pointer they
+   float as a small pill on the message's top edge, shown on hover or focus,
+   so no row of empty space is reserved between turns. On touch screens,
+   which cannot hover, they sit under the text instead. */
+[data-app-mode] .chat-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+@media (hover: hover) {
+  [data-app-mode] .chat-msg-actions {
+    position: absolute;
+    top: -15px;
+    z-index: 5;
+    padding: 1px 2px;
+    border-radius: 9999px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow:
+      0 8px 24px -8px rgba(10, 31, 77, 0.12),
+      0 2px 6px -2px rgba(10, 31, 77, 0.06);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  [data-app-mode] .chat-msg-actions--end {
+    right: 14px;
+  }
+  [data-app-mode] .chat-msg-actions--start {
+    left: 12px;
+  }
+  [data-app-mode] .chat-msg:hover > .chat-msg-actions,
+  [data-app-mode] .chat-msg:focus-within > .chat-msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .dark [data-app-mode] .chat-msg-actions {
+    background: var(--nav-bg);
+    border-color: var(--card-border);
+  }
+}
+@media (hover: none) {
+  [data-app-mode] .chat-msg-actions {
+    justify-content: flex-end;
+    margin: 0.375rem -0.375rem -0.375rem 0;
+  }
+  /* The user's own bubble stays as compact as the reference's; a tap on it
+     reveals its copy / edit actions. */
+  [data-app-mode] .chat-msg-actions--start {
+    display: none;
+  }
+  [data-app-mode] .chat-msg:focus-within > .chat-msg-actions--start {
+    display: flex;
+  }
+}
+
+/* The chart panels inside analysis cards (LineChart, DrawdownChart,
+   SimulationChart, news sentiment) keep their grey frames because the PDF
+   reports draw them too; in the chat's dark theme those light greys are
+   mapped onto the dark tokens here. PDFs never render under [data-app-mode]. */
+.dark [data-app-mode] .chat-thread :is(.bg-gray-50, .bg-gray-100) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.dark [data-app-mode] .chat-thread :is(.hover\:bg-gray-100:hover) {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+.dark [data-app-mode] .chat-thread :is(.border-gray-200, .border-gray-100) {
+  border-color: var(--card-border);
+}
+.dark [data-app-mode] .chat-thread :is(.text-gray-900, .text-gray-800, .text-gray-700) {
+  color: var(--text-color);
+}
+.dark [data-app-mode] .chat-thread :is(.text-gray-600, .text-gray-500) {
+  color: var(--text-muted);
+}

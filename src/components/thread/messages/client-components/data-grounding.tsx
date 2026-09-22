@@ -2,15 +2,9 @@
 import { useState } from "react";
 import {
   AlertTriangle,
-  Check,
   ChevronDown,
-  CircleDashed,
-  Database,
-  Shield,
-  ShieldAlert,
+  Info,
   ShieldCheck,
-  ShieldOff,
-  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,124 +43,51 @@ type Props = {
   explanation?: string | null;
 };
 
-// The verdict drives every accent on the card. `level` (1–4) positions the
-// band on the strength meter; the color classes all resolve to theme tokens
-// so the readout stays legible in light and dark mode.
-type BandStyle = {
-  label: string;
-  eyebrow: string;
-  level: number;
-  icon: LucideIcon;
-  text: string;
-  tile: string;
-  ring: string;
-  spine: string;
-  fill: string;
+// Tone pairs from the reference's confidence pills: mint for a strong trace,
+// amber for a partial one, rose where the answer outruns its data.
+const TONE = {
+  mint: "bg-[#97edcc]/25 text-[#0A9E6E]",
+  amber: "bg-amber-500/10 text-amber-600",
+  rose: "bg-rose-500/10 text-rose-600",
+  blue: "bg-[#063BAA]/8 text-[#063BAA]",
+} as const;
+
+const BAND: Record<GroundingBand, { label: string; tone: string }> = {
+  high: { label: "Well grounded", tone: TONE.mint },
+  moderate: { label: "Partly grounded", tone: TONE.amber },
+  low: { label: "Weakly grounded", tone: TONE.rose },
+  ungrounded: { label: "Not grounded in live data", tone: TONE.rose },
 };
 
-const BAND_STYLE: Record<GroundingBand, BandStyle> = {
-  high: {
-    label: "Well grounded",
-    eyebrow: "Grounding · strong",
-    level: 4,
-    icon: ShieldCheck,
-    text: "text-success-fg",
-    tile: "bg-success-bg",
-    ring: "ring-success-border",
-    spine: "bg-success-fg",
-    fill: "bg-success-fg",
-  },
-  moderate: {
-    label: "Partly grounded",
-    eyebrow: "Grounding · moderate",
-    level: 3,
-    icon: Shield,
-    text: "text-warning-fg",
-    tile: "bg-warning-bg",
-    ring: "ring-warning-border",
-    spine: "bg-warning-fg",
-    fill: "bg-warning-fg",
-  },
-  low: {
-    label: "Weakly grounded",
-    eyebrow: "Grounding · weak",
-    level: 2,
-    icon: ShieldAlert,
-    text: "text-accent-orange",
-    tile: "bg-accent-orange-bg",
-    ring: "ring-accent-orange-border",
-    spine: "bg-accent-orange",
-    fill: "bg-accent-orange",
-  },
-  ungrounded: {
-    label: "Not grounded in live data",
-    eyebrow: "Grounding · none",
-    level: 1,
-    icon: ShieldOff,
-    text: "text-error-fg",
-    tile: "bg-error-bg",
-    ring: "ring-error-border",
-    spine: "bg-error-fg",
-    fill: "bg-error-fg",
-  },
-};
-
-// Signature element: a signal-bar strength meter. Rungs fill up to the
-// band's level, reading as "how strong is the trace to live data".
-function StrengthMeter({
-  level,
-  fill,
-  className,
-}: {
-  level: number;
-  fill: string;
-  className?: string;
-}) {
-  const heights = ["h-1.5", "h-2", "h-2.5", "h-3"];
-  return (
-    <div
-      className={cn("flex items-end gap-[3px]", className)}
-      aria-hidden="true"
-    >
-      {[1, 2, 3, 4].map((rung, i) => (
-        <span
-          key={rung}
-          className={cn(
-            "w-[3px] rounded-full transition-colors",
-            heights[i],
-            rung <= level ? fill : "bg-border",
-          )}
-        />
-      ))}
-    </div>
-  );
-}
-
-function SourceStatusIcon({ source }: { source: SourceUsage }) {
+// One source's state, read off its real call counts.
+function sourceStatus(source: SourceUsage): { label: string; tone: string } {
   if (source.failed > 0) {
-    return (
-      <AlertTriangle
-        className={cn(
-          "size-3.5 flex-shrink-0",
-          source.succeeded > 0 ? "text-warning-fg" : "text-error-fg",
-        )}
-      />
-    );
+    return source.succeeded > 0
+      ? { label: "Partial", tone: TONE.amber }
+      : { label: "Failed", tone: TONE.rose };
   }
   if (source.empty > 0 && source.succeeded === 0) {
-    return <CircleDashed className="size-3.5 flex-shrink-0 text-warning-fg" />;
+    return { label: "No data", tone: TONE.amber };
   }
-  return <Check className="size-3.5 flex-shrink-0 text-success-fg" />;
+  return { label: "Retrieved", tone: TONE.mint };
 }
 
 function sourceDetail(source: SourceUsage): string {
   const parts = [`${source.calls} ${source.calls === 1 ? "call" : "calls"}`];
   if (source.failed > 0) parts.push(`${source.failed} failed`);
-  if (source.empty > 0) parts.push(`${source.empty} returned no data`);
+  if (source.empty > 0) parts.push(`${source.empty} empty`);
   return parts.join(" · ");
 }
 
-// One hairline-divided cell in the claim-check tally.
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[9px] font-medium tracking-wider text-slate-400 uppercase">
+      {children}
+    </span>
+  );
+}
+
+// One cell of the claim-check tally.
 function ClaimTile({
   value,
   label,
@@ -174,25 +95,34 @@ function ClaimTile({
 }: {
   value: number;
   label: string;
-  accent: string;
+  accent?: string;
 }) {
   return (
-    <div className="flex flex-col gap-0.5 bg-card px-3 py-2">
-      <span className={cn("text-lg leading-none font-semibold tabular-nums", accent)}>
+    <div className="glass-tile rounded-nested px-3 py-2.5">
+      <p className="text-[9px] text-slate-400">{label}</p>
+      <p
+        className={cn(
+          "font-geist mt-1 text-sm font-medium text-[#0A1F4D] tabular-nums",
+          accent,
+        )}
+      >
         {value}
-      </span>
-      <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
-        {label}
-      </span>
+      </p>
     </div>
   );
 }
 
+/**
+ * The per-answer grounding report, drawn as the reference's "Sources &
+ * Reliability" card. The header and score stay visible so every answer
+ * carries its verdict; the claim tally and per-source detail fold away.
+ */
 export default function DataGrounding({
   sources,
   total_calls = 0,
   total_succeeded = 0,
   band,
+  score,
   claims_checkable = 0,
   claims_verified = 0,
   claims_derived = 0,
@@ -207,7 +137,7 @@ export default function DataGrounding({
   if (!hasSources && !band) return null;
 
   const judged = !!band;
-  const style = judged ? BAND_STYLE[band as GroundingBand] : null;
+  const verdict = judged ? BAND[band as GroundingBand] : null;
 
   const allOk = total_succeeded === total_calls;
 
@@ -220,76 +150,75 @@ export default function DataGrounding({
     claims_checkable > 0
       ? `${claims_verified + claims_derived}/${claims_checkable} claims traced to data`
       : receiptSummary;
+  const summary = judged ? judgedSummary : receiptSummary;
 
-  const HeaderIcon = style ? style.icon : Database;
+  const percent =
+    judged && score != null
+      ? Math.round(Math.min(Math.max(score, 0), 1) * 100)
+      : null;
   const showClaimCheck = judged && claims_checkable > 0;
 
   return (
-    <div
-      className={cn(
-        "group/dg relative mt-3 w-full overflow-hidden rounded-xl border bg-card shadow-sm",
-        "transition-shadow hover:shadow-md",
-      )}
-    >
-      {/* Ledger spine — the verdict colors the full height of the card. */}
-      <span
-        className={cn(
-          "absolute inset-y-0 left-0 w-1",
-          style ? style.spine : allOk ? "bg-primary" : "bg-warning-fg",
-        )}
-        aria-hidden="true"
-      />
-
+    <div className="glass-card rounded-card mt-3 w-full overflow-hidden">
       <button
         type="button"
         onClick={() => setIsExpanded((v) => !v)}
         aria-expanded={isExpanded}
-        className={cn(
-          "flex w-full items-center gap-3 py-2.5 pr-3 pl-4 text-left",
-          "transition-colors hover:bg-muted/40",
-          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
-        )}
+        className="flex w-full items-center justify-between gap-3 px-5 pt-4 pb-3 text-left focus-visible:outline-none"
       >
-        <span
-          className={cn(
-            "grid size-9 flex-shrink-0 place-items-center rounded-lg ring-1 ring-inset",
-            style ? cn(style.tile, style.ring, style.text) : "bg-accent ring-border text-muted-foreground",
-          )}
-        >
-          <HeaderIcon className="size-[18px]" />
+        <span className="flex min-w-0 items-center gap-2">
+          <ShieldCheck
+            size={14}
+            className="shrink-0 text-[#063BAA]"
+          />
+          <span className="font-geist truncate text-xs font-medium text-[#0A1F4D]">
+            Sources &amp; Reliability
+          </span>
         </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/80 uppercase">
-              {style ? style.eyebrow : "Data trace"}
-            </span>
-            {judged && style && (
-              <StrengthMeter level={style.level} fill={style.fill} />
+        <span className="flex shrink-0 items-center gap-2">
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-medium",
+              verdict ? verdict.tone : allOk ? TONE.blue : TONE.amber,
             )}
+          >
+            {verdict ? verdict.label : "Data trace"}
           </span>
-          <span className="mt-0.5 flex items-baseline gap-2">
-            <span
-              className={cn(
-                "truncate text-sm font-semibold",
-                style ? style.text : "text-foreground",
-              )}
-            >
-              {style ? style.label : "Data sources used"}
-            </span>
-          </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground tabular-nums">
-            {judged ? judgedSummary : receiptSummary}
-          </span>
+          <ChevronDown
+            size={14}
+            className={cn(
+              "text-slate-400 transition-transform duration-300 motion-reduce:transition-none",
+              isExpanded && "rotate-180",
+            )}
+          />
         </span>
-
-        <ChevronDown
-          className={cn(
-            "size-4 flex-shrink-0 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none",
-            isExpanded && "rotate-180",
-          )}
-        />
       </button>
+
+      {/* Always visible: the score bar once the judge has scored the answer,
+          otherwise the receipt line. */}
+      <div className="space-y-1.5 px-5 pb-4">
+        {percent != null ? (
+          <>
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-slate-400">Grounding score</span>
+              <span className="font-medium text-[#0A1F4D] tabular-nums">
+                {percent}%
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="bg-brand-gradient h-full rounded-full"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 tabular-nums">{summary}</p>
+          </>
+        ) : (
+          // A receipt may never be judged (judge off or failed), so it only
+          // states what was retrieved rather than promising a verdict.
+          <p className="text-[10px] text-slate-400 tabular-nums">{summary}</p>
+        )}
+      </div>
 
       {/* Smooth height animation via grid-template-rows; honors reduced motion. */}
       <div
@@ -299,97 +228,109 @@ export default function DataGrounding({
         )}
       >
         <div className="overflow-hidden">
-          <div className="space-y-3 border-t px-4 py-3 pl-4">
-            {explanation && (
-              <p
-                className={cn(
-                  "text-xs leading-relaxed",
-                  band === "ungrounded" ? "text-error-fg" : "text-muted-foreground",
-                )}
-              >
-                {explanation}
-              </p>
-            )}
-
+          <div className="space-y-4 border-t border-slate-50 px-5 pt-4 pb-5">
             {showClaimCheck && (
-              <section>
-                <p className="mb-1.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Claim check
-                </p>
-                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-4">
+              <div className="space-y-2">
+                <SectionLabel>Claim check</SectionLabel>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <ClaimTile
                     value={claims_verified}
                     label="Verified"
-                    accent="text-success-fg"
+                    accent="text-[#0A9E6E]"
                   />
                   <ClaimTile
                     value={claims_derived}
                     label="Derived"
-                    accent="text-accent-blue"
+                    accent="text-[#063BAA]"
                   />
                   <ClaimTile
                     value={claims_unverified}
                     label="Unverified"
-                    accent={claims_unverified > 0 ? "text-warning-fg" : "text-foreground"}
+                    accent={
+                      claims_unverified > 0 ? "text-amber-600" : undefined
+                    }
                   />
                   <ClaimTile
                     value={claims_advice}
                     label="Advice"
-                    accent="text-muted-foreground"
                   />
                 </div>
                 {!!unverified_claims?.length && (
-                  <ul className="mt-2 space-y-1">
+                  <ul className="space-y-1.5 pt-0.5">
                     {unverified_claims.map((text, i) => (
                       <li
                         key={i}
-                        className="flex items-start gap-1.5 rounded-md bg-warning-bg/60 px-2 py-1 text-[11px] text-warning-fg"
+                        className="rounded-nested flex items-start gap-1.5 bg-amber-500/10 px-2.5 py-1.5 text-[10px] text-amber-600"
                       >
-                        <AlertTriangle className="mt-0.5 size-3 flex-shrink-0" />
+                        <AlertTriangle
+                          size={11}
+                          className="mt-0.5 shrink-0"
+                        />
                         <span className="leading-snug">“{text}”</span>
                       </li>
                     ))}
                   </ul>
                 )}
-              </section>
+              </div>
             )}
 
             {hasSources && (
-              <section>
-                <p className="mb-1.5 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-                  Data sources
-                </p>
-                <div className="divide-y divide-border overflow-hidden rounded-lg border">
-                  {sources!.map((source) => (
-                    <div
-                      key={source.server}
-                      className="flex items-start gap-2.5 px-3 py-2"
-                    >
-                      <div className="mt-0.5">
-                        <SourceStatusIcon source={source} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span className="truncate text-xs font-medium text-foreground">
+              <div className="space-y-2">
+                <SectionLabel>Data sources used</SectionLabel>
+                <div className="space-y-2">
+                  {sources!.map((source) => {
+                    const status = sourceStatus(source);
+                    return (
+                      <div
+                        key={source.server}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[10px] text-[#0A1F4D]">
                             {source.label}
-                          </span>
-                          <span className="flex-shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                          </p>
+                          {source.tools && source.tools.length > 0 && (
+                            <p className="mt-0.5 truncate font-mono text-[9px] text-slate-400">
+                              {source.tools.join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-[9px] text-slate-400 tabular-nums">
                             {sourceDetail(source)}
                           </span>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[9px] font-medium",
+                              status.tone,
+                            )}
+                          >
+                            {status.label}
+                          </span>
                         </div>
-                        {source.tools && source.tools.length > 0 && (
-                          <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground/70">
-                            {source.tools.join(" · ")}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </section>
+              </div>
             )}
 
-            <p className="border-t pt-2.5 text-[10px] leading-relaxed text-muted-foreground/70">
+            {explanation && (
+              <p
+                className={cn(
+                  "flex gap-1.5 text-[9.5px] leading-relaxed",
+                  band === "ungrounded" ? "text-rose-600" : "text-slate-400",
+                )}
+              >
+                <Info
+                  size={11}
+                  className="mt-0.5 shrink-0 text-slate-300"
+                />
+                {explanation}
+              </p>
+            )}
+
+            <p className="border-t border-slate-50 pt-2 text-[9px] leading-relaxed text-slate-400/80">
               {judged
                 ? "Checked against the live data retrieved for this response. Grounding measures whether figures trace to retrieved data — not the quality of the underlying analysis."
                 : "Compiled from the live data retrievals behind this response."}

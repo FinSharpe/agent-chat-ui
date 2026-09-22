@@ -2,29 +2,39 @@ import { HumanResponseWithEdits, SubmitType } from "../types";
 import { Textarea } from "@/components/ui/textarea";
 import React from "react";
 import { haveArgsChanged, prettifyText } from "../utils";
-import { Button } from "@/components/ui/button";
 import { Undo2 } from "lucide-react";
 import { MarkdownText } from "../../markdown-text";
 import { ActionRequest, HumanInterrupt } from "@langchain/langgraph/prebuilt";
 import { toast } from "sonner";
-import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+
+// Reference chrome shared by the review cards below.
+const SECTION =
+  "flex w-full flex-col items-start gap-4 rounded-nested border border-slate-100 bg-white p-4";
+const SECTION_TITLE = "font-geist text-xs font-medium text-[#0A1F4D]";
+const FIELD_LABEL =
+  "text-[9px] font-medium tracking-wider text-slate-400 uppercase";
+const FIELD =
+  "rounded-nested border-slate-100 bg-slate-50 text-[13px] leading-relaxed text-[#0A1F4D] shadow-none placeholder:text-slate-400 focus-visible:border-[#063BAA]/30 focus-visible:ring-[#063BAA]/10 md:text-[13px]";
+const PRIMARY =
+  "bg-brand-gradient flex h-9 items-center justify-center rounded-full px-5 text-[12px] font-medium text-white transition-all disabled:pointer-events-none disabled:opacity-50";
 
 function ResetButton({ handleReset }: { handleReset: () => void }) {
   return (
-    <Button
+    <button
+      type="button"
       onClick={handleReset}
-      variant="ghost"
-      className="flex items-center justify-center gap-2 text-gray-500 hover:text-red-500"
+      className="hover-tint flex h-7 items-center justify-center gap-1 rounded-full px-2.5 text-[11px] font-medium text-slate-400 transition-colors hover:text-rose-500"
     >
-      <Undo2 className="h-4 w-4" />
+      <Undo2 className="h-3.5 w-3.5" />
       <span>Reset</span>
-    </Button>
+    </button>
   );
 }
 
 function ArgsRenderer({ args }: { args: Record<string, any> }) {
   return (
-    <div className="flex w-full flex-col items-start gap-6">
+    <div className="flex w-full flex-col items-start gap-3">
       {Object.entries(args).map(([k, v]) => {
         let value = "";
         if (["string", "number"].includes(typeof v)) {
@@ -36,12 +46,10 @@ function ArgsRenderer({ args }: { args: Record<string, any> }) {
         return (
           <div
             key={`args-${k}`}
-            className="flex flex-col items-start gap-1"
+            className="flex w-full flex-col items-start gap-1.5"
           >
-            <p className="text-sm leading-[18px] text-wrap text-gray-600">
-              {prettifyText(k)}:
-            </p>
-            <span className="w-full max-w-full rounded-xl bg-zinc-100 p-3 text-[13px] leading-[18px] text-black">
+            <p className={FIELD_LABEL}>{prettifyText(k)}</p>
+            <span className="w-full max-w-full rounded-nested bg-slate-50 px-3.5 py-2.5 text-[12px] leading-relaxed text-[#0A1F4D]">
               <MarkdownText>{value}</MarkdownText>
             </span>
           </div>
@@ -107,11 +115,9 @@ function ResponseComponent({
   };
 
   return (
-    <div className="flex w-full flex-col items-start gap-4 rounded-xl border-[1px] border-gray-300 p-6">
+    <div className={SECTION}>
       <div className="flex w-full items-center justify-between">
-        <p className="text-base font-semibold text-black">
-          Respond to assistant
-        </p>
+        <p className={SECTION_TITLE}>Respond to assistant</p>
         <ResetButton
           handleReset={() => {
             onResponseChange("", res);
@@ -123,9 +129,10 @@ function ResponseComponent({
         <ArgsRenderer args={interruptValue.action_request.args} />
       )}
 
-      <div className="flex w-full flex-col items-start gap-[6px]">
-        <p className="min-w-fit text-sm font-medium">Response</p>
+      <div className="flex w-full flex-col items-start gap-1.5">
+        <p className={FIELD_LABEL}>Response</p>
         <Textarea
+          className={FIELD}
           disabled={streaming}
           value={res.args}
           onChange={(e) => onResponseChange(e.target.value, res)}
@@ -136,13 +143,14 @@ function ResponseComponent({
       </div>
 
       <div className="flex w-full items-center justify-end gap-2">
-        <Button
-          variant="brand"
+        <button
+          type="button"
+          className={PRIMARY}
           disabled={streaming}
           onClick={handleSubmit}
         >
           Send Response
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -161,18 +169,18 @@ function AcceptComponent({
   ) => Promise<void>;
 }) {
   return (
-    <div className="flex w-full flex-col items-start gap-4 rounded-lg border-[1px] border-gray-300 p-6">
+    <div className={SECTION}>
       {actionRequestArgs && Object.keys(actionRequestArgs).length > 0 && (
         <ArgsRenderer args={actionRequestArgs} />
       )}
-      <Button
-        variant="brand"
+      <button
+        type="button"
         disabled={streaming}
         onClick={handleSubmit}
-        className="w-full"
+        className={cn(PRIMARY, "w-full")}
       >
         Accept
-      </Button>
+      </button>
     </div>
   );
 }
@@ -258,9 +266,9 @@ function EditAndOrAcceptComponent({
   };
 
   return (
-    <div className="flex w-full flex-col items-start gap-4 rounded-lg border-[1px] border-gray-300 p-6">
+    <div className={SECTION}>
       <div className="flex w-full items-center justify-between">
-        <p className="text-base font-semibold text-black">{header}</p>
+        <p className={SECTION_TITLE}>{header}</p>
         <ResetButton handleReset={handleReset} />
       </div>
 
@@ -286,11 +294,11 @@ function EditAndOrAcceptComponent({
             className="flex h-full w-full flex-col items-start gap-1 px-[1px]"
             key={`allow-edit-args--${k}-${idx}`}
           >
-            <div className="flex w-full flex-col items-start gap-[6px]">
-              <p className="min-w-fit text-sm font-medium">{prettifyText(k)}</p>
+            <div className="flex w-full flex-col items-start gap-1.5">
+              <p className={FIELD_LABEL}>{prettifyText(k)}</p>
               <Textarea
                 disabled={streaming}
-                className="h-full"
+                className={cn(FIELD, "h-full")}
                 value={value}
                 onChange={(e) => onEditChange(e.target.value, editResponse, k)}
                 onKeyDown={handleKeyDown}
@@ -302,13 +310,14 @@ function EditAndOrAcceptComponent({
       })}
 
       <div className="flex w-full items-center justify-end gap-2">
-        <Button
-          variant="brand"
+        <button
+          type="button"
+          className={PRIMARY}
           disabled={streaming}
           onClick={handleSubmit}
         >
           {buttonText}
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -491,7 +500,7 @@ export function InboxItemInput({
   };
 
   return (
-    <div className="flex w-full flex-col items-start justify-start gap-2">
+    <div className="flex w-full flex-col items-start justify-start gap-3">
       {showArgsOutsideActionCards && (
         <ArgsRenderer args={interruptValue.action_request.args} />
       )}
@@ -506,10 +515,12 @@ export function InboxItemInput({
           handleSubmit={handleSubmit}
         />
         {supportsMultipleMethods ? (
-          <div className="mx-auto mt-3 flex items-center gap-3">
-            <Separator className="w-[full]" />
-            <p className="text-sm text-gray-500">Or</p>
-            <Separator className="w-full" />
+          <div className="my-1 flex w-full items-center gap-3">
+            <span className="h-px flex-1 bg-slate-100" />
+            <p className="text-[9px] font-medium tracking-wider text-slate-400 uppercase">
+              Or
+            </p>
+            <span className="h-px flex-1 bg-slate-100" />
           </div>
         ) : null}
         <Response
@@ -520,9 +531,9 @@ export function InboxItemInput({
           onResponseChange={onResponseChange}
           handleSubmit={handleSubmit}
         />
-        {streaming && <p className="text-sm text-gray-600">Running...</p>}
+        {streaming && <p className="text-[11px] text-slate-400">Running…</p>}
         {streamFinished && (
-          <p className="text-base font-medium text-green-600">
+          <p className="text-[12px] font-medium text-[#0A9E6E]">
             Successfully finished Graph invocation.
           </p>
         )}

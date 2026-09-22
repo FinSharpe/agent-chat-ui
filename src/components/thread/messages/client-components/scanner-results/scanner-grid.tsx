@@ -5,9 +5,44 @@ import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
 import { startCase } from 'lodash';
 import { useRatioAliasMap } from '@/hooks/use-scanner-data';
+import { useUiStore } from '@/store/useUiStore';
 
 // Register all Community features
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Quartz, recoloured to the app's navy/blue palette so the grid reads as part
+// of the card around it; the dark variant follows the app theme toggle.
+const GRID_BASE = {
+    fontFamily: 'inherit',
+    fontSize: 12,
+    headerFontWeight: 500,
+    wrapperBorder: false,
+    wrapperBorderRadius: 0,
+    spacing: 7,
+} as const;
+
+const GRID_THEME_LIGHT = themeQuartz.withParams({
+    ...GRID_BASE,
+    accentColor: '#063BAA',
+    backgroundColor: '#FFFFFF',
+    foregroundColor: '#0A1F4D',
+    headerBackgroundColor: '#F5F7FB',
+    headerTextColor: '#455578',
+    borderColor: '#E2E8F0',
+    rowHoverColor: 'rgba(6, 59, 170, 0.05)',
+});
+
+const GRID_THEME_DARK = themeQuartz.withParams({
+    ...GRID_BASE,
+    accentColor: '#8FB4FF',
+    backgroundColor: '#0C1524',
+    foregroundColor: '#F8FAFC',
+    headerBackgroundColor: '#101C30',
+    headerTextColor: '#C7D2E8',
+    borderColor: 'rgba(6, 59, 170, 0.25)',
+    rowHoverColor: 'rgba(143, 180, 255, 0.06)',
+    chromeBackgroundColor: '#101C30',
+});
 
 type ScannerGridProps = {
     rowData: Record<string, any>[];
@@ -36,6 +71,7 @@ const formatColumnHeader = (key: string): string => {
 export function ScannerGrid({ rowData, isLoading = false }: ScannerGridProps) {
     // Get ratio alias map for column headers
     const ratioAliasMap = useRatioAliasMap();
+    const isDark = useUiStore((s) => s.themeMode === 'dark');
 
     // Generate column definitions from the first row of data
     const columnDefs = useMemo(() => {
@@ -66,25 +102,25 @@ export function ScannerGrid({ rowData, isLoading = false }: ScannerGridProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center p-12 rounded-lg border bg-background">
-                <p className="text-sm text-muted-foreground">Loading...</p>
+            <div className="glass-card rounded-card flex items-center justify-center p-12">
+                <p className="text-[11px] text-slate-400">Loading...</p>
             </div>
         );
     }
 
     if (!rowData || rowData.length === 0) {
         return (
-            <div className="flex items-center justify-center p-12 rounded-lg border bg-background">
-                <p className="text-sm text-muted-foreground">No results found</p>
+            <div className="glass-card rounded-card flex items-center justify-center p-12">
+                <p className="text-[11px] text-slate-400">No results found</p>
             </div>
         );
     }
 
     return (
-        <div className="w-full rounded-lg border bg-background overflow-hidden">
+        <div className="glass-card rounded-card w-full overflow-hidden">
             <div className="w-full" style={{ height: Math.min(600, 60 + rowData.length * 42) }}>
                 <AgGridReact
-                    theme={themeQuartz}
+                    theme={isDark ? GRID_THEME_DARK : GRID_THEME_LIGHT}
                     rowData={rowData}
                     columnDefs={columnDefs}
                     onGridReady={onGridReady}

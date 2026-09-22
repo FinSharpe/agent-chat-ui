@@ -8,16 +8,20 @@ import type {
 } from "@/api/generated/report-apis/models";
 import FinSharpeScoresRadarChart from "@/components/pdfs_templates/pf-report/FinSharpeScoresRadarChart";
 import { MonthlyReturnsHeatmapTables } from "@/components/pdfs_templates/pf-report/MonthlyReturnsHeatmap";
-import { Button } from "@/components/ui/button";
 import { SectionFormatter } from "@/lib/section-formatter";
 import type { MonthlyReturnsHeatmapData } from "@/types/pf-analysis";
 import type { Section } from "@/types/stock-analysis";
 import OverallScorePie from "@/modules/core/portfolio/charts/OverallScorePie";
 import RiskScorePie from "@/modules/core/portfolio/charts/RiskScorePie";
-import { ArrowUp } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useRef } from "react";
 import { MarkdownText } from "../../markdown-text";
+import { ANALYSIS_PROSE } from "./analysis-prose";
+import {
+  AnalysisCard,
+  AnalysisPanel,
+  BackToTopButton,
+} from "./analysis-chrome";
 import DrawdownChart from "./DrawdownChart";
 import FundamentalChart from "./FundamentalChart";
 import { FormatNewsSentiment } from "./format-news-sentiment";
@@ -27,26 +31,15 @@ import RiskMetricsTable from "./RiskMetricsTable";
 import SimulationChart from "./SimulationChart";
 import { StockAnalysisDownloadDialog } from "./stock-analysis-download-dialog";
 
-// Full class names so Tailwind JIT can detect them
-const ACCENT_BORDER: Record<string, string> = {
-  indigo: "border-l-indigo-500",
-  rose: "border-l-rose-500",
-  amber: "border-l-amber-500",
-  cyan: "border-l-cyan-500",
-  emerald: "border-l-emerald-500",
-  violet: "border-l-violet-500",
-  slate: "border-l-slate-400",
-};
-
 export default function StockAnalysisComponent(analysis: StockAnalysis) {
   const [threadId] = useQueryState("threadId");
   const { data } = analysis;
   const topRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={topRef} className="space-y-6">
+    <div ref={topRef} className="space-y-3">
       {/* 1. Company Overview */}
-      <SectionCard accent="indigo">
+      <AnalysisCard>
         <FormatSection
           section={data.company_overview.business_overview}
           seqNumber={1}
@@ -57,10 +50,10 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
           />
         )}
         <FormatSection section={data.company_overview.sector_outlook} />
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 2. Technical Analysis */}
-      <SectionCard accent="rose">
+      <AnalysisCard>
         <FormatSection
           section={data.technical_analysis.analysis}
           seqNumber={2}
@@ -92,9 +85,11 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
               </div>
             )}
             {(data.technical_analysis.monthly_returns as any)?.summary && (
-              <MarkdownText>
-                {(data.technical_analysis.monthly_returns as any).summary}
-              </MarkdownText>
+              <div className={ANALYSIS_PROSE}>
+                <MarkdownText>
+                  {(data.technical_analysis.monthly_returns as any).summary}
+                </MarkdownText>
+              </div>
             )}
           </div>
         )}
@@ -111,10 +106,10 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
             }
           />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 3. Fundamental Analysis */}
-      <SectionCard accent="amber">
+      <AnalysisCard>
         <FormatSection
           section={data.fundamental_analysis.analysis}
           seqNumber={3}
@@ -134,10 +129,10 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
             }
           />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 4. Peer Comparison */}
-      <SectionCard accent="cyan">
+      <AnalysisCard>
         <FormatSection
           section={data.peer_comparison.analysis}
           seqNumber={4}
@@ -152,14 +147,16 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
             data={data.peer_comparison.profitability_chart as PeerChartData}
           />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 5. Market Sentiment */}
-      <SectionCard accent="emerald">
-        <FormatNewsSentiment
-          section={data.market_sentiment.news_sentiment}
-          seqNumber={5}
-        />
+      <AnalysisCard>
+        <div className={ANALYSIS_PROSE}>
+          <FormatNewsSentiment
+            section={data.market_sentiment.news_sentiment}
+            seqNumber={5}
+          />
+        </div>
         {data.market_sentiment.conference_call && (
           <FormatSection
             section={data.market_sentiment.conference_call as Section}
@@ -171,11 +168,11 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
           />
         )}
         <FormatSection section={data.market_sentiment.shareholding_pattern} />
-      </SectionCard>
+      </AnalysisCard>
 
       {/* 6. FinSharpe Analysis */}
       {data.finsharpe_analysis && (
-        <SectionCard accent="violet">
+        <AnalysisCard>
           <FormatSection
             section={(data.finsharpe_analysis as any).analysis}
             seqNumber={6}
@@ -208,16 +205,11 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
                         ? RiskScorePie
                         : OverallScorePie;
                       return (
-                        <div
+                        <AnalysisPanel
                           key={`gauge-${idx}`}
-                          className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                          title={s.title}
                         >
-                          <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-                            <h4 className="text-sm font-semibold text-slate-800">
-                              {s.title}
-                            </h4>
-                          </div>
-                          <div className="p-4">
+                          <div className="p-4 pt-2">
                             <div className="relative h-[28vh] w-full sm:h-[50vh] sm:max-h-[350px]">
                               <PieComponent
                                 data={s.chart_data}
@@ -225,12 +217,12 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
                               />
                             </div>
                             {s.summary && (
-                              <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                              <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
                                 {s.summary}
                               </p>
                             )}
                           </div>
-                        </div>
+                        </AnalysisPanel>
                       );
                     })}
                   </div>
@@ -238,32 +230,28 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
               </>
             );
           })()}
-        </SectionCard>
+        </AnalysisCard>
       )}
 
       {/* 7. Outlook */}
-      <SectionCard accent="slate">
+      <AnalysisCard>
         <FormatSection section={data.outlook.summary} seqNumber={7} />
         <FormatSection section={data.outlook.red_flags} />
         {data.outlook.simulation_chart && (
           <SimulationChart {...(data.outlook.simulation_chart as any)} />
         )}
-      </SectionCard>
+      </AnalysisCard>
 
       {/* Footer actions */}
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <BackToTopButton
           onClick={() =>
             topRef.current?.scrollIntoView({
               behavior: "smooth",
               block: "start",
             })
           }
-        >
-          <ArrowUp className="mr-2 h-4 w-4" />
-          Back to Top
-        </Button>
+        />
         <StockAnalysisDownloadDialog
           threadId={threadId}
           analysisId={analysis.id}
@@ -276,24 +264,6 @@ export default function StockAnalysisComponent(analysis: StockAnalysis) {
 
 /* ─── Helper components ──────────────────────────────────────────── */
 
-function SectionCard({
-  accent = "indigo",
-  children,
-  className = "",
-}: {
-  accent?: keyof typeof ACCENT_BORDER;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`space-y-4 rounded-xl border border-l-4 border-slate-200 ${ACCENT_BORDER[accent]} bg-white p-5 shadow-sm ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
 function FormatSection({
   section,
   seqNumber,
@@ -304,5 +274,9 @@ function FormatSection({
   if (!section) return null;
 
   const formatter = new SectionFormatter(section, seqNumber);
-  return <MarkdownText>{formatter.getMarkdown()}</MarkdownText>;
+  return (
+    <div className={ANALYSIS_PROSE}>
+      <MarkdownText>{formatter.getMarkdown()}</MarkdownText>
+    </div>
+  );
 }

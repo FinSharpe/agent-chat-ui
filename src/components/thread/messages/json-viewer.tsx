@@ -58,7 +58,10 @@ export function JsonViewer({
   if (bare) {
     return (
       <div
-        className={cn("overflow-auto p-3 font-mono text-sm leading-relaxed", className)}
+        className={cn(
+          "overflow-auto p-3 font-mono text-[12px] leading-relaxed text-[#0A1F4D]",
+          className,
+        )}
         style={{ maxHeight }}
       >
         <JsonNode
@@ -75,14 +78,14 @@ export function JsonViewer({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-gray-200 bg-white",
+        "overflow-hidden rounded-nested border border-slate-100 bg-white",
         className,
       )}
     >
-      <div className="flex items-center justify-end border-b border-gray-200 bg-gray-50 px-2 py-1">
+      <div className="flex items-center justify-end border-b border-slate-50 bg-slate-50 px-2 py-1">
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          className="hover-tint flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-medium text-slate-500 transition-colors hover:text-[#063BAA]"
           aria-label={copyLabel}
         >
           <AnimatePresence
@@ -98,7 +101,7 @@ export function JsonViewer({
                 transition={{ duration: 0.15 }}
                 className="flex items-center gap-1.5"
               >
-                <CopyCheck className="h-3.5 w-3.5 text-green-600" />
+                <CopyCheck className="h-3.5 w-3.5 text-[#0A9E6E]" />
                 Copied
               </motion.span>
             ) : (
@@ -118,7 +121,7 @@ export function JsonViewer({
         </button>
       </div>
       <div
-        className="overflow-auto p-3 font-mono text-sm leading-relaxed"
+        className="overflow-auto p-3 font-mono text-[12px] leading-relaxed text-[#0A1F4D]"
         style={{ maxHeight }}
       >
         <JsonNode
@@ -161,7 +164,7 @@ function JsonNode({
       <LeafLine
         keyLabel={keyLabel}
         valueNode={
-          <span className="text-gray-400 italic">[Circular]</span>
+          <span className="text-slate-400 italic">[Circular]</span>
         }
         isLast={isLast}
       />
@@ -200,7 +203,7 @@ function JsonNode({
         ) : (
           <button
             onClick={() => setExpanded((e) => !e)}
-            className="flex h-5 w-4 flex-shrink-0 items-center justify-center text-gray-500 hover:text-gray-900"
+            className="flex h-5 w-4 flex-shrink-0 items-center justify-center text-slate-400 hover:text-[#063BAA]"
             aria-label={expanded ? "Collapse" : "Expand"}
           >
             <ChevronRight
@@ -214,27 +217,27 @@ function JsonNode({
         <div className="min-w-0 flex-1">
           {keyLabel !== undefined && (
             <>
-              <span className="text-purple-700">
+              <span className="font-medium text-[#063BAA]">
                 {typeof keyLabel === "number"
                   ? keyLabel
                   : JSON.stringify(keyLabel)}
               </span>
-              <span className="text-gray-500">: </span>
+              <span className="text-slate-400">: </span>
             </>
           )}
           {isEmpty ? (
-            <span className="text-gray-500">
+            <span className="text-slate-400">
               {openBracket}
               {closeBracket}
               {!isLast && ","}
             </span>
           ) : expanded ? (
-            <span className="text-gray-500">{openBracket}</span>
+            <span className="text-slate-400">{openBracket}</span>
           ) : (
             <>
-              <span className="text-gray-500">{openBracket}</span>
-              <span className="px-1 text-gray-400">{summary}</span>
-              <span className="text-gray-500">
+              <span className="text-slate-400">{openBracket}</span>
+              <span className="px-1 font-sans text-[11px] text-slate-400">{summary}</span>
+              <span className="text-slate-400">
                 {closeBracket}
                 {!isLast && ","}
               </span>
@@ -244,7 +247,7 @@ function JsonNode({
       </div>
       {expanded && !isEmpty && (
         <>
-          <div className="ml-[7px] border-l border-gray-100 pl-3">
+          <div className="ml-[7px] border-l border-slate-100 pl-3">
             {entries.map(([k, v], idx) => (
               <JsonNode
                 key={String(k)}
@@ -259,7 +262,7 @@ function JsonNode({
           </div>
           <div className="flex items-start">
             <span className="inline-block h-5 w-4 flex-shrink-0" />
-            <span className="text-gray-500">
+            <span className="text-slate-400">
               {closeBracket}
               {!isLast && ","}
             </span>
@@ -285,16 +288,16 @@ function LeafLine({
       <div className="min-w-0 flex-1">
         {keyLabel !== undefined && (
           <>
-            <span className="text-purple-700">
+            <span className="font-medium text-[#063BAA]">
               {typeof keyLabel === "number"
                 ? keyLabel
                 : JSON.stringify(keyLabel)}
             </span>
-            <span className="text-gray-500">: </span>
+            <span className="text-slate-400">: </span>
           </>
         )}
         {valueNode}
-        {!isLast && <span className="text-gray-500">,</span>}
+        {!isLast && <span className="text-slate-400">,</span>}
       </div>
     </div>
   );
@@ -302,18 +305,18 @@ function LeafLine({
 
 function PrimitiveValue({ value }: { value: JsonPrimitive }) {
   if (value === null) {
-    return <span className="text-gray-400 italic">null</span>;
+    return <span className="text-slate-400 italic">null</span>;
   }
   if (typeof value === "boolean") {
-    return <span className="text-blue-700">{String(value)}</span>;
+    return <span className="text-[#0A1F4D]">{String(value)}</span>;
   }
   if (typeof value === "number") {
-    return <span className="text-amber-700">{value}</span>;
+    return <span className="text-amber-600 tabular-nums">{value}</span>;
   }
   if (typeof value === "string") {
     return <StringValue value={value} />;
   }
-  return <span className="text-gray-500">{String(value)}</span>;
+  return <span className="text-slate-400">{String(value)}</span>;
 }
 
 function StringValue({ value }: { value: string }) {
@@ -323,12 +326,12 @@ function StringValue({ value }: { value: string }) {
   const display = tooLong && !expanded ? value.slice(0, LIMIT) + "…" : value;
 
   return (
-    <span className="break-all whitespace-pre-wrap text-green-700">
+    <span className="break-all whitespace-pre-wrap text-[#0A9E6E]">
       {JSON.stringify(display)}
       {tooLong && (
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="ml-2 rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="hover-tint ml-2 rounded-full px-2 py-0.5 font-sans text-[11px] font-medium text-slate-500 hover:text-[#063BAA]"
         >
           {expanded ? "Show less" : "Show more"}
         </button>

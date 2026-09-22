@@ -59,6 +59,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
       <TooltipIconButton
         tooltip="Copy"
         onClick={onCopy}
+        className="text-white/70 hover:bg-white/10 hover:text-white"
       >
         {!isCopied && <CopyIcon />}
         {isCopied && <CheckIcon />}
@@ -314,6 +315,204 @@ const defaultComponents: any = {
   del: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 };
 
+/**
+ * Chat typography, from the reference answer card: medium-weight navy
+ * headings, relaxed 13px body, blue-dot bullets (drawn in
+ * markdown-styles.css so nested and loose lists keep them) and quiet
+ * hairline tables. Colour and size are inherited, so the same map serves the
+ * navy answer card and the blue user bubble. PDF templates keep the defaults.
+ */
+const chatComponents: any = {
+  ...defaultComponents,
+  h1: ({ className, ...props }: { className?: string }) => (
+    <h1
+      className={cn("font-geist pt-1 text-base font-medium", className)}
+      {...props}
+    />
+  ),
+  h2: ({ className, ...props }: { className?: string }) => (
+    <h2
+      className={cn("font-geist pt-1 text-base font-medium", className)}
+      {...props}
+    />
+  ),
+  h3: ({ className, ...props }: { className?: string }) => (
+    <h3
+      className={cn("font-geist pt-1 text-sm font-medium", className)}
+      {...props}
+    />
+  ),
+  h4: ({ className, ...props }: { className?: string }) => (
+    <h4
+      className={cn("font-geist pt-1 text-sm font-medium", className)}
+      {...props}
+    />
+  ),
+  h5: ({ className, ...props }: { className?: string }) => (
+    <h5
+      className={cn("font-geist text-[13px] font-medium", className)}
+      {...props}
+    />
+  ),
+  h6: ({ className, ...props }: { className?: string }) => (
+    <h6
+      className={cn("font-geist text-[13px] font-medium", className)}
+      {...props}
+    />
+  ),
+  p: ({ className, ...props }: { className?: string }) => (
+    <p
+      className={cn("leading-relaxed", className)}
+      {...props}
+    />
+  ),
+  a: ({ className, ...props }: { className?: string }) => (
+    <a
+      className={cn(
+        "font-medium text-[#063BAA] underline decoration-[#063BAA]/30 underline-offset-2 transition-colors hover:decoration-[#063BAA]",
+        className,
+      )}
+      target="_blank"
+      rel="noreferrer"
+      {...props}
+    />
+  ),
+  blockquote: ({ className, ...props }: { className?: string }) => (
+    <blockquote
+      className={cn("border-l-2 border-[#063BAA]/25 pl-3.5", className)}
+      {...props}
+    />
+  ),
+  ul: ({ className, ...props }: { className?: string }) => (
+    <ul
+      className={cn("space-y-1.5", className)}
+      {...props}
+    />
+  ),
+  ol: ({ className, ...props }: { className?: string }) => (
+    <ol
+      className={cn("space-y-1.5", className)}
+      {...props}
+    />
+  ),
+  hr: ({ className, ...props }: { className?: string }) => (
+    <hr
+      className={cn("border-slate-100", className)}
+      {...props}
+    />
+  ),
+  table: ({
+    className,
+    children,
+    ...props
+  }: {
+    className?: string;
+    children: React.ReactNode;
+  }) => (
+    <div className="scrollbar-thin max-h-[400px] max-w-full overflow-auto rounded-nested border border-slate-100">
+      <table
+        className={cn("w-full border-collapse text-[12px]", className)}
+        {...props}
+      >
+        {children}
+      </table>
+    </div>
+  ),
+  th: ({ className, ...props }: { className?: string }) => (
+    <th
+      className={cn(
+        "sticky top-0 bg-slate-50 px-3 py-2 text-left text-[11px] font-medium whitespace-nowrap text-slate-500",
+        className,
+      )}
+      {...props}
+    />
+  ),
+  td: ({ className, ...props }: { className?: string }) => (
+    <td
+      className={cn(
+        "border-t border-slate-100 px-3 py-2 text-left align-top tabular-nums",
+        className,
+      )}
+      {...props}
+    />
+  ),
+  tr: ({ className, ...props }: { className?: string }) => (
+    <tr
+      className={className}
+      {...props}
+    />
+  ),
+  pre: ({ className, ...props }: { className?: string }) => (
+    <pre
+      className={cn(
+        "overflow-x-auto rounded-nested bg-zinc-950 text-[12px] text-white",
+        className,
+      )}
+      {...props}
+    />
+  ),
+  code: ({
+    className,
+    children,
+    ...props
+  }: {
+    className?: string;
+    children: React.ReactNode;
+  }) => {
+    if (/language-(\w+)/.test(className || "")) {
+      return defaultComponents.code({ className, children, ...props });
+    }
+    return (
+      <code
+        className={cn(
+          "rounded-md bg-[#063BAA]/6 px-1.5 py-0.5 text-[0.9em] font-medium",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+  details: ({
+    className,
+    children,
+    ...props
+  }: {
+    className?: string;
+    children: React.ReactNode;
+  }) => (
+    <details
+      className={cn(
+        "overflow-hidden rounded-nested border border-slate-100 bg-slate-50",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </details>
+  ),
+  summary: ({
+    className,
+    children,
+    ...props
+  }: {
+    className?: string;
+    children: React.ReactNode;
+  }) => (
+    <summary
+      className={cn(
+        "hover-tint flex cursor-pointer items-center gap-2 px-3.5 py-2.5 font-medium select-none",
+        className,
+      )}
+      {...props}
+    >
+      <ChevronRightIcon className="h-4 w-4 transition-transform duration-200" />
+      {children}
+    </summary>
+  ),
+};
+
 const BASE_REMARK_PLUGINS: any[] = [
   remarkGfm,
   [remarkMath, { singleDollarTextMath: false }],
@@ -361,17 +560,27 @@ const MarkdownTextImpl: FC<{
    * the markdown pipeline stays exactly as it was.
    */
   citations?: CitationIndex;
-}> = ({ children, citations }) => {
-  const components = useMemo(
-    () =>
-      citations && !citations.isEmpty
-        ? { ...defaultComponents, span: citationSpan(citations) }
-        : defaultComponents,
-    [citations],
-  );
+  /**
+   * `chat` draws the reference's chat typography (answer card, user bubble);
+   * the default is the original look, which the PDF report templates use.
+   */
+  variant?: "default" | "chat";
+}> = ({ children, citations, variant = "default" }) => {
+  const components = useMemo(() => {
+    const base = variant === "chat" ? chatComponents : defaultComponents;
+    return citations && !citations.isEmpty
+      ? { ...base, span: citationSpan(citations) }
+      : base;
+  }, [citations, variant]);
 
   return (
-    <div className="markdown-content chat-container overflow-hidden text-left">
+    <div
+      className={
+        variant === "chat"
+          ? "chat-md min-w-0 text-left"
+          : "markdown-content chat-container overflow-hidden text-left"
+      }
+    >
       <ReactMarkdown
         remarkPlugins={
           citations && !citations.isEmpty

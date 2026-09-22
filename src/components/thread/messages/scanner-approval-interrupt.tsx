@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp, CheckCircle2, Edit3, RefreshCcw, Sliders, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  ChevronDown,
+  CheckCircle2,
+  Edit3,
+  RefreshCcw,
+  ScanSearch,
+  Sliders,
+  Pencil,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useStreamContext } from "@/providers/Stream";
@@ -12,6 +20,36 @@ import {
 } from "@/lib/scanner-approval-interrupt";
 import { RelaxCriteriaModal } from "./scanner-approval-modals";
 import { Textarea } from "@/components/ui/textarea";
+
+// Reference chrome for the approval card's controls.
+const SECTION_LABEL =
+  "text-[9px] font-medium tracking-wider text-slate-400 uppercase";
+const PRIMARY =
+  "bg-brand-gradient flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-medium text-white transition-all disabled:pointer-events-none disabled:opacity-50";
+const MINT =
+  "flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#DFF9EF] px-4 text-[12px] font-medium text-[#0A1F4D] transition-all disabled:pointer-events-none disabled:opacity-50";
+const OUTLINE =
+  "glass-card hover-tint flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-medium text-[#0A1F4D] transition-colors disabled:pointer-events-none disabled:opacity-50";
+const FIELD =
+  "rounded-nested border-slate-100 bg-slate-50 text-[12px] text-[#0A1F4D] shadow-none focus-visible:border-[#063BAA]/30 focus-visible:ring-[#063BAA]/10 md:text-[12px]";
+
+/** One key-metric style tile (StockAnalysisCard's "Key Metrics"). */
+function DetailTile({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="glass-tile rounded-nested px-3.5 py-2.5">
+      <p className="text-[9px] text-slate-400">{label}</p>
+      <div className="mt-1 text-[11px] font-medium text-[#0A1F4D] tabular-nums">
+        {value}
+      </div>
+    </div>
+  );
+}
 
 interface ScannerApprovalInterruptProps {
   interrupt: ScannerApprovalInterrupt;
@@ -259,251 +297,106 @@ export function ScannerApprovalInterruptView({
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div className="glass-card rounded-card font-funnel mt-3 w-full space-y-4 p-5">
       {/* Header */}
-      <div className="border-b border-border bg-muted/50 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-card-foreground">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
+          <ScanSearch size={16} />
+        </div>
+        <div className="min-w-0">
+          <span className="block text-[9px] font-medium tracking-wider text-slate-400 uppercase">
+            Scanner approval
+          </span>
+          <h3 className="font-geist text-sm font-medium text-[#0A1F4D]">
             Is this what you meant?
           </h3>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-4 space-y-4">
-        {/* Message */}
-        <div className="rounded-md bg-muted/30 p-3">
-          <p className="text-sm text-foreground">{interrupt.message}</p>
-        </div>
+      {/* Message */}
+      <p className="rounded-nested bg-[#063BAA]/6 px-4 py-3 text-[13px] leading-relaxed text-[#0A1F4D]">
+        {interrupt.message}
+      </p>
 
-        {/* Scanner ID (for saved scanners) or Search Query (for custom scanners) */}
-        {isCustomScanner ? (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-foreground">
-                Search Query
-              </h4>
-              {!isEditingQuery && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsEditingQuery(true)}
-                  disabled={loading}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Pencil className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-              )}
-            </div>
-            {isEditingQuery ? (
-              <div className="space-y-2">
-                <Textarea
-                  value={editedQuery}
-                  onChange={(e) => setEditedQuery(e.target.value)}
-                  rows={4}
-                  disabled={loading}
-                  className="font-mono text-sm bg-background"
-                  autoFocus
-                />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCancelEdit}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleEditQuery}
-                    disabled={loading}
-                  >
-                    Save & Run
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <code className="block rounded-md bg-muted px-3 py-2 font-mono text-sm text-foreground">
-                {interrupt.scanner_details.search_query}
-              </code>
-            )}
-          </div>
-        ) : (
-          <div>
-            <h4 className="text-sm font-medium text-foreground mb-2">
-              Scanner ID
-            </h4>
-            <div className="rounded-md bg-muted px-3 py-2 text-sm text-foreground font-medium">
-              #{interrupt.scanner_details.scanner_id}
-            </div>
-          </div>
-        )}
-
-        {/* Scanner Details (Collapsible) */}
-        <div className="border border-border rounded-md overflow-hidden">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full items-center justify-between bg-muted/30 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <span>Scanner Details</span>
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-
-          <AnimatePresence initial={false}>
-            {isExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
+      {/* Scanner ID (for saved scanners) or Search Query (for custom scanners) */}
+      {isCustomScanner ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className={SECTION_LABEL}>Search query</span>
+            {!isEditingQuery && (
+              <button
+                type="button"
+                onClick={() => setIsEditingQuery(true)}
+                disabled={loading}
+                className="hover-tint flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-medium text-[#063BAA] transition-colors disabled:opacity-50"
               >
-                <div className="p-3 space-y-3 bg-background">
-                  {/* Group filter (custom scanners only) */}
-                  {isCustomScanner && interrupt.scanner_details.group && (
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Group
-                      </div>
-                      <p className="text-sm text-foreground">
-                        {interrupt.scanner_details.group}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Sort (custom scanners only) */}
-                  {isCustomScanner && interrupt.scanner_details.sort && (
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Sort
-                      </div>
-                      <p className="text-sm text-foreground">
-                        {interrupt.scanner_details.sort}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Fixed Columns (custom scanners only) */}
-                  {isCustomScanner && interrupt.scanner_details.fixed_columns && (
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Extra Columns
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {interrupt.scanner_details.fixed_columns
-                          .split(",")
-                          .map((col: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                            >
-                              {col.trim()}
-                            </span>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Parameters Grid */}
-                  <div
-                    className={`grid grid-cols-2 gap-3 ${isCustomScanner ? "pt-2 border-t border-border" : ""}`}
-                  >
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Page Number
-                      </div>
-                      <div className="text-sm text-foreground">
-                        {interrupt.scanner_details.page_number}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Page Size
-                      </div>
-                      <div className="text-sm text-foreground">
-                        {interrupt.scanner_details.page_size}
-                      </div>
-                    </div>
-                    {/* Segment (custom scanners only) */}
-                    {isCustomScanner && (
-                      <div>
-                        <div className="text-xs font-medium text-muted-foreground mb-1">
-                          Segment
-                        </div>
-                        <div className="text-sm text-foreground">
-                          {interrupt.scanner_details.segment || "All"}
-                        </div>
-                      </div>
-                    )}
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1">
-                        Latest Quarter Only
-                      </div>
-                      <div className="text-sm text-foreground">
-                        {interrupt.scanner_details
-                          .show_only_latest_quarter_data === "1"
-                          ? "Yes"
-                          : "No"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                <Pencil className="h-3 w-3" />
+                Edit
+              </button>
             )}
-          </AnimatePresence>
+          </div>
+          {isEditingQuery ? (
+            <div className="space-y-2.5">
+              <Textarea
+                value={editedQuery}
+                onChange={(e) => setEditedQuery(e.target.value)}
+                rows={4}
+                disabled={loading}
+                className={cn(FIELD, "font-mono")}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  className={OUTLINE}
+                  onClick={handleCancelEdit}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={PRIMARY}
+                  onClick={handleEditQuery}
+                  disabled={loading}
+                >
+                  Save & Run
+                </button>
+              </div>
+            </div>
+          ) : (
+            <code className="glass-tile rounded-nested block px-3.5 py-2.5 font-mono text-[12px] leading-relaxed break-words text-[#0A1F4D]">
+              {interrupt.scanner_details.search_query}
+            </code>
+          )}
         </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button
-            onClick={handleApprove}
-            disabled={loading || showModifyForm}
-            className="flex items-center gap-2"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Approve
-          </Button>
-
-          <Button
-            variant="secondary"
-            onClick={handleCancel}
-            disabled={loading || showModifyForm}
-            className="flex items-center gap-2"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Retry
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => setShowRelaxModal(true)}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            <Sliders className="h-4 w-4" />
-            Relax Criteria
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => setShowModifyForm(!showModifyForm)}
-            disabled={loading}
-            className="items-center gap-2 hidden"
-          >
-            <Edit3 className="h-4 w-4" />
-            {showModifyForm ? "Hide Modify Form" : "Modify Parameters"}
-          </Button>
+      ) : (
+        <div className="space-y-2">
+          <span className={SECTION_LABEL}>Scanner ID</span>
+          <div className="glass-tile rounded-nested px-3.5 py-2.5 text-[13px] font-medium text-[#0A1F4D] tabular-nums">
+            #{interrupt.scanner_details.scanner_id}
+          </div>
         </div>
+      )}
 
-        {/* Modify Form */}
+      {/* Scanner Details (Collapsible) */}
+      <div className="overflow-hidden rounded-nested border border-slate-100">
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="hover-tint flex w-full items-center justify-between px-4 py-3 text-[12px] font-medium text-[#0A1F4D] transition-colors"
+        >
+          <span>Scanner details</span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-slate-400 transition-transform",
+              isExpanded && "rotate-180",
+            )}
+          />
+        </button>
+
         <AnimatePresence initial={false}>
-          {showModifyForm && (
+          {isExpanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
@@ -511,94 +404,241 @@ export function ScannerApprovalInterruptView({
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <form
-                onSubmit={handleModifySubmit}
-                className="border border-border rounded-md p-4 space-y-4 bg-muted/20"
-              >
-                <h4 className="text-sm font-semibold text-foreground">
-                  Modify Scanner Parameters
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Page Number */}
-                  <div className="space-y-2">
-                    <Label htmlFor="page_number">Page Number</Label>
-                    <Input
-                      id="page_number"
-                      type="number"
-                      min="1"
-                      value={pageNumber}
-                      onChange={(e) => setPageNumber(e.target.value)}
-                      className="bg-background"
-                    />
+              <div className="space-y-3.5 px-4 pt-1 pb-4">
+                {/* Group filter (custom scanners only) */}
+                {isCustomScanner && interrupt.scanner_details.group && (
+                  <div className="space-y-1">
+                    <span className={SECTION_LABEL}>Group</span>
+                    <p className="text-[12px] text-[#0A1F4D]">
+                      {interrupt.scanner_details.group}
+                    </p>
                   </div>
+                )}
 
-                  {/* Page Size */}
-                  <div className="space-y-2">
-                    <Label htmlFor="page_size">Page Size</Label>
-                    <Input
-                      id="page_size"
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={pageSize}
-                      onChange={(e) => setPageSize(e.target.value)}
-                      className="bg-background"
-                    />
+                {/* Sort (custom scanners only) */}
+                {isCustomScanner && interrupt.scanner_details.sort && (
+                  <div className="space-y-1">
+                    <span className={SECTION_LABEL}>Sort</span>
+                    <p className="text-[12px] text-[#0A1F4D]">
+                      {interrupt.scanner_details.sort}
+                    </p>
                   </div>
+                )}
 
+                {/* Fixed Columns (custom scanners only) */}
+                {isCustomScanner && interrupt.scanner_details.fixed_columns && (
+                  <div className="space-y-1.5">
+                    <span className={SECTION_LABEL}>Extra columns</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {interrupt.scanner_details.fixed_columns
+                        .split(",")
+                        .map((col: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="rounded-full bg-[#063BAA]/8 px-2 py-0.5 text-[10px] font-medium text-[#063BAA]"
+                          >
+                            {col.trim()}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Parameters Grid */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  <DetailTile
+                    label="Page Number"
+                    value={interrupt.scanner_details.page_number}
+                  />
+                  <DetailTile
+                    label="Page Size"
+                    value={interrupt.scanner_details.page_size}
+                  />
                   {/* Segment (custom scanners only) */}
                   {isCustomScanner && (
-                    <div className="space-y-2">
-                      <Label htmlFor="segment">Segment</Label>
-                      <Input
-                        id="segment"
-                        type="text"
-                        value={segment}
-                        onChange={(e) => setSegment(e.target.value)}
-                        className="bg-background"
-                      />
-                    </div>
+                    <DetailTile
+                      label="Segment"
+                      value={interrupt.scanner_details.segment || "All"}
+                    />
                   )}
-
-                  {/* Show Only Latest Quarter Data */}
-                  <div className="space-y-2">
-                    <Label htmlFor="latest_quarter">
-                      Latest Quarter Only
-                    </Label>
-                    <select
-                      id="latest_quarter"
-                      value={showOnlyLatestQuarterData}
-                      onChange={(e) =>
-                        setShowOnlyLatestQuarterData(e.target.value)
-                      }
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                    >
-                      <option value="0">No</option>
-                      <option value="1">Yes</option>
-                    </select>
-                  </div>
+                  <DetailTile
+                    label="Latest Quarter Only"
+                    value={
+                      interrupt.scanner_details
+                        .show_only_latest_quarter_data === "1"
+                        ? "Yes"
+                        : "No"
+                    }
+                  />
                 </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end pt-2">
-                  <Button type="submit" disabled={loading}>
-                    Submit Modified Parameters
-                  </Button>
-                </div>
-              </form>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Modals */}
-        <RelaxCriteriaModal
-          open={showRelaxModal}
-          onOpenChange={setShowRelaxModal}
-          onSubmit={handleRelaxCriteria}
-          loading={loading}
-        />
       </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-2 pt-1">
+        <button
+          type="button"
+          onClick={handleApprove}
+          disabled={loading || showModifyForm}
+          className={PRIMARY}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Approve
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCancel}
+          disabled={loading || showModifyForm}
+          className={MINT}
+        >
+          <RefreshCcw className="h-3.5 w-3.5" />
+          Retry
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowRelaxModal(true)}
+          disabled={loading}
+          className={OUTLINE}
+        >
+          <Sliders className="h-3.5 w-3.5" />
+          Relax Criteria
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowModifyForm(!showModifyForm)}
+          disabled={loading}
+          className={cn(OUTLINE, "hidden")}
+        >
+          <Edit3 className="h-3.5 w-3.5" />
+          {showModifyForm ? "Hide Modify Form" : "Modify Parameters"}
+        </button>
+      </div>
+
+      {/* Modify Form */}
+      <AnimatePresence initial={false}>
+        {showModifyForm && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <form
+              onSubmit={handleModifySubmit}
+              className="space-y-4 rounded-nested border border-slate-100 p-4"
+            >
+              <h4 className="font-geist text-xs font-medium text-[#0A1F4D]">
+                Modify Scanner Parameters
+              </h4>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {/* Page Number */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="page_number"
+                    className={SECTION_LABEL}
+                  >
+                    Page Number
+                  </Label>
+                  <Input
+                    id="page_number"
+                    type="number"
+                    min="1"
+                    value={pageNumber}
+                    onChange={(e) => setPageNumber(e.target.value)}
+                    className={FIELD}
+                  />
+                </div>
+
+                {/* Page Size */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="page_size"
+                    className={SECTION_LABEL}
+                  >
+                    Page Size
+                  </Label>
+                  <Input
+                    id="page_size"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    value={pageSize}
+                    onChange={(e) => setPageSize(e.target.value)}
+                    className={FIELD}
+                  />
+                </div>
+
+                {/* Segment (custom scanners only) */}
+                {isCustomScanner && (
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="segment"
+                      className={SECTION_LABEL}
+                    >
+                      Segment
+                    </Label>
+                    <Input
+                      id="segment"
+                      type="text"
+                      value={segment}
+                      onChange={(e) => setSegment(e.target.value)}
+                      className={FIELD}
+                    />
+                  </div>
+                )}
+
+                {/* Show Only Latest Quarter Data */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="latest_quarter"
+                    className={SECTION_LABEL}
+                  >
+                    Latest Quarter Only
+                  </Label>
+                  <select
+                    id="latest_quarter"
+                    value={showOnlyLatestQuarterData}
+                    onChange={(e) =>
+                      setShowOnlyLatestQuarterData(e.target.value)
+                    }
+                    className="flex h-9 w-full rounded-nested border border-slate-100 bg-slate-50 px-3 py-1 text-[12px] text-[#0A1F4D] transition-colors focus-visible:ring-[3px] focus-visible:ring-[#063BAA]/10 focus-visible:outline-none"
+                  >
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className={PRIMARY}
+                  disabled={loading}
+                >
+                  Submit Modified Parameters
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modals */}
+      <RelaxCriteriaModal
+        open={showRelaxModal}
+        onOpenChange={setShowRelaxModal}
+        onSubmit={handleRelaxCriteria}
+        loading={loading}
+      />
     </div>
   );
 }

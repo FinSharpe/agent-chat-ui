@@ -108,3 +108,101 @@
 .chat-message-table .table-container table {
     width: 100%;
 }
+/* --------------------------------------------------------------------------
+   Chat typography (MarkdownText variant="chat") — the reference answer card:
+   blocks 12px apart, blue-dot bullets, numbered items in the brand blue.
+   Drawn with pseudo-elements so loose and nested lists keep their markers.
+   -------------------------------------------------------------------------- */
+[data-app-mode] .chat-md > * + * {
+  margin-top: 0.75rem;
+}
+
+[data-app-mode] .chat-md ul,
+[data-app-mode] .chat-md ol {
+  list-style: none;
+  padding: 0;
+  margin-left: 0;
+}
+
+[data-app-mode] .chat-md li {
+  position: relative;
+  padding-left: 0.875rem;
+  line-height: 1.375;
+}
+
+[data-app-mode] .chat-md ul > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.375rem;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: #063baa;
+}
+
+[data-app-mode] .chat-md ol {
+  counter-reset: chat-md-ol;
+}
+
+[data-app-mode] .chat-md ol > li {
+  counter-increment: chat-md-ol;
+  padding-left: 1.25rem;
+}
+
+[data-app-mode] .chat-md ol > li::before {
+  content: counter(chat-md-ol) ".";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #063baa;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.dark [data-app-mode] .chat-md ol > li::before {
+  color: var(--tone-blue-fg);
+}
+
+/* A list item's own paragraphs and sub-lists sit tight under it. */
+[data-app-mode] .chat-md li > p {
+  line-height: inherit;
+}
+[data-app-mode] .chat-md li > * + * {
+  margin-top: 0.375rem;
+}
+
+/* Tables: header row on the pale fill, hairlines between rows only. */
+[data-app-mode] .chat-md table tr:first-child td {
+  border-top: 0;
+}
+[data-app-mode] .chat-md thead + tbody tr:first-child td {
+  border-top: 1px solid var(--color-slate-100);
+}
+.dark [data-app-mode] .chat-md th {
+  background: rgba(255, 255, 255, 0.04);
+}
+.dark [data-app-mode] .chat-md td {
+  border-color: var(--card-border);
+}
+
+[data-app-mode] .chat-md summary::-webkit-details-marker {
+  display: none;
+}
+[data-app-mode] .chat-md details[open] summary svg {
+  transform: rotate(90deg);
+}
+[data-app-mode] .chat-md details > *:not(summary) {
+  padding: 0 0.875rem 0.875rem;
+}
+
+/* Inline code on the dark canvas. */
+.dark [data-app-mode] .chat-md code:not(pre code) {
+  background: var(--tone-blue-weak);
+}
+
+/* The brand-blue bullet disappears on the dark canvas; use the light blue
+   the rest of the dark theme's blue accents use. */
+.dark [data-app-mode] .chat-md ul > li::before {
+  background: var(--tone-blue-fg);
+}

@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  ChevronRight,
-  CheckCircle2,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { ChevronRight, Check, Loader2, AlertCircle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
 import { cn } from "@/lib/utils";
@@ -113,13 +108,13 @@ function TextFallback({ text }: { text: string }) {
 
   return (
     <>
-      <pre className="text-foreground/80 max-h-[60vh] overflow-auto p-3 font-mono text-xs break-words whitespace-pre-wrap">
+      <pre className="max-h-[60vh] overflow-auto p-3 font-mono text-[11px] break-words whitespace-pre-wrap text-[#0A1F4D]">
         {display}
       </pre>
       {tooLong && (
         <button
           onClick={() => setExpanded((e) => !e)}
-          className="border-border text-muted-foreground hover:bg-muted hover:text-foreground flex w-full cursor-pointer items-center justify-center border-t py-1.5 text-xs"
+          className="hover-tint flex w-full cursor-pointer items-center justify-center border-t border-slate-100 py-1.5 text-[11px] font-medium text-slate-500 hover:text-[#063BAA]"
         >
           {expanded ? "Show less" : "Show more"}
         </button>
@@ -128,34 +123,54 @@ function TextFallback({ text }: { text: string }) {
   );
 }
 
-/** Small status glyph used both in the group header and per tool row. */
-function StatusBadge({
+/**
+ * The status as a small round tile: blue spinner while running, rose on an
+ * error, mint check when done.
+ */
+function StatusTile({
   status,
-  label = true,
+  size = "md",
 }: {
   status: RunStatus;
-  label?: boolean;
+  size?: "sm" | "md";
 }) {
+  const box = size === "sm" ? "h-4 w-4" : "h-6 w-6";
+  const icon = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3";
   if (status === "running") {
     return (
-      <span className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        {label && "Running"}
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]",
+          box,
+        )}
+      >
+        <Loader2 className={cn(icon, "animate-spin")} />
       </span>
     );
   }
   if (status === "error") {
     return (
-      <span className="text-error-fg flex items-center gap-1 text-xs font-medium">
-        <AlertCircle className="h-3 w-3" />
-        {label && "Error"}
+      <span
+        className={cn(
+          "chat-error-tile flex shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600",
+          box,
+        )}
+      >
+        <AlertCircle className={icon} />
       </span>
     );
   }
   return (
-    <span className="text-success-fg flex items-center gap-1 text-xs font-medium">
-      <CheckCircle2 className="h-3 w-3" />
-      {label && "Done"}
+    <span
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full bg-[#97edcc]/25 text-[#0A9E6E]",
+        box,
+      )}
+    >
+      <Check
+        className={icon}
+        strokeWidth={3}
+      />
     </span>
   );
 }
@@ -169,7 +184,7 @@ function Panel({ children }: { children: React.ReactNode }) {
       transition={{ duration: 0.18 }}
       className="overflow-hidden"
     >
-      <div className="pt-2">{children}</div>
+      <div className="pt-1 pb-1.5">{children}</div>
     </motion.div>
   );
 }
@@ -186,26 +201,33 @@ function ToolRow({ toolCall, response }: ToolCallItem) {
       <button
         onClick={() => expandable && setOpen((o) => !o)}
         className={cn(
-          "group/row flex items-center gap-2 py-0.5 text-left",
-          expandable ? "cursor-pointer" : "cursor-default",
+          "flex w-full items-center gap-2 rounded-tile px-2 py-1.5 text-left transition-colors",
+          expandable ? "hover-tint cursor-pointer" : "cursor-default",
         )}
         aria-expanded={open}
         disabled={!expandable}
       >
-        <span
-          className={cn(
-            "text-foreground text-sm font-medium transition-colors",
-            expandable && "group-hover/row:text-primary",
-          )}
-        >
+        <StatusTile
+          status={statusOf(response)}
+          size="sm"
+        />
+        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[#0A1F4D]">
           {formatToolName(toolCall.name)}
         </span>
+        {expandable && (
+          <ChevronRight
+            className={cn(
+              "h-3 w-3 shrink-0 text-slate-400 transition-transform",
+              open && "rotate-90",
+            )}
+          />
+        )}
       </button>
 
       <AnimatePresence initial={false}>
         {open && expandable && (
           <Panel>
-            <div className="border-border bg-bg-subtle ml-7 max-h-[200px] overflow-auto rounded-lg border">
+            <div className="ml-6 max-h-[240px] overflow-auto rounded-nested border border-slate-100 bg-white">
               {hasArgs && (
                 <JsonViewer
                   value={toolCall.args}
@@ -214,9 +236,9 @@ function ToolRow({ toolCall, response }: ToolCallItem) {
                 />
               )}
               {parsed && (
-                <div className={cn(hasArgs && "border-border border-t")}>
+                <div className={cn(hasArgs && "border-t border-slate-100")}>
                   <div className="px-3 pt-2 pb-0.5">
-                    <span className="text-foreground text-xs font-semibold">
+                    <span className="text-[9px] font-medium tracking-wider text-slate-400 uppercase">
                       Response
                     </span>
                   </div>
@@ -240,8 +262,9 @@ function ToolRow({ toolCall, response }: ToolCallItem) {
 }
 
 /**
- * Groups every tool call from one AI message into a single sleek accordion.
- * Step 1: open the header → see the tool rows. Step 2: open a row's chip → data.
+ * Groups every tool call from one AI message into one quiet row: a status
+ * tile and what the agent did. Open it for the individual tools, then a tool
+ * for its request and response.
  */
 export function ToolCallGroup({ items }: { items: ToolCallItem[] }) {
   const [open, setOpen] = useState(false);
@@ -255,24 +278,22 @@ export function ToolCallGroup({ items }: { items: ToolCallItem[] }) {
     : `Used ${items.length} tools`;
 
   return (
-    <div>
+    <div className="w-full">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="text-muted-foreground hover:text-foreground group/header flex items-center gap-1.5 rounded-md py-1 text-left transition-colors"
+        className="group/header hover-tint -ml-1 inline-flex max-w-full items-center gap-2 rounded-full py-1 pr-3 pl-1 text-left transition-colors"
         aria-expanded={open}
       >
+        <StatusTile status={status} />
+        <span className="truncate text-[11px] font-medium text-slate-500 transition-colors group-hover/header:text-[#0A1F4D]">
+          {label}
+        </span>
         <ChevronRight
           className={cn(
-            "h-3.5 w-3.5 flex-shrink-0 transition-transform",
+            "h-3 w-3 shrink-0 text-slate-400 transition-transform",
             open && "rotate-90",
           )}
         />
-        <span className="text-sm font-medium">{label}</span>
-        {status !== "done" && (
-          <span className="ml-1.5">
-            <StatusBadge status={status} />
-          </span>
-        )}
       </button>
 
       <AnimatePresence initial={false}>
@@ -285,7 +306,7 @@ export function ToolCallGroup({ items }: { items: ToolCallItem[] }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="border-border/70 mt-0.5 ml-[7px] flex flex-col gap-1 border-l pt-1 pb-1 pl-4">
+            <div className="mt-1.5 flex max-w-[92%] flex-col gap-0.5 rounded-nested border border-slate-100 bg-slate-50/60 p-1.5">
               {items.map((item, idx) => (
                 <ToolRow
                   key={item.toolCall.id ?? idx}

@@ -4,7 +4,7 @@ import {
   Compass,
   Download,
   MessageSquare,
-  Sparkles,
+  Brain,
 } from "lucide-react";
 import type { GuideSection } from "../types/home.types";
 
@@ -135,17 +135,13 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     tip: "Agent workflows take a few minutes because each step genuinely runs in sequence — the output of one feeds the next.",
   },
   {
-    id: "assistant",
+    id: "memory",
     level: "Advanced",
-    icon: Sparkles,
-    title: "Assistant Mode and Memory",
+    icon: Brain,
+    title: "Memory",
     summary:
-      "Two features that make longer-running work easier: guided expert modes, and a searchable record of everything you've asked.",
+      "A searchable record of everything you've asked, so longer-running work is easy to pick back up.",
     steps: [
-      {
-        title: "Use Assistant Mode",
-        body: "The sparkle beside the FinSharpe logo opens eight expert modes — risk profiling, backtesting, portfolio review and more. Pick one and it starts a guided conversation.",
-      },
       {
         title: "Return to past work",
         body: "Memory keeps every conversation, searchable by title. Bookmark the ones that matter so they stay at the top of the page.",

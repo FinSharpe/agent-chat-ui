@@ -27,8 +27,6 @@ interface UiStore {
   /** Profile overlay, opened from the identity row / header avatar menu. */
   profileSettingsOpen: boolean;
   setProfileSettingsOpen: (open: boolean) => void;
-  assistantOpen: boolean;
-  setAssistantOpen: (open: boolean) => void;
 
   /**
    * A message to send as the first turn of a fresh chat. Set by
@@ -64,8 +62,6 @@ export const useUiStore = create<UiStore>()(
       profileSettingsOpen: false,
       setProfileSettingsOpen: (profileSettingsOpen) =>
         set({ profileSettingsOpen }),
-      assistantOpen: false,
-      setAssistantOpen: (assistantOpen) => set({ assistantOpen }),
 
       pendingPrompt: null,
       setPendingPrompt: (pendingPrompt) => set({ pendingPrompt }),

@@ -9,7 +9,6 @@ import {
   Trash2,
   Edit3,
   Check,
-  Sparkles,
   X,
   Home,
   Compass,
@@ -59,7 +58,6 @@ export default function WebSidebar() {
   } = useThreadsQuery();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const onToggleCollapsed = useUiStore((s) => s.toggleSidebar);
-  const onOpenAssistant = () => useUiStore.getState().setAssistantOpen(true);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -152,15 +150,6 @@ export default function WebSidebar() {
 
         <div className="flex-1" />
 
-        <div className="w-full shrink-0 px-2">
-          <button
-            onClick={onOpenAssistant}
-            title="AI Assistant"
-            className="rounded-tile hover-tint flex h-10 w-full items-center justify-center text-slate-400 transition-colors hover:text-[#063BAA]"
-          >
-            <Sparkles size={19} />
-          </button>
-        </div>
         <SidebarAccountFooter collapsed />
       </aside>
     );
@@ -187,13 +176,6 @@ export default function WebSidebar() {
           </span>
         </button>
         <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            onClick={onOpenAssistant}
-            className="hover-tint flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:text-[#063BAA]"
-            title="AI Assistant"
-          >
-            <Sparkles size={19} />
-          </button>
           <button
             onClick={onToggleCollapsed}
             className="hover-tint flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:text-[#063BAA]"

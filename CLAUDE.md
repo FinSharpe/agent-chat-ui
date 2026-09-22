@@ -41,7 +41,7 @@ Every signed-in page (`src/app/(main)/`) renders through `src/app/(main)/layout.
 ```
 ClientProviders (Toaster, ThreadProvider, StreamProvider)
   └─ AppViewport (theme class, desktop zoom-to-window scaling, Radix portal roots)
-      └─ AppShell (desktop sidebar or mobile header + bottom nav, profile/assistant overlays)
+      └─ AppShell (desktop sidebar or mobile header + bottom nav, profile overlay)
           └─ the route's page (owns its own scrolling)
 ```
 The chat itself (`/`) wraps `Thread` in `ArtifactProvider`.
@@ -149,7 +149,7 @@ src/modules/
 - The middleware sends a visitor with no session to Welcome with `?next=`; every screen carries `next` forward and `safeReturnPath` checks it. A session that dies mid-use (401 in `AuthProvider`) goes straight to Sign In; signing out returns to Welcome.
 
 ### account module
-`src/modules/account/` holds `ProfileSettingsPage` (real user data only — name, email, roles, sign out) and `AssistantModeOverlay` (wheel of tools; Start Chat calls `createNewChat` with the tool's prompt). There is no Account Settings screen: identity, sign out, the theme switch, MCP Access and Delete Account live in the shell's nav (see the shell module).
+`src/modules/account/` holds `ProfileSettingsPage` (real user data only — name, email, roles, sign out). There is no Account Settings screen and no Assistant Mode: identity, sign out, the theme switch, MCP Access and Delete Account live in the shell's nav (see the shell module).
 
 ### home, chat, discover, pipelines, import-data modules
 - `home/` — the `/home` page: features carousel, what-you-can-do, starter questions and the market-news carousel (`MarketNewsRow`, drawn from discover's real feed).

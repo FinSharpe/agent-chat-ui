@@ -3,19 +3,11 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import {
-  Sparkles,
-  Home,
-  MessageSquare,
-  Compass,
-  Download,
-  Brain,
-} from "lucide-react";
+import { Home, MessageSquare, Compass, Download, Brain } from "lucide-react";
 import { useAppNavigation, TabState } from "@/hooks/useAppNavigation";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { useUiStore } from "@/store/useUiStore";
 import ProfileSettingsPage from "@/modules/account/components/ProfileSettingsPage";
-import AssistantModeOverlay from "@/modules/account/components/AssistantModeOverlay";
 import ChatHistoryDrawer from "./ChatHistoryDrawer";
 import MobileAccountMenu from "./MobileAccountMenu";
 import ServerUnreachableBanner from "./ServerUnreachableBanner";
@@ -51,8 +43,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const showProfileSettings = useUiStore((s) => s.profileSettingsOpen);
   const setShowProfileSettings = useUiStore((s) => s.setProfileSettingsOpen);
-  const showAssistant = useUiStore((s) => s.assistantOpen);
-  const setShowAssistant = useUiStore((s) => s.setAssistantOpen);
 
   // Tapping Chat while already on Chat starts a fresh conversation — the
   // bottom nav's only way to say "start over" without the history drawer.
@@ -88,12 +78,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <ProfileSettingsPage onClose={() => setShowProfileSettings(false)} />
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {showAssistant && (
-          <AssistantModeOverlay onClose={() => setShowAssistant(false)} />
-        )}
-      </AnimatePresence>
     </>
   );
 
@@ -121,7 +105,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full w-full justify-center overflow-hidden bg-transparent">
       <div className="relative flex h-full max-w-[560px] flex-1 flex-col overflow-hidden">
-        {/* Top Header: logo left · assistant + profile right. Padding-top
+        {/* Top Header: logo left · profile right. Padding-top
             clears the notch/status bar (viewport-fit=cover). */}
         <header
           className="font-funnel z-30 flex h-[56px] shrink-0 items-center justify-between bg-white px-5 select-none"
@@ -148,13 +132,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAssistant(true)}
-              className="hover-tint flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 text-[#063BAA] transition-colors"
-              title="AI Assistant"
-            >
-              <Sparkles size={15} />
-            </button>
             {/* Identity, theme, MCP Access, Delete Account and Sign out live
                 under this avatar (T-02); the bottom bar stays a pure 5-tab. */}
             <MobileAccountMenu />

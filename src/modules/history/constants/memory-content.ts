@@ -1,11 +1,18 @@
 import { BANNER_WAVE } from "@/components/shared/SectionKit";
 
-/** Copy and artwork of the Memory page, as the desktop-web reference has it. */
+/**
+ * Copy and artwork of the Memory page, with the reference's artwork kept and
+ * its wording corrected (T-05).
+ *
+ * The reference's lead banner promised "Remembers every chat, portfolio and
+ * report" — recall this page does not implement. It lists chats: bookmark,
+ * rename, search, reopen, delete. Nothing else is stored here, so nothing else
+ * is claimed, and each banner now describes the section directly under it.
+ */
 export const MEMORY_BANNERS = {
   memory: {
-    eyebrow: "Long-term Chat Memory",
-    title:
-      "Remembers every chat, portfolio and report so you can pick up anytime.",
+    eyebrow: "Bookmarks",
+    title: "Bookmark a chat and it stays at the top, ready to pick up.",
     tone: "mint",
     image: BANNER_WAVE.cyan,
   },

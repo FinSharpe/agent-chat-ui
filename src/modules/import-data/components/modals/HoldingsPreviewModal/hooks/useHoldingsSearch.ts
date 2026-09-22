@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   StockSearchResponse,
   MutualFundSearchResponse,

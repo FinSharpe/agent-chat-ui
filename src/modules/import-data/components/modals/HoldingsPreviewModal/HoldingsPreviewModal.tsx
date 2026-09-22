@@ -1,6 +1,6 @@
 "use client";
 import { AnimatePresence } from "framer-motion";
-import useModalState from "@/hooks/useModalState";
+import { useAnalysisModalState } from "@/modules/import-data/hooks/useAnalysisModalState";
 import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import {
   AnalyseButton,
@@ -29,8 +29,13 @@ export function HoldingsPreviewModal({
   config,
   triggerClassName,
   triggerLabel,
+  open: openProp,
+  onOpenChange,
 }: HoldingsPreviewModalProps) {
-  const { open, handleOpen, handleClose } = useModalState();
+  const { open, handleOpen, handleClose } = useAnalysisModalState(
+    openProp,
+    onOpenChange,
+  );
 
   const consentID = consent?.consentID;
   const isDataReady = consent?.isDataReady;

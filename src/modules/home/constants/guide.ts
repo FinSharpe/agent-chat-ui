@@ -11,6 +11,13 @@ import type { GuideSection } from "../types/home.types";
 // Content for the in-app "FinSharpeGPT Guide", ordered easy → advanced so a
 // first-time user can read top-to-bottom and a returning one can jump to the
 // section they need.
+//
+// Re-read against the shipped app after the T-03/T-04/T-05/T-08/T-09 sweep:
+// the guide is the one place that describes every screen at once, so a screen
+// that was deleted or a feature that turned out not to exist leaves a wrong
+// sentence here long after the screen itself is gone. Nothing below describes
+// a surface the user cannot reach, and no step claims an outcome the app does
+// not produce. Walk it again whenever a tab gains or loses a section.
 export const GUIDE_SECTIONS: GuideSection[] = [
   {
     id: "basics",
@@ -22,7 +29,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       {
         title: "Open a chat",
-        body: "Tap Get Answers on the home screen, or the chat tab at the bottom. You'll see three suggested questions grouped by Stocks, Mutual Funds and Personal Finance — tap one to try it instantly.",
+        body: "Pick Get Answers on the Home screen, or the Chat tab. Home also lists four ready-made questions — Market Trends, Stock Ideas, Mutual Funds and Risk Check — and tapping one asks it for you.",
       },
       {
         title: "Ask in plain language",
@@ -30,10 +37,10 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       },
       {
         title: "Follow the thread",
-        body: "After every answer you'll see Suggested next steps. These continue the same line of thinking, so you can go deeper without retyping context.",
+        body: "Where the agent offers them, Suggested next steps appear under the answer. They continue the same line of thinking, so you can go deeper without retyping context.",
       },
     ],
-    tip: "Every answer ends with a Sources & Reliability card. Open it to see exactly which data the answer was built from and how confident the system is.",
+    tip: "Answers built on market data carry a Sources & Reliability card. Open it to see which data went into the answer and how confident the system is.",
   },
   {
     id: "connect",
@@ -45,18 +52,18 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       {
         title: "Use Account Aggregator",
-        body: "On the Import screen, connect your Demat, mutual funds and bank accounts through the RBI's Account Aggregator framework. Credentials are never stored.",
+        body: "On the Import screen you can connect demat holdings, mutual fund folios, ETFs, SIPs and bank accounts through the RBI's Account Aggregator framework. You approve the mandate with the aggregator itself — FinSharpe never sees your bank or broker login.",
       },
       {
-        title: "Add what can't be linked",
-        body: "Fixed deposits, insurance, real estate, gold and other holdings can be entered manually. They count toward your net worth and analysis just the same.",
+        title: "See it in one place",
+        body: "Connected accounts roll up into your net worth on the same screen, and each asset class keeps its own row showing what came through and when it was last refreshed.",
       },
       {
-        title: "Or track without connecting",
-        body: "Not ready to link? Build a watchlist group of stocks, funds or ETFs instead. You still get analysis — just on securities you're following rather than owning.",
+        title: "Stay in control",
+        body: "Disconnect any account at any time from its row. How your holdings are used, and where they go, is written out at the foot of the Import screen.",
       },
     ],
-    tip: "You can disconnect any account at any time, and your data stops being used immediately.",
+    tip: "Not ready to connect? Every question about markets, stocks and funds works without a single account linked.",
   },
   {
     id: "analyse",
@@ -64,19 +71,19 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     icon: BarChart3,
     title: "Reading your portfolio analysis",
     summary:
-      "Once accounts are connected, each category gets its own dashboard — plus one overall health check across everything you own.",
+      "Once accounts are connected, each asset class gets its own breakdown — plus one review across everything you own.",
     steps: [
       {
-        title: "Run a category analysis",
-        body: "Tap Analyse next to any connected account for a breakdown: allocation, concentration, quality scores and the specific risks found in that holding.",
+        title: "Run a class analysis",
+        body: "Tap Analyse on any connected account for a breakdown of that holding: what is in it, how it is allocated and where it is concentrated.",
       },
       {
         title: "Run the comprehensive check",
         body: "The Comprehensive Portfolio Analysis reviews every account together. This is where overlap between funds and hidden sector concentration show up.",
       },
       {
-        title: "Watch the health score",
-        body: "Your score reflects diversification, quality, valuation and risk-adjusted return. Tap it to see which factor is dragging the number down.",
+        title: "Take it into chat",
+        body: "Any analysis can be carried into a conversation, so you can ask follow-up questions about your own numbers rather than the market's.",
       },
     ],
     tip: "Two funds can look different and still hold the same companies. The overlap check is the fastest way to spot diversification you don't actually have.",
@@ -87,21 +94,22 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     icon: Compass,
     title: "Finding new ideas",
     summary:
-      "Discover is where you explore beyond what you already own — curated strategies, global markets and thematic baskets built by the research desk.",
+      "Discover is where you look beyond what you already own — the strategies FinSharpe publishes, the day's headlines and the IPO calendar.",
     steps: [
       {
         title: "Browse investment strategies",
-        body: "Explore Investment Ideas groups strategies by source: advisor-created, research-backed, news-driven and famous-investor styles. Each shows returns, risk level and holdings.",
+        body: "Explore Investment Ideas opens the strategies created by FinSharpe's advisers, each with the holdings behind it. The other idea categories are still being built and are marked as such.",
       },
       {
-        title: "Look at News Impact",
-        body: "A live map of how market themes connect to sectors and individual stocks. Tap any node to see the headline driving it and what it links to.",
+        title: "Read the market news",
+        body: "News Impact is the day's Nifty 50 headlines, each tagged with the company it is about. Ask AI on a headline carries it straight into a chat.",
       },
       {
-        title: "Go global",
-        body: "Global Investing offers thematic ETF baskets across US, Asia-Pacific and European markets, routed through SEBI-registered intermediaries.",
+        title: "Watch the IPO calendar",
+        body: "IPO Watch lists the issues open for bidding and the ones opening next, with the price band, lot size and dates for each.",
       },
     ],
+    tip: "Global Investing and Trading Ideas are still being built. Their rows stay on the Discover screen so you can see what's coming, but they don't open yet.",
   },
   {
     id: "build",
@@ -113,15 +121,15 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       {
         title: "Build a custom basket",
-        body: "The Portfolio Builder walks through five choices — asset type, style, market cap, size and allocation method — then generates a basket matching your rules.",
+        body: "Build Your Own Portfolios walks through five choices, starting with stocks or mutual funds, and generates a basket matching the rules you picked.",
       },
       {
         title: "Run an agent workflow",
-        body: "Agent Workflows chain multiple analysis steps into one automated pipeline: macro read, sector scoring, stock selection, fundamentals, technicals and a final shortlist.",
+        body: "Agent Workflows chain several analysis steps into one automated pipeline, each step's output feeding the next. You see the cost before it runs and the progress while it does.",
       },
       {
-        title: "Explore trading strategies",
-        body: "Exchange-approved algorithmic strategies, filtered by market scenario and risk profile, with backtested returns, drawdown and Sharpe ratio for each.",
+        title: "Keep the report",
+        body: "Every finished workflow leaves a written report in your library, and each report has a link you can share with someone who isn't signed in.",
       },
     ],
     tip: "Agent workflows take a few minutes because each step genuinely runs in sequence — the output of one feeds the next.",
@@ -132,21 +140,21 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     icon: Sparkles,
     title: "Assistant Mode and Memory",
     summary:
-      "Two features that make longer-running work easier: guided expert modes, and a searchable record of everything you've done.",
+      "Two features that make longer-running work easier: guided expert modes, and a searchable record of everything you've asked.",
     steps: [
       {
         title: "Use Assistant Mode",
-        body: "The wheel next to your profile picture holds eight expert modes — risk profiling, backtesting, portfolio review and more. Spin it to pick one and start a guided conversation.",
+        body: "The sparkle beside the FinSharpe logo opens eight expert modes — risk profiling, backtesting, portfolio review and more. Pick one and it starts a guided conversation.",
       },
       {
         title: "Return to past work",
-        body: "Memory keeps every conversation, tagged and searchable. Bookmark the important ones so they stay at the top.",
+        body: "Memory keeps every conversation, searchable by title. Bookmark the ones that matter so they stay at the top of the page.",
       },
       {
-        title: "Save reports and portfolios",
-        body: "Research reports and saved portfolios live in Memory too, with version history on reports so you can compare how a view changed over time.",
+        title: "Keep the list tidy",
+        body: "Rename a chat to something you'll recognise later, and delete the ones you don't need. The same list sits in the sidebar, so you can jump back without leaving the page you're on.",
       },
     ],
-    tip: "Ask a follow-up question about any past conversation and FinSharpeGPT will pick up the full context of that thread.",
+    tip: "Reopen any past conversation and ask a follow-up — the thread keeps its full context, so you don't have to set the scene again.",
   },
 ];

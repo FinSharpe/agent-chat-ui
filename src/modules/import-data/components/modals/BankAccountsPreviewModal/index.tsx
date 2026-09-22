@@ -7,7 +7,7 @@
 
 "use client";
 import { AnimatePresence } from "framer-motion";
-import useModalState from "@/hooks/useModalState";
+import { useAnalysisModalState } from "@/modules/import-data/hooks/useAnalysisModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
 import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import {
@@ -27,8 +27,13 @@ export function BankAccountsPreviewModal({
   consent,
   triggerClassName,
   triggerLabel,
+  open: openProp,
+  onOpenChange,
 }: BaseAnalysisModalProps) {
-  const { open, handleOpen, handleClose } = useModalState();
+  const { open, handleOpen, handleClose } = useAnalysisModalState(
+    openProp,
+    onOpenChange,
+  );
 
   const consentID = consent?.consentID;
   const isDataReady = consent?.isDataReady;

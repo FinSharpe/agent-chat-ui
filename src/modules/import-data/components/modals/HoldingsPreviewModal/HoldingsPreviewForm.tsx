@@ -1,5 +1,5 @@
 "use client";
-import { FiDataResponse } from "@/lib/moneyone/moneyone.types";
+import { FiDataResponse } from "@/modules/import-data/types/moneyone-raw";
 import { toast } from "sonner";
 import {
   DataPanel,

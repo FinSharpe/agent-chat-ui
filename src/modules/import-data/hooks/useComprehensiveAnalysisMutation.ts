@@ -1,8 +1,9 @@
 "use client";
 import { useMutation } from "@tanstack/react-query";
 import { useStreamContext } from "@/providers/Stream";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import { getAllFiData } from "@/lib/moneyone/moneyone.actions";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
+import { getFiData } from "../api/aa-client";
+import type { FiDataResponse } from "@/modules/import-data/types/moneyone-raw";
 import { convertToMarkdownTable } from "@/lib/convertToMarkdownTable";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import { Message } from "@langchain/langgraph-sdk";
@@ -36,13 +37,21 @@ export function useComprehensiveAnalysisMutation() {
         throw new Error("No consents selected for analysis");
       }
 
-      // Fetch FI data for all consents
+      // Fetch FI data for all consents, through the backend's AA endpoints.
       const dataPromises = consents.map(async (consent) => {
-        const data = await getAllFiData(consent.consentID);
-        if ("error" in data) {
-          throw new Error(`Failed to fetch ${consent.type} data: ${data.error}`);
+        try {
+          const blob = await getFiData(consent.consentID, { includeRaw: true });
+          return {
+            type: consent.type,
+            data: (blob.raw ?? []) as FiDataResponse,
+          };
+        } catch (error) {
+          throw new Error(
+            `Failed to fetch ${consent.type} data: ${
+              error instanceof Error ? error.message : "unknown error"
+            }`,
+          );
         }
-        return { type: consent.type, data };
       });
 
       const allData = await Promise.all(dataPromises);

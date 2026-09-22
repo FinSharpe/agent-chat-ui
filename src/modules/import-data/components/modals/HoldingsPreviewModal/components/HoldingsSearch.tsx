@@ -1,6 +1,6 @@
 "use client";
 import { Loader2, Search, X } from "lucide-react";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   StockSearchResponse,
   MutualFundSearchResponse,

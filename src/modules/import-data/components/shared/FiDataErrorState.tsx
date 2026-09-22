@@ -13,10 +13,9 @@
 "use client";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
-import { ConsentData, deleteConsent } from "@/lib/moneyone/moneyone.storage";
-import { FiDataErrorKind } from "@/lib/moneyone/moneyone.utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { AaErrorKind } from "../../api/aa-client";
+import { useRevokeConsent } from "../../hooks/useAaMutations";
+import type { ConsentRecord } from "../../types/aa";
 import {
   AlertTriangle,
   CircleSlash,
@@ -25,17 +24,17 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
+import { useRefreshFiData } from "../../hooks/useFiData";
 
 type FiDataErrorStateProps = {
   /** Human-readable asset label, e.g. "equity holdings". */
   assetLabel: string;
   /** Why the fetch failed (drives the offered action). */
-  errorKind: FiDataErrorKind | null;
-  /** Raw error message from MoneyOne (shown for transient errors). */
+  errorKind: AaErrorKind | null;
+  /** The backend's reason (shown for transient errors). */
   message?: string;
   /** The consent this modal is for (needed for refresh/delete actions). */
-  consent?: ConsentData | null;
+  consent?: ConsentRecord | null;
   /** Close the modal. */
   onClose: () => void;
 };
@@ -57,28 +56,12 @@ export function FiDataErrorState({
   consent,
   onClose,
 }: FiDataErrorStateProps) {
-  const queryClient = useQueryClient();
   const { mutate: refresh, isPending: isRefreshing } = useRefreshFiData();
   const consentID = consent?.consentID;
 
-  // Revoke on MoneyOne first; on failure (and not already gone) still remove
-  // locally but warn it may still be live on MoneyOne's side. On success the
-  // modal closes (onClose) so the card falls back to Connect for re-consent.
-  const { mutateAsync: deleteConnection, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => revokeConsent(id),
-    onSuccess: (result, id) => {
-      if ("error" in result && !result.alreadyGone) {
-        toast.warning(
-          `Removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
-        );
-      } else {
-        toast.success("Connection removed");
-      }
-      deleteConsent(id);
-      queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, id] });
-      onClose();
-    },
-  });
+  // The backend withdraws the consent at the Account Aggregator and drops the
+  // row. On success the modal closes so the account row falls back to Connect.
+  const { mutateAsync: revoke, isPending: isDeleting } = useRevokeConsent();
 
   const handleRefresh = () => {
     if (!consentID) {
@@ -97,7 +80,9 @@ export function FiDataErrorState({
   };
 
   const handleDelete = async () => {
-    if (consentID) await deleteConnection(consentID);
+    if (!consent) return;
+    await revoke(consent);
+    onClose();
   };
 
   const isConsentDead = errorKind === "consent-dead";

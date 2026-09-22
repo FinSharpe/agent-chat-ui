@@ -30,10 +30,16 @@
   display: none;
 }
 
-/* "Analyse" — mint pill. */
+/* "Analyse" — blue wash, matching the account row in finsharpe-mobile
+   (portfolio_tab.dart `_RowPill`, fs.toneBlue / toneBlueFg). */
 [data-app-mode] .import-slot-analyse button {
-  background: #dff9ef;
-  color: #0a1f4d;
+  background: color-mix(in srgb, #063baa 8%, transparent);
+  color: #063baa;
+}
+
+:is([data-app-mode].dark, .dark [data-app-mode]) .import-slot-analyse button {
+  background: #22335c;
+  color: #8fb4ff;
 }
 
 /* "Connect" — brand-gradient pill. */

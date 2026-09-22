@@ -1,5 +1,4 @@
 "use client";
-import FetchingFiDataModal from "@/components/moneyone/FetchingFiDataModal";
 import {
   BANNER_WAVE,
   ScreenFooter,
@@ -8,14 +7,15 @@ import {
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useRef } from "react";
+import { useLegacyConsentAdoption } from "../hooks/useLegacyConsentAdoption";
 import { ConnectedAccounts } from "./account-types/ConnectedAccounts";
 import { ComprehensiveAnalysisCard } from "./ComprehensiveAnalysisCard";
+import { FetchingConsentModal } from "./connect/FetchingConsentModal";
 import { DataSecurityInfo } from "./DataSecurityInfo";
 import { NetworthGraph } from "./NetworthGraph";
 import { PortfolioNudges } from "./nudges/PortfolioNudges";
 import { ImportViewToggle } from "./page/ImportViewToggle";
 import { RbiApprovedPanel } from "./page/RbiApprovedPanel";
-import { QuickUpload } from "./QuickUpload";
 import { WatchlistView } from "./watchlist/WatchlistView";
 
 const VIEWS = ["networth", "watchlist"] as const;
@@ -42,6 +42,10 @@ export function ImportDataPage() {
 
   const scrollToAccounts = () =>
     accountsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Hand any consent left in this browser by the pre-T-11 build to the backend
+  // once, so an existing user keeps the mandate they already approved.
+  useLegacyConsentAdoption(view === "networth");
 
   return (
     <div
@@ -76,18 +80,9 @@ export function ImportDataPage() {
             <>
               <NetworthGraph onConnect={scrollToAccounts} />
               <PortfolioNudges />
+              <ComprehensiveAnalysisCard />
               <RbiApprovedPanel />
               <ConnectedAccounts ref={accountsRef} />
-              <ComprehensiveAnalysisCard />
-              <SectionBanner
-                eyebrow="Documents"
-                title="Upload statements and reports securely, anytime"
-                tone="mint"
-                height={260}
-                image="/graphics/import-documents.jpg"
-                imageScrim
-              />
-              <QuickUpload />
               <DataSecurityInfo />
             </>
           ) : (
@@ -104,9 +99,9 @@ export function ImportDataPage() {
         )}
       </div>
 
-      {/* Completes the MoneyOne consent on return from the AA and pulls the
-          first data in (opens only when the return params are present). */}
-      <FetchingFiDataModal />
+      {/* Resolves the consent on return from the Account Aggregator and pulls
+          the first data in (opens only when the return params are present). */}
+      <FetchingConsentModal />
     </div>
   );
 }

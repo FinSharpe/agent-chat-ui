@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Control, Controller } from "react-hook-form";
 import { X } from "lucide-react";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import { formatINRShort } from "@/modules/import-data/components/shared/ui";
 import { HoldingFormData } from "../hooks/useHoldingsForm";
 import { HoldingWithQuantity } from "../utils/holdings-transformer";

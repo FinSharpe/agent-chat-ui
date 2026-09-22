@@ -1,11 +1,11 @@
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   FiDataResponse,
   AnyHolding,
   EquityHolding,
   MutualFundHolding,
   ETFHolding,
-} from "@/lib/moneyone/moneyone.types";
+} from "@/modules/import-data/types/moneyone-raw";
 import {
   MutualFundSearchResponse,
   StockSearchResponse,

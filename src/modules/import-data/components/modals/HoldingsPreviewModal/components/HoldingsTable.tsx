@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Control, FieldArrayWithId, useWatch } from "react-hook-form";
 import { ChevronDown, ChevronUp, Inbox } from "lucide-react";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import { EmptyState } from "@/modules/import-data/components/shared/ui";
 import { HoldingTableRow } from "./HoldingTableRow";
 import { HoldingFormData } from "../hooks/useHoldingsForm";

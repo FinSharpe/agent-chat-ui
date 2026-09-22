@@ -39,51 +39,6 @@ export interface StarterQuestion {
   icon: LucideIcon;
 }
 
-export interface MarketNews {
-  id: string;
-  category: string;
-  headline: string;
-  summary: string;
-  source: string;
-  time: string;
-  sentiment: "positive" | "neutral" | "negative";
-}
-
-export interface HomeVideo {
-  id: string;
-  title: string;
-  source: string;
-  type: "Tutorial" | "Course" | "Podcast" | "Lecture" | "Webinar";
-  duration: string;
-  /** Thumbnail fallback when there is no image. */
-  gradient: string;
-  image?: string;
-  description: string;
-}
-
-export type PublicationKind = "video" | "post" | "article";
-
-export interface Publication {
-  id: string;
-  kind: PublicationKind;
-  category: string;
-  title: string;
-  excerpt: string;
-  author: string;
-  date: string;
-  /** Video only. */
-  duration?: string;
-  /** Article only. */
-  readTime?: string;
-  /** Post only — a carousel of N frames, Instagram-style. */
-  frames?: number;
-  gradient: string;
-  /** Photo/illustration cover instead of the flat gradient. */
-  image?: string;
-  /** Long-form body, rendered in the reader. Articles use all of it. */
-  body?: string[];
-}
-
 export interface GuideStep {
   title: string;
   body: string;

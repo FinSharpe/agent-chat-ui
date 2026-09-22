@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import useModalState from "@/hooks/useModalState";
 import { cn } from "@/lib/utils";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import { getAllUserConsents } from "@/lib/moneyone/moneyone.storage";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
+import { useAaPortfolio } from "../../hooks/useAaPortfolio";
 import { useComprehensiveAnalysisMutation } from "../../hooks/useComprehensiveAnalysisMutation";
 import {
   DataPanel,
@@ -91,19 +91,18 @@ export function ComprehensiveAnalysisModal() {
   const { open, handleOpen, handleClose } = useModalState();
   const comprehensiveAnalysisMutation = useComprehensiveAnalysisMutation();
 
-  // Non-expired consents, re-read from storage each time the modal opens.
-  const consentsByType = useMemo(() => {
-    const now = new Date();
-    const valid = getAllUserConsents().filter(
-      (c) => new Date(c.consentExpiry) > now,
-    );
-    return new Map(valid.map((c) => [c.type, c]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // The signed-in user's consents, as the account rows see them. A class is
+  // "ready" only once its data has actually landed on this device.
+  const { positions } = useAaPortfolio();
+  const positionsByType = useMemo(
+    () => new Map(positions.map((p) => [p.type as ConsentType, p])),
+    [positions],
+  );
 
   const rows = ACCOUNT_TYPES.map((a) => {
-    const consent = consentsByType.get(a.type) ?? null;
-    const status: Status = consent?.isDataReady
+    const position = positionsByType.get(a.type);
+    const consent = position?.consents[0] ?? null;
+    const status: Status = position?.hasData
       ? "ready"
       : consent
         ? "syncing"

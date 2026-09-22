@@ -8,7 +8,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Building2, Landmark } from "lucide-react";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   BankAccountWithFormData,
   BankAccountsFiDataResponse,

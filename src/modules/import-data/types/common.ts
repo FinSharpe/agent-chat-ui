@@ -2,7 +2,7 @@
  * Common types shared across all consent types
  */
 
-import { ConsentData } from "@/lib/moneyone/moneyone.storage";
+import type { ConsentRecord } from "./aa";
 
 /**
  * Base holding type with fields common to all asset types
@@ -44,11 +44,17 @@ export interface BaseAccountType<THolding> {
  * Base props for all analysis modal components
  */
 export interface BaseAnalysisModalProps {
-  consent?: ConsentData | null;
+  consent?: ConsentRecord | null;
   /** Extra classes for the modal's own "Analyse" trigger pill. */
   triggerClassName?: string;
   /** Trigger text (defaults to "Analyse"). */
   triggerLabel?: string;
+  /**
+   * Controlled open state. Omit to let the modal's own "Analyse" pill own it;
+   * supply it so the account row's body tap can open the analysis too.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**

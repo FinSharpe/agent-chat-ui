@@ -64,7 +64,9 @@ export const FEATURE_CARDS: FeatureCard[] = [
   {
     tag: "Discover",
     title: "Explore Investment Strategies",
-    desc: "Curated baskets and thematic strategies picked by FinSharpe's research desk.",
+    // "Curated baskets and thematic themes" were the categories T-04 disabled;
+    // Created by Advisors is the one that opens, so it is the one named here.
+    desc: "Investment strategies published by FinSharpe's advisers, with the holdings behind each one.",
     cta: "Explore",
     icon: Compass,
     action: "discover-ideas",
@@ -82,7 +84,9 @@ export const FEATURE_CARDS: FeatureCard[] = [
   {
     tag: "Memory",
     title: "Explore Memory",
-    desc: "Revisit saved research reports and past conversations anytime you need them.",
+    // Memory lists chats and nothing else — research reports live in the Agent
+    // Workflows library, so they are not promised here (T-05).
+    desc: "Search every past conversation and pick up where you left off.",
     cta: "View Memory",
     icon: Brain,
     action: "memory",

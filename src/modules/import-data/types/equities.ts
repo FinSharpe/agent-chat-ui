@@ -2,7 +2,7 @@
  * Equity-specific types and constants
  */
 
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import { BaseHolding, BaseAccountType } from "./common";
 
 /**

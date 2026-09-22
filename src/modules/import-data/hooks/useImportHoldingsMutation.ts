@@ -1,8 +1,8 @@
 "use client";
 import { useMutation } from "@tanstack/react-query";
 import { useStreamContext } from "@/providers/Stream";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import { FiDataResponse } from "@/lib/moneyone/moneyone.types";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
+import { FiDataResponse } from "@/modules/import-data/types/moneyone-raw";
 import { convertToMarkdownTable } from "@/lib/convertToMarkdownTable";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import { Message } from "@langchain/langgraph-sdk";

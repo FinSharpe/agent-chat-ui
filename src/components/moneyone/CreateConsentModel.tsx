@@ -2,15 +2,13 @@
 import { useCreateConsentAndRedirectMut } from "./useCreateConsentAndRedirectMut";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
+import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { Loader2, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useImportHoldingsContext } from "./import-holdings.context";
@@ -21,6 +19,19 @@ type Props = {
   open: boolean;
   onClose: () => void;
 };
+
+const CONSENT_LABEL: Record<ConsentType, string> = {
+  [ConsentType.EQUITIES]: "Equity Holdings",
+  [ConsentType.MUTUAL_FUNDS]: "Mutual Fund Holdings",
+  [ConsentType.ETF]: "ETF Holdings",
+  [ConsentType.BANK_ACCOUNTS]: "Bank Accounts",
+  [ConsentType.SIP]: "SIP Accounts",
+};
+
+const FIELD_LABEL =
+  "block text-[10px] font-medium tracking-wider text-slate-400 uppercase";
+const FIELD =
+  "text-forest-deep w-full rounded-full bg-[#EDF3FF]/45 py-3 text-[12px] outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-[#063BAA]/20 dark:bg-slate-800/40 dark:text-white";
 
 export default function CreateConsentModel({ open, onClose }: Props) {
   const { consentType } = useImportHoldingsContext();
@@ -78,37 +89,67 @@ export default function CreateConsentModel({ open, onClose }: Props) {
   const isCreating = createConsentAndRedirectMut.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">
-            {view === "resume" ? "Your connections" : "Connect Account"}
-          </DialogTitle>
-        </DialogHeader>
-        <Separator />
+    <Dialog
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
+      <DialogContent
+        showCloseButton={false}
+        className="font-funnel text-forest-deep gap-0 overflow-hidden rounded-card border-0 bg-white p-0 shadow-[0_24px_60px_rgba(10,31,77,0.28)] sm:max-w-[420px] dark:bg-[#0C1524] dark:text-white"
+      >
+        <div className="flex h-[56px] shrink-0 items-center justify-between border-b border-slate-50 px-5 dark:border-slate-800/40">
+          <div className="flex min-w-0 flex-col">
+            <DialogTitle className="text-xs font-medium tracking-wider text-[#063BAA] uppercase dark:text-[#8FB4FF]">
+              {view === "resume" ? "Your connections" : "Connect Account"}
+            </DialogTitle>
+            <DialogDescription className="mt-0.5 truncate text-[9.5px] leading-none font-medium text-slate-400">
+              {CONSENT_LABEL[consentType]} · RBI Account Aggregator
+            </DialogDescription>
+          </div>
+          <DialogClose
+            aria-label="Close"
+            className="hover-tint flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-100 text-slate-400 transition-colors dark:border-slate-800"
+          >
+            <X size={16} />
+          </DialogClose>
+        </div>
 
         {view === "resume" ? (
-          <ResumeConsents
-            consentType={consentType}
-            mobileNo={mobile}
-            pan={pan}
-            consents={listMut.data ?? []}
-            onRefetch={() => listMut.mutate(mobile)}
-            onCreateNew={createNew}
-            isCreating={isCreating}
-            onBack={() => setView("form")}
-            onResumed={onClose}
-          />
+          <div className="max-h-[70vh] overflow-y-auto p-5">
+            <ResumeConsents
+              consentType={consentType}
+              mobileNo={mobile}
+              pan={pan}
+              consents={listMut.data ?? []}
+              onRefetch={() => listMut.mutate(mobile)}
+              onCreateNew={createNew}
+              isCreating={isCreating}
+              onBack={() => setView("form")}
+              onResumed={onClose}
+            />
+          </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="max-h-[70vh] space-y-5 overflow-y-auto px-8 pt-6 pb-8"
+          >
             <div className="space-y-2">
-              <Label htmlFor="number">Mobile Number</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">+91</span>
-                <Input
+              <label
+                htmlFor="number"
+                className={FIELD_LABEL}
+              >
+                Mobile Number
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[12px] text-slate-400">
+                  +91
+                </span>
+                <input
                   id="number"
                   name="number"
                   type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
                   placeholder="Enter mobile number"
                   maxLength={10}
                   required
@@ -116,41 +157,52 @@ export default function CreateConsentModel({ open, onClose }: Props) {
                   onChange={(e) =>
                     setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))
                   }
-                  className="flex-1"
+                  className={`${FIELD} pr-4 pl-12`}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pan">PAN</Label>
-              <Input
+              <label
+                htmlFor="pan"
+                className={FIELD_LABEL}
+              >
+                PAN
+              </label>
+              <input
                 id="pan"
                 name="pan"
                 placeholder="Enter PAN"
                 maxLength={10}
                 required
+                autoCapitalize="characters"
                 value={pan}
                 onChange={(e) => setPan(e.target.value.toUpperCase())}
+                className={`${FIELD} px-4 tracking-wider`}
               />
             </div>
-            <Button
+
+            <p className="flex items-start gap-2 text-[10.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+              <ShieldCheck
+                size={13}
+                className="mt-0.5 shrink-0 text-[#0A9E6E]"
+              />
+              Read-only access through the RBI-approved Account Aggregator
+              framework. We never store your login credentials.
+            </p>
+
+            <button
               type="submit"
-              className="w-full"
               disabled={isChecking || isCreating}
+              className="bg-brand-gradient flex w-full items-center justify-center gap-2 rounded-full py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:opacity-60"
             >
-              {isChecking ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking…
-                </>
-              ) : isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Connecting…
-                </>
-              ) : (
-                "Continue"
+              {(isChecking || isCreating) && (
+                <Loader2
+                  size={14}
+                  className="animate-spin motion-reduce:animate-none"
+                />
               )}
-            </Button>
+              {isChecking ? "Checking…" : isCreating ? "Connecting…" : "Continue"}
+            </button>
           </form>
         )}
       </DialogContent>

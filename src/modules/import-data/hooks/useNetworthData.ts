@@ -84,6 +84,13 @@ export interface NetworthData {
   syncingCount: number;
   /** Most recent consent timestamp, for the "Updated …" pill. */
   latestUpdate?: string;
+  /**
+   * Cost basis of the ready investment accounts that report one (the AA
+   * summary's `costValue`), and those same accounts' current value — the pair
+   * behind the unrealised gain. `invested` is 0 when no account reports cost.
+   */
+  invested: number;
+  investedCurrent: number;
   /** No value-bearing consent is connected (covers SIP-only and nothing). */
   isEmpty: boolean;
   /** Pre-mount, or connected with nothing ready yet — show the skeleton. */
@@ -166,6 +173,8 @@ export function useNetworthData(): NetworthData {
   const connected = new Set<NetworthClassKey>();
   let sipCount = 0;
   let latestUpdate: string | undefined;
+  let invested = 0;
+  let investedCurrent = 0;
 
   consents.forEach((consent, i) => {
     const result = results[i];
@@ -194,6 +203,15 @@ export function useNetworthData(): NetworthData {
     } else {
       value = Number(extractCurrentValueFromFiData(data) ?? 0);
       count = extractHoldingsFromFiData(data).length;
+      // Only accounts that report both figures count toward the gain.
+      data.forEach((account) => {
+        const cost = parseFloat(account.Summary?.costValue ?? "");
+        const current = parseFloat(account.Summary?.currentValue ?? "");
+        if (cost > 0 && Number.isFinite(current)) {
+          invested += cost;
+          investedCurrent += current;
+        }
+      });
     }
 
     bucket.value = (bucket.value ?? 0) + value;
@@ -237,6 +255,8 @@ export function useNetworthData(): NetworthData {
     readyCount,
     syncingCount,
     latestUpdate,
+    invested,
+    investedCurrent,
     isEmpty: mounted && connectedCount === 0,
     isInitialLoading:
       !mounted || (connectedCount > 0 && readyCount === 0),

@@ -1,52 +1,39 @@
-import { Card } from "@/components/ui/card";
-import { Shield, CheckCircle } from "lucide-react";
+import { Check, Lock } from "lucide-react";
+import { SectionTitle } from "./page/SectionTitle";
 
-/**
- * Information card explaining how user data is used and protected
- * Displays security guarantees and data handling policies
- */
+const DATA_USAGE = [
+  "Your data is processed locally and encrypted with bank-level security",
+  "We analyze patterns to provide personalized investment recommendations",
+  "No data is shared with third parties without your explicit consent",
+  "You maintain full control and can disconnect accounts anytime",
+];
+
+/** "How We Use Your Data" — the page's closing list of data guarantees. */
 export function DataSecurityInfo() {
   return (
-    <Card className="border-green-200 bg-green-50 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 rounded-lg bg-green-100 p-2">
-          <Shield className="h-5 w-5 text-green-600" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="mb-2 font-medium text-green-900">
-            How We Use Your Data
-          </h3>
-          <div className="space-y-2 text-sm text-green-800">
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                Your data is processed locally and encrypted with bank-level
-                security
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                We analyze patterns to provide personalized investment
-                recommendations
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                No data is shared with third parties without your explicit
-                consent
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                You maintain full control and can disconnect accounts anytime
-              </span>
-            </p>
-          </div>
-        </div>
+    <section className="space-y-1">
+      <div className="flex items-center gap-1.5 px-1">
+        <Lock
+          size={12}
+          className="text-slate-400"
+        />
+        <SectionTitle>How We Use Your Data</SectionTitle>
       </div>
-    </Card>
+      <ul>
+        {DATA_USAGE.map((line) => (
+          <li
+            key={line}
+            className="flex gap-2.5 border-b border-slate-100 py-3 text-[11px] leading-snug text-slate-500 last:border-b-0 dark:border-slate-800/60 dark:text-slate-400"
+          >
+            <Check
+              size={13}
+              strokeWidth={2.5}
+              className="mt-0.5 shrink-0 text-[#0A9E6E]"
+            />
+            {line}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

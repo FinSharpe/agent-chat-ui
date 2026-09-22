@@ -1,72 +1,119 @@
 "use client";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FormModal } from "../shared/FormModal";
+import { useAppNavigation } from "@/hooks/useAppNavigation";
+import type { LucideIcon } from "lucide-react";
+import { toast } from "sonner";
+import { useMounted } from "../../hooks/useMounted";
+import {
+  useManualAssetsStore,
+  type ManualAssetCategory,
+} from "../../store/useManualAssetsStore";
+import { AddedInvestments } from "../AddedInvestments";
+import { ANALYSE_PILL, AccountRow } from "./AccountRow";
+import { MANUAL_ASSETS, manualAssetPrompt } from "./manual-assets";
+import { ManualAssetFormTrigger } from "./ManualAssetFormTrigger";
 
-type AccountTypeCardProps = {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  formDescription: string;
-  formIcon: string;
-  formComponent?: React.ReactNode;
-  status?: "not-connected" | "connected" | "coming-soon" | "connecting";
-  statusIcon?: React.ElementType;
-};
+const NO_ENTRIES: never[] = [];
 
 /**
- * Generic account type card component for UI-only forms
- * Displays basic info and connect button that opens a form modal
+ * A Connected Accounts row for a manual tracker (FD, insurance, real estate,
+ * commodities, other). Connect opens the add form; saved entries list under
+ * the row, and Analyse opens a chat about them.
  */
 export function AccountTypeCard({
-  icon: Icon,
+  category,
+  tone = 0,
+}: {
+  category: ManualAssetCategory;
+  tone?: number;
+}) {
+  const config = MANUAL_ASSETS[category];
+  const mounted = useMounted();
+  const { createNewChat } = useAppNavigation();
+  const stored = useManualAssetsStore((s) => s.entries[category]);
+  const addEntry = useManualAssetsStore((s) => s.addEntry);
+  const updateEntry = useManualAssetsStore((s) => s.updateEntry);
+  const removeEntry = useManualAssetsStore((s) => s.removeEntry);
+
+  // Entries come from localStorage — none until mounted, so SSR matches.
+  const entries = (mounted && stored) || NO_ENTRIES;
+  const hasEntries = entries.length > 0;
+
+  const handleDelete = (id: string) => {
+    const entry = entries.find((e) => e.id === id);
+    removeEntry(category, id);
+    if (entry) {
+      toast.success(`${config.summarize(entry.data).title} removed`, {
+        action: {
+          label: "Undo",
+          onClick: () => addEntry(category, entry.data),
+        },
+      });
+    }
+  };
+
+  return (
+    <AccountRow
+      icon={config.icon}
+      tone={tone}
+      title={config.title}
+      description={config.description}
+      status={hasEntries ? `${entries.length} saved` : "Not connected"}
+      statusTone={hasEntries ? "connected" : "idle"}
+      trailing={
+        hasEntries ? (
+          <button
+            type="button"
+            onClick={() => createNewChat(manualAssetPrompt(config, entries))}
+            className={ANALYSE_PILL}
+          >
+            Analyse
+          </button>
+        ) : (
+          <ManualAssetFormTrigger
+            config={config}
+            look="connect"
+            triggerText="Connect"
+            onSave={(data) => addEntry(category, data)}
+          />
+        )
+      }
+    >
+      <AddedInvestments
+        config={config}
+        entries={entries}
+        onAdd={(data) => addEntry(category, data)}
+        onUpdate={(id, data) => updateEntry(category, id, data)}
+        onDelete={handleDelete}
+      />
+    </AccountRow>
+  );
+}
+
+/** A row for an account type that has no connection path yet (NPS). */
+export function ComingSoonAccountRow({
+  icon,
   title,
   description,
-  formDescription,
-  formIcon,
-  formComponent,
-  status = "not-connected",
-  statusIcon: StatusIcon,
-}: AccountTypeCardProps) {
+  tone = 0,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  tone?: number;
+}) {
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow border border-gray-200 h-full gap-0">
-      <div className="flex items-start gap-3 h-full">
-        <div className="p-2 rounded-lg flex-shrink-0 bg-gray-50">
-          <Icon className="w-6 h-6 text-gray-600" />
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-medium text-gray-900 truncate">{title}</h3>
-            {StatusIcon && <StatusIcon className="w-4 h-4 flex-shrink-0" />}
-          </div>
-          <p className="text-sm text-gray-600 break-words">{description}</p>
-
-          {/* Action Button */}
-          <div className="flex items-center gap-2 mt-auto pt-3">
-            {status === "not-connected" && formComponent ? (
-              <FormModal
-                title={`Add ${title}`}
-                description={formDescription}
-                icon={formIcon}
-              >
-                {formComponent}
-              </FormModal>
-            ) : status === "connected" ? (
-              <Button size="sm" variant="outline" className="text-xs" disabled>
-                Connected
-              </Button>
-            ) : status === "connecting" ? (
-              <Button size="sm" variant="outline" className="text-xs" disabled>
-                Connecting...
-              </Button>
-            ) : (
-              <Button size="sm" variant="outline" className="text-xs" disabled>
-                Coming Soon
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </Card>
+    <AccountRow
+      icon={icon}
+      tone={tone}
+      title={title}
+      description={description}
+      status="Not connected"
+      statusTone="idle"
+      trailing={
+        <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-medium text-slate-400 dark:bg-slate-800">
+          Coming soon
+        </span>
+      }
+    />
   );
 }

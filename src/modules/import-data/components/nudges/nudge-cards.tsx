@@ -1,427 +1,347 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import type {
   BadgeTone,
+  FinSharpeScoreCard,
   FundamentalCard,
   NewsArticle,
   NudgeBadge,
   TechnicalCard,
-  FinSharpeScoreCard,
 } from "@/api/generated/nudge-apis/models";
-import { cn } from "@/lib/utils";
-import { Clock, ExternalLink } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlertTriangle, ArrowRight, Check, Sparkles } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
 
-/**
- * Sentiment is the one place colour carries real meaning, so it maps to the
- * semantic success/warning/error tokens (light + dark parity for free) rather
- * than a flooded card tint.
- */
-const TONE_CLASS: Record<BadgeTone, string> = {
-  positive: "bg-success-bg text-success-fg",
-  neutral: "bg-warning-bg text-warning-fg",
-  negative: "bg-error-bg text-error-fg",
+/* The reference Import screen's Smart Alerts cards, filled from the nudge
+   APIs. Sentiment is the one place colour carries meaning, so a badge's tone
+   picks the pill / icon colours and nothing else does. */
+
+const TONE_PILL: Record<BadgeTone, string> = {
+  positive:
+    "bg-[#97edcc]/25 text-[#0A9E6E] dark:bg-emerald-500/10 dark:text-emerald-400",
+  neutral:
+    "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+  negative: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
 };
 
-/**
- * Compact list: shows roughly three holdings, then scrolls. Hairline dividers
- * group the rows instead of per-card colour, keeping the first view calm.
- */
-const SCROLL_LIST =
-  "divide-border-subtle border-border-subtle max-h-[var(--nudge-list-h)] divide-y overflow-y-auto border-t [scrollbar-width:thin]";
+const TONE_TILE: Record<BadgeTone, string> = {
+  positive: "bg-[#97edcc]/30 text-[#0A9E6E]",
+  neutral: "bg-[#063BAA]/8 text-[#063BAA]",
+  negative:
+    "bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-400",
+};
 
-export function ToneBadge({ badge }: { badge?: NudgeBadge | null }) {
-  if (!badge) return null;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-        TONE_CLASS[badge.tone as BadgeTone],
-      )}
-    >
-      {badge.label}
-    </span>
-  );
-}
+const toneOf = (badge?: NudgeBadge | null): BadgeTone =>
+  (badge?.tone as BadgeTone) ?? "neutral";
 
-/** A single labelled figure: tiny uppercase label over a tabular value. No
- * box, just aligned type — lets a row of metrics breathe and read as insight. */
-function Metric({
-  label,
-  value,
-  valueClass,
-}: {
-  label: string;
-  value: ReactNode;
-  valueClass?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-text-tertiary text-[10px] font-medium tracking-wide uppercase">
-        {label}
-      </dt>
-      <dd
-        className={cn(
-          "text-text-primary text-sm font-medium tabular-nums",
-          valueClass,
-        )}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-/** Row shell shared by every nudge type: consistent padding + hover. */
-function NudgeRow({ children }: { children: ReactNode }) {
-  return <div className="px-4 py-3.5">{children}</div>;
-}
-
-function RowHeader({
-  title,
-  badge,
-  trailing,
-}: {
-  title: string;
-  badge?: NudgeBadge | null;
-  trailing?: ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-text-primary truncate text-sm font-medium">
-        {title}
-      </span>
-      <ToneBadge badge={badge} />
-      {trailing && <div className="ml-auto">{trailing}</div>}
-    </div>
-  );
-}
-
-export function NudgeSkeleton() {
-  return (
-    <div className="border-border-subtle divide-border-subtle divide-y border-t">
-      {[0, 1, 2].map((i) => (
-        <div
+/** Emphasises ₹ amounts and percentages within a sentence, as the reference
+ *  does for its FinSharpe Insights copy. */
+function emphasize(text: string) {
+  return text
+    .split(/(₹[\d,.]+(?:[A-Za-z]+)?|\d+(?:\.\d+)?%)/g)
+    .map((part, i) =>
+      /^(₹|\d)/.test(part) ? (
+        <span
           key={i}
-          className="space-y-2 px-4 py-3.5"
+          className="text-forest-deep font-medium dark:text-white"
         >
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-2/3" />
+          {part}
+        </span>
+      ) : (
+        <Fragment key={i}>{part}</Fragment>
+      ),
+    );
+}
+
+const tickerOf = (h: { symbol?: string | null; name?: string | null; isin: string }) =>
+  h.symbol || h.name || h.isin;
+
+const fmt = (n: number | null | undefined, digits = 1) =>
+  n == null ? null : n.toLocaleString("en-IN", { maximumFractionDigits: digits });
+
+/* ------------------------- Row (News / Technical / Fundamental) ------------------------- */
+
+interface AlertCardProps {
+  width: string;
+  ticker: string;
+  badge?: NudgeBadge | null;
+  title: string;
+  desc?: string | null;
+  meta?: string | null;
+  action?: ReactNode;
+  /** News has no description line, so its headline may run a line longer. */
+  titleLines?: 2 | 3;
+}
+
+/** News / Technical / Fundamental card — same shape as Home's market news. */
+function AlertCard({ width, ticker, badge, title, desc, meta, action, titleLines = 2 }: AlertCardProps) {
+  return (
+    <div
+      className={`${width} glass-card premium-shadow-sm flex snap-start flex-col justify-between gap-3 rounded-card p-5`}
+    >
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-[10px] font-medium tracking-wider text-slate-400 uppercase">
+            {ticker}
+          </span>
+          {badge && (
+            <span
+              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[9px] font-medium tracking-wider uppercase ${TONE_PILL[toneOf(badge)]}`}
+            >
+              {badge.label}
+            </span>
+          )}
         </div>
-      ))}
-    </div>
-  );
-}
-
-export function NudgeEmpty({ message }: { message: string }) {
-  return (
-    <p className="text-text-tertiary border-border-subtle border-t px-4 py-4 text-sm">
-      {message}
-    </p>
-  );
-}
-
-function NotCovered({ name }: { name: string }) {
-  return (
-    <NudgeRow>
-      <p className="text-text-tertiary text-sm font-medium">{name}</p>
-      <p className="text-text-muted text-xs">Not covered yet</p>
-    </NudgeRow>
-  );
-}
-
-function NudgeLine({ line }: { line?: string | null }) {
-  if (!line) return null;
-  return (
-    <p className="text-text-secondary mt-1.5 text-sm leading-snug">{line}</p>
-  );
-}
-
-function MetricRow({ children }: { children: ReactNode }) {
-  return <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-2">{children}</dl>;
-}
-
-function cardTitle(card: {
-  holding: { name?: string | null; symbol?: string | null; isin: string };
-}) {
-  return card.holding.symbol || card.holding.name || card.holding.isin;
-}
-
-const LIST_HEIGHT = {
-  news: "230px",
-  technical: "380px",
-  fundamental: "360px",
-  finsharpe: "360px",
-} as const;
-
-/* ----------------------------- News ----------------------------- */
-
-export function NewsList({ articles }: { articles: NewsArticle[] }) {
-  if (articles.length === 0)
-    return <NudgeEmpty message="No recent news for your holdings." />;
-  return (
-    <div
-      className={SCROLL_LIST}
-      style={{ ["--nudge-list-h" as string]: LIST_HEIGHT.news }}
-    >
-      {articles.map((a, i) => (
-        <a
-          key={`${a.isin}-${i}`}
-          href={a.link ?? undefined}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:bg-muted/40 block px-4 py-3.5 transition-colors"
+        <h4
+          className={`font-geist text-[13px] leading-snug font-medium text-[#0A1F4D] dark:text-white ${titleLines === 3 ? "line-clamp-3" : "line-clamp-2"}`}
         >
-          <RowHeader
-            title={a.symbol || a.isin}
-            badge={a.sentiment}
-            trailing={
-              a.date ? (
-                <span className="text-text-tertiary inline-flex items-center gap-1 text-xs">
-                  <Clock className="h-3 w-3" />
-                  {a.date}
-                </span>
-              ) : null
-            }
-          />
-          <p className="text-text-secondary mt-1.5 flex items-start gap-1 text-sm leading-snug">
-            <span>{a.title}</span>
-            {a.link && (
-              <ExternalLink className="text-text-muted mt-0.5 h-3 w-3 flex-shrink-0" />
-            )}
+          {title}
+        </h4>
+        {desc && (
+          <p className="line-clamp-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+            {desc}
           </p>
-        </a>
-      ))}
+        )}
+      </div>
+      <div className="font-funnel mt-2 flex items-center justify-between gap-2 border-t border-slate-50 pt-2.5 text-[10px] text-slate-400 dark:border-slate-800/60">
+        <span className="truncate">{meta}</span>
+        {action}
+      </div>
     </div>
   );
 }
 
-/* --------------------------- Technical -------------------------- */
+export function NewsCard({
+  article,
+  width,
+  onDiscuss,
+}: {
+  article: NewsArticle;
+  width: string;
+  onDiscuss: (prompt: string) => void;
+}) {
+  const ticker = article.symbol || "Market";
+  const actionClass =
+    "flex shrink-0 items-center gap-1 font-medium text-[#063BAA] dark:text-[#8FB4FF]";
+  return (
+    <AlertCard
+      width={width}
+      ticker={ticker}
+      badge={article.sentiment}
+      title={article.title}
+      titleLines={3}
+      meta={article.date}
+      action={
+        article.link ? (
+          <a
+            href={article.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={actionClass}
+          >
+            Read <ArrowRight size={10} />
+          </a>
+        ) : (
+          <button
+            onClick={() =>
+              onDiscuss(`What does this news mean for my ${ticker} holding? "${article.title}"`)
+            }
+            className={actionClass}
+          >
+            Discuss <ArrowRight size={10} />
+          </button>
+        )
+      }
+    />
+  );
+}
 
-export function TechnicalCards({ cards }: { cards: TechnicalCard[] }) {
-  if (cards.length === 0)
-    return <NudgeEmpty message="No technical signals available." />;
+export function TechnicalAlertCard({ card, width }: { card: TechnicalCard; width: string }) {
+  const d = card.data;
+  const meta =
+    d?.support != null && d?.resistance != null
+      ? `Support ₹${fmt(d.support, 0)} · Resistance ₹${fmt(d.resistance, 0)}`
+      : [
+          d?.rsi14 != null && `RSI ${fmt(d.rsi14, 0)}`,
+          d?.returns?.yearly != null && `1Y ${d.returns.yearly >= 0 ? "+" : ""}${fmt(d.returns.yearly)}%`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+  return (
+    <AlertCard
+      width={width}
+      ticker={tickerOf(card.holding)}
+      badge={card.badge}
+      title={card.holding.name || tickerOf(card.holding)}
+      desc={card.line}
+      meta={meta}
+    />
+  );
+}
+
+export function FundamentalAlertCard({ card, width }: { card: FundamentalCard; width: string }) {
+  const d = card.data;
+  const meta = [
+    d?.pe != null && `P/E ${fmt(d.pe)}x`,
+    d?.pb != null && `P/B ${fmt(d.pb)}x`,
+    d?.roe != null && `ROE ${fmt(d.roe)}%`,
+    d?.de != null && `Debt/Equity ${fmt(d.de)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <AlertCard
+      width={width}
+      ticker={tickerOf(card.holding)}
+      badge={card.badge}
+      title={card.holding.name || tickerOf(card.holding)}
+      desc={card.line}
+      meta={meta}
+    />
+  );
+}
+
+/* ----------------------------------- FinSharpe Insights ----------------------------------- */
+
+function scoreSummary(card: FinSharpeScoreCard) {
+  const s = card.scores;
+  if (s?.kind === "equity" && s.overall != null) {
+    return `Score ${fmt(s.overall, 0)}${s.overallIndustry != null ? ` vs industry ${fmt(s.overallIndustry, 0)}` : ""}`;
+  }
+  if (s?.kind === "mf" && s.overallRank != null) {
+    return `Category rank #${fmt(s.overallRank, 0)}`;
+  }
+  return "FinSharpe Score";
+}
+
+/**
+ * One FinSharpe Score insight — icon tile, holding, verdict, the nudge line
+ * and a mint "Ask FinSharpe" action that opens a chat about it. `variant`
+ * picks the desktop slider card or the mobile stacked row.
+ */
+export function InsightCard({
+  card,
+  variant,
+  onAsk,
+}: {
+  card: FinSharpeScoreCard;
+  variant: "slide" | "row";
+  onAsk: (prompt: string) => void;
+}) {
+  const tone = toneOf(card.badge);
+  const Icon = tone === "negative" ? AlertTriangle : tone === "positive" ? Check : Sparkles;
+  const name = card.holding.name || tickerOf(card.holding);
+  const slide = variant === "slide";
+
+  const body = (
+    <>
+      <div className={slide ? "space-y-3" : undefined}>
+        <div className={`flex items-center gap-3 ${slide ? "" : "mb-3"}`}>
+          <div
+            className={`flex shrink-0 items-center justify-center rounded-full ${slide ? "h-10 w-10" : "h-11 w-11"} ${TONE_TILE[tone]}`}
+          >
+            <Icon size={slide ? 18 : 19} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-forest-deep font-geist line-clamp-2 text-[13px] leading-snug font-medium dark:text-white">
+              {name}
+            </p>
+            <p className="mt-0.5 text-[10.5px] text-slate-400">
+              {card.badge?.label ? `${card.badge.label} · ` : ""}
+              {scoreSummary(card)}
+            </p>
+          </div>
+        </div>
+        {card.line && (
+          <p
+            className={`text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400 ${slide ? "" : "mb-4"}`}
+          >
+            {emphasize(card.line)}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={() =>
+          onAsk(
+            `Explain the FinSharpe Score for ${name}${card.line ? `: ${card.line}` : ""}. What should I do with this holding?`,
+          )
+        }
+        className="text-forest-deep flex w-full items-center justify-between rounded-full bg-[#DFF9EF] px-4 py-3 text-[11.5px] font-medium dark:text-white"
+      >
+        Ask FinSharpe
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">
+          <ArrowRight
+            size={12}
+            className="text-[#0A1F4D]"
+          />
+        </span>
+      </button>
+    </>
+  );
+
+  if (slide) {
+    return (
+      <div className="glass-card premium-shadow-sm flex w-[calc(50%-9px)] min-w-[calc(50%-9px)] snap-start flex-col justify-between gap-3 rounded-card p-5">
+        {body}
+      </div>
+    );
+  }
+  return <div className="p-4.5">{body}</div>;
+}
+
+/* ------------------------------------ Loading / empty ------------------------------------ */
+
+const shimmer = "block animate-pulse rounded bg-slate-100 dark:bg-slate-800 motion-reduce:animate-none";
+
+export function AlertCardSkeleton({ width }: { width: string }) {
   return (
     <div
-      className={SCROLL_LIST}
-      style={{ ["--nudge-list-h" as string]: LIST_HEIGHT.technical }}
+      className={`${width} glass-card flex snap-start flex-col gap-3 rounded-card p-5`}
+      aria-hidden="true"
     >
-      {cards.map((card) =>
-        card.coverage === "not_covered" ? (
-          <NotCovered
-            key={card.holding.isin}
-            name={cardTitle(card)}
-          />
-        ) : (
-          <NudgeRow key={card.holding.isin}>
-            <RowHeader
-              title={cardTitle(card)}
-              badge={card.badge}
-            />
-            <NudgeLine line={card.line} />
-            {card.data && (
-              <>
-                <MetricRow>
-                  {card.data.rsi14 != null && (
-                    <Metric
-                      label="RSI"
-                      value={card.data.rsi14.toFixed(0)}
-                    />
-                  )}
-                  {card.data.dScore != null && (
-                    <Metric
-                      label="D-Score"
-                      value={card.data.dScore.toFixed(0)}
-                    />
-                  )}
-                  {card.data.returns?.yearly != null && (
-                    <Metric
-                      label="1Y"
-                      value={`${card.data.returns.yearly.toFixed(1)}%`}
-                      valueClass={
-                        card.data.returns.yearly >= 0
-                          ? "text-success-fg"
-                          : "text-error-fg"
-                      }
-                    />
-                  )}
-                  {card.data.support != null &&
-                    card.data.resistance != null && (
-                      <Metric
-                        label="Support / Resistance"
-                        value={`${card.data.support.toFixed(0)} / ${card.data.resistance.toFixed(0)}`}
-                      />
-                    )}
-                </MetricRow>
-                {(card.data.candlePatterns?.length ||
-                  card.data.pfPatterns?.length ||
-                  card.data.gapUpDown) && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {card.data.gapUpDown && (
-                      <span className="border-border text-text-secondary rounded-md border px-2 py-0.5 text-xs">
-                        {card.data.gapUpDown}
-                      </span>
-                    )}
-                    {[
-                      ...(card.data.candlePatterns ?? []),
-                      ...(card.data.pfPatterns ?? []),
-                    ]
-                      .slice(0, 3)
-                      .map((p) => (
-                        <span
-                          key={p}
-                          className="border-border text-text-secondary rounded-md border px-2 py-0.5 text-xs"
-                        >
-                          {p}
-                        </span>
-                      ))}
-                  </div>
-                )}
-              </>
-            )}
-          </NudgeRow>
-        ),
-      )}
+      <div className="flex justify-between">
+        <span className={`${shimmer} h-3 w-16`} />
+        <span className={`${shimmer} h-4 w-14 rounded-full`} />
+      </div>
+      <span className={`${shimmer} h-4 w-3/4`} />
+      <span className={`${shimmer} h-3 w-full`} />
+      <span className={`${shimmer} h-3 w-2/3`} />
+      <span className={`${shimmer} mt-3 h-3 w-1/2`} />
     </div>
   );
 }
 
-/* -------------------------- Fundamental ------------------------- */
-
-export function FundamentalCards({ cards }: { cards: FundamentalCard[] }) {
-  if (cards.length === 0)
-    return <NudgeEmpty message="No fundamental data available." />;
+export function InsightSkeletonRow() {
   return (
     <div
-      className={SCROLL_LIST}
-      style={{ ["--nudge-list-h" as string]: LIST_HEIGHT.fundamental }}
+      className="space-y-3 p-4.5"
+      aria-hidden="true"
     >
-      {cards.map((card) =>
-        card.coverage === "not_covered" ? (
-          <NotCovered
-            key={card.holding.isin}
-            name={cardTitle(card)}
-          />
-        ) : (
-          <NudgeRow key={card.holding.isin}>
-            <RowHeader
-              title={cardTitle(card)}
-              badge={card.badge}
-            />
-            <NudgeLine line={card.line} />
-            {card.data && (
-              <MetricRow>
-                {card.data.pe != null && (
-                  <Metric
-                    label="P/E"
-                    value={`${card.data.pe.toFixed(1)}x`}
-                  />
-                )}
-                {card.data.sectorPe != null && (
-                  <Metric
-                    label="Sector P/E"
-                    value={`${card.data.sectorPe.toFixed(1)}x`}
-                  />
-                )}
-                {card.data.pb != null && (
-                  <Metric
-                    label="P/B"
-                    value={`${card.data.pb.toFixed(1)}x`}
-                  />
-                )}
-                {card.data.roe != null && (
-                  <Metric
-                    label="ROE"
-                    value={`${card.data.roe.toFixed(1)}%`}
-                  />
-                )}
-              </MetricRow>
-            )}
-          </NudgeRow>
-        ),
-      )}
+      <div className="flex items-center gap-3">
+        <span className={`${shimmer} h-11 w-11 rounded-full`} />
+        <div className="flex-1 space-y-1.5">
+          <span className={`${shimmer} h-3.5 w-1/2`} />
+          <span className={`${shimmer} h-3 w-1/3`} />
+        </div>
+      </div>
+      <span className={`${shimmer} h-3 w-full`} />
+      <span className={`${shimmer} h-3 w-4/5`} />
+      <span className={`${shimmer} h-11 w-full rounded-full`} />
     </div>
   );
 }
 
-/* ------------------------ FinSharpe Score ----------------------- */
-
-export function FinSharpeCards({ cards }: { cards: FinSharpeScoreCard[] }) {
-  if (cards.length === 0)
-    return <NudgeEmpty message="No FinSharpe scores available." />;
+/** Quiet message card for a row with nothing to show (or a failed load). */
+export function RowMessage({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+}) {
   return (
-    <div
-      className={SCROLL_LIST}
-      style={{ ["--nudge-list-h" as string]: LIST_HEIGHT.finsharpe }}
-    >
-      {cards.map((card) =>
-        card.coverage === "not_covered" ? (
-          <NotCovered
-            key={card.holding.isin}
-            name={cardTitle(card)}
-          />
-        ) : (
-          <NudgeRow key={card.holding.isin}>
-            <RowHeader
-              title={cardTitle(card)}
-              badge={card.badge}
-            />
-            <NudgeLine line={card.line} />
-            {card.scores?.kind === "equity" && (
-              <MetricRow>
-                {card.scores.overall != null && (
-                  <Metric
-                    label="Overall"
-                    value={card.scores.overall.toFixed(0)}
-                  />
-                )}
-                {card.scores.overallIndustry != null && (
-                  <Metric
-                    label="Industry"
-                    value={card.scores.overallIndustry.toFixed(0)}
-                  />
-                )}
-                {card.scores.growth != null && (
-                  <Metric
-                    label="Growth"
-                    value={card.scores.growth.toFixed(0)}
-                  />
-                )}
-                {card.scores.value != null && (
-                  <Metric
-                    label="Value"
-                    value={card.scores.value.toFixed(0)}
-                  />
-                )}
-              </MetricRow>
-            )}
-            {card.scores?.kind === "mf" && (
-              <MetricRow>
-                {card.scores.overallRank != null && (
-                  <Metric
-                    label="Rank"
-                    value={`#${card.scores.overallRank.toFixed(0)}`}
-                  />
-                )}
-                {card.scores.performance != null && (
-                  <Metric
-                    label="Performance"
-                    value={card.scores.performance.toFixed(0)}
-                  />
-                )}
-                {card.scores.riskAdjReturn != null && (
-                  <Metric
-                    label="Risk-Adjusted"
-                    value={card.scores.riskAdjReturn.toFixed(0)}
-                  />
-                )}
-              </MetricRow>
-            )}
-          </NudgeRow>
-        ),
-      )}
+    <div className="glass-card flex items-center justify-between gap-3 rounded-card px-5 py-4">
+      <p className="text-[11px] leading-relaxed text-slate-400">{children}</p>
+      {action}
     </div>
   );
 }

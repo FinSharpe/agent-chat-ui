@@ -1,53 +1,53 @@
 "use client";
 import ImportHoldings from "@/components/moneyone/import-holdings";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
 import { ConsentType } from "@/lib/moneyone/moneyone.enums";
 import { deleteConsent } from "@/lib/moneyone/moneyone.storage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Loader2,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { Loader2, RefreshCw, Trash2, type LucideIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useConsentQuery } from "../../hooks/useConsentQuery";
 import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
-import { formatLastUpdated } from "../../utils/date-formatting";
 import { BaseAnalysisModalProps } from "../../types";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { formatLastUpdated } from "../../utils/date-formatting";
+import { AccountRow, RowIconButton, type AccountStatusTone } from "./AccountRow";
 
 type MoneyOneHoldingsCardProps = {
   consentType: ConsentType;
-  icon: React.ElementType;
+  icon: LucideIcon;
   title: string;
   description: string;
+  /** Position in the list — picks the icon tile colour. */
+  tone?: number;
   /**
-   * Analysis modal component to render for this consent type
-   * Must accept BaseAnalysisModalProps (consent: ConsentData | null)
+   * Analysis modal for this consent type. It renders its own "Analyse"
+   * trigger, which the Import page styles as the reference's mint pill.
    */
   AnalysisModal: React.ComponentType<BaseAnalysisModalProps>;
 };
 
 /**
- * Reusable card component for MoneyOne-connected holdings (Equity, Mutual Funds, ETF, etc.)
- * Displays connection status and import button
- * Renders consent-type specific analysis modal via AnalysisModal prop
+ * A Connected Accounts row for an Account Aggregator (MoneyOne) asset type —
+ * Equities, Mutual Funds, ETF, Bank, SIP. Not connected → Connect (consent +
+ * AA redirect); returning from the AA → Connecting…; connected → Analyse,
+ * with refresh / remove on the status line; expired → Reconnect.
  */
 export function MoneyOneHoldingsCard({
   consentType,
-  icon: Icon,
+  icon,
   title,
   description,
+  tone = 0,
   AnalysisModal,
 }: MoneyOneHoldingsCardProps) {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const { data: consent } = useConsentQuery(consentType);
   const { mutate: refreshData, isPending: isRefreshing } = useRefreshFiData();
+  const [isChecking, setIsChecking] = useState(false);
 
   // Revoke on MoneyOne first so the AA actually stops sharing data. If revoke
   // fails (and the consent isn't already gone), still remove it locally but
@@ -67,27 +67,31 @@ export function MoneyOneHoldingsCard({
     },
   });
 
-  const isExpired = consent?.isExpired;
-  const isDataReady = consent?.isDataReady && !isExpired;
+  const isExpired = !!consent?.isExpired;
+  const isDataReady = !!consent?.isDataReady && !isExpired;
   const lastUpdated = formatLastUpdated(consent?.consentCreationData);
+  // Back from the AA with this type's consent — FetchingFiDataModal is
+  // pulling the first data in; the row shows the reference's connecting state.
+  const isReturning =
+    !!consent &&
+    !consent.isDataReady &&
+    !isExpired &&
+    searchParams.get("consentType") === consentType &&
+    !!searchParams.get("consentID");
 
   const handleRefresh = () => {
     if (!consent?.consentID) {
       toast.error("Unable to refresh: consent ID not found");
       return;
     }
-
     refreshData(consent.consentID, {
-      onSuccess: () => {
-        toast.success(`${title} data refreshed successfully`);
-      },
-      onError: (error) => {
+      onSuccess: () => toast.success(`${title} data refreshed successfully`),
+      onError: (error) =>
         toast.error(
           error instanceof Error
             ? error.message
-            : `Failed to refresh ${title} data`
-        );
-      },
+            : `Failed to refresh ${title} data`,
+        ),
     });
   };
 
@@ -95,166 +99,96 @@ export function MoneyOneHoldingsCard({
     if (consent?.consentID) await deleteConnection(consent.consentID);
   };
 
-  return (
-    <Card className="p-4 hover:shadow-md transition-shadow border border-gray-200 h-full gap-0">
-      <div className="flex items-start gap-3 h-full">
-        <div
-          className={`p-2 rounded-lg flex-shrink-0 ${
-            isExpired ? "bg-amber-50" : isDataReady ? "bg-green-50" : "bg-gray-50"
-          }`}
+  const [status, statusTone]: [string, AccountStatusTone] = isRefreshing
+    ? ["Refreshing…", "connecting"]
+    : isChecking || isReturning
+      ? ["Connecting…", "connecting"]
+      : isExpired
+        ? ["Connection expired", "warning"]
+        : isDataReady
+          ? [lastUpdated ? `Updated ${lastUpdated}` : "Connected", "connected"]
+          : consent
+            ? // Consented, but the first data pull never landed (the fetch
+              // modal was closed or failed) — refresh retries it.
+              ["Awaiting data", "warning"]
+            : ["Not connected", "idle"];
+
+  const busy = isRefreshing || isDeleting;
+  const statusActions =
+    consent && !isReturning ? (
+      <>
+        <RowIconButton
+          label={`Refresh ${title}`}
+          onClick={handleRefresh}
+          disabled={busy}
         >
-          <Icon
-            className={`w-6 h-6 ${
-              isExpired
-                ? "text-amber-500"
-                : isDataReady
-                  ? "text-green-500"
-                  : "text-gray-600"
-            }`}
+          <RefreshCw
+            size={11}
+            className={isRefreshing ? "animate-spin motion-reduce:animate-none" : ""}
           />
-        </div>
-        <div className="flex-1 min-w-0 flex flex-col h-full">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-medium text-gray-900 truncate">{title}</h3>
-            {isExpired ? (
-              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            ) : isDataReady ? (
-              <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-            ) : null}
-          </div>
-          <p className="text-sm text-gray-600 break-words">{description}</p>
-
-          {/* Expired Notice */}
-          {isExpired && (
-            <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
-              <AlertTriangle className="w-3 h-3" />
-              <span>Connection expired — refresh to reconnect, or remove it.</span>
-            </div>
-          )}
-
-          {/* Last Updated Info */}
-          {isDataReady && lastUpdated && (
-            <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-              <Clock className="w-3 h-3" />
-              <span>Updated {lastUpdated}</span>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between gap-2 mt-auto pt-3">
-            {/* Left side - Import/Connect button */}
-            <div className="flex items-center gap-2">
-              {isExpired && consent ? (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-xs font-medium ${
-                      isRefreshing ? "text-blue-600" : "text-amber-600"
-                    }`}
-                  >
-                    {isRefreshing ? "Refreshing..." : "Expired"}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing || isDeleting}
-                    className="text-xs p-1.5"
-                    title="Refresh data"
-                  >
-                    <RefreshCw
-                      className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`}
-                    />
-                  </Button>
-                  <RemoveConnectionButton
-                    title={title}
-                    disabled={isRefreshing || isDeleting}
-                    isDeleting={isDeleting}
-                    onConfirm={handleDelete}
-                  />
-                </div>
-              ) : isDataReady && consent ? (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-xs font-medium ${
-                      isRefreshing ? "text-blue-600" : "text-green-600"
-                    }`}
-                  >
-                    {isRefreshing ? "Refreshing..." : "Connected"}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing || isDeleting}
-                    className="text-xs p-1.5"
-                    title="Refresh data"
-                  >
-                    <RefreshCw
-                      className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`}
-                    />
-                  </Button>
-                  <RemoveConnectionButton
-                    title={title}
-                    disabled={isRefreshing || isDeleting}
-                    isDeleting={isDeleting}
-                    onConfirm={handleDelete}
-                  />
-                </div>
-              ) : (
-                <ImportHoldings consentType={consentType} />
-              )}
-            </div>
-
-            {/* Right side - Analyse button (consent-specific modal) */}
-            <AnalysisModal consent={consent} />
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-/**
- * Trash-icon button that confirms before revoking the connection. Co-locates the
- * trigger with its ConfirmDialog so the confirm-open state lives inside the
- * dialog (no useState here). `onConfirm` is awaited; the dialog closes itself
- * once the revoke resolves.
- */
-function RemoveConnectionButton({
-  title,
-  disabled,
-  isDeleting,
-  onConfirm,
-}: {
-  title: string;
-  disabled: boolean;
-  isDeleting: boolean;
-  onConfirm: () => Promise<void>;
-}) {
-  return (
-    <ConfirmDialog
-      title={`Remove ${title}?`}
-      description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
-      confirmLabel="Remove"
-      destructive
-      onConfirm={onConfirm}
-    >
-      {(_, setOpen) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setOpen(true)}
-          disabled={disabled}
-          className="text-xs p-1.5 text-red-500 hover:text-red-600"
-          title="Remove connection"
+        </RowIconButton>
+        <ConfirmDialog
+          title={`Remove ${title}?`}
+          description="This revokes the consent on MoneyOne and stops data sharing through the Account Aggregator. This can't be undone — you'll need to reconnect to import again."
+          confirmLabel="Remove"
+          destructive
+          onConfirm={handleDelete}
         >
-          {isDeleting ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            <Trash2 className="w-3 h-3" />
+          {(_, setOpen) => (
+            <RowIconButton
+              label={`Remove ${title} connection`}
+              onClick={() => setOpen(true)}
+              disabled={busy}
+              destructive
+            >
+              {isDeleting ? (
+                <Loader2
+                  size={11}
+                  className="animate-spin motion-reduce:animate-none"
+                />
+              ) : (
+                <Trash2 size={11} />
+              )}
+            </RowIconButton>
           )}
-        </Button>
-      )}
-    </ConfirmDialog>
+        </ConfirmDialog>
+      </>
+    ) : null;
+
+  const trailing = isReturning ? (
+    <span
+      role="status"
+      aria-label="Connecting"
+      className="flex h-8 w-8 shrink-0 items-center justify-center"
+    >
+      <Loader2
+        size={15}
+        className="animate-spin text-amber-500 motion-reduce:animate-none"
+      />
+    </span>
+  ) : isDataReady ? (
+    // The modal owns its trigger; import.css restyles it as the mint pill.
+    <span className="import-slot-analyse shrink-0">
+      <AnalysisModal consent={consent} />
+    </span>
+  ) : (
+    <ImportHoldings
+      consentType={consentType}
+      label={isExpired ? "Reconnect" : "Connect"}
+      onPendingChange={setIsChecking}
+    />
+  );
+
+  return (
+    <AccountRow
+      icon={icon}
+      tone={tone}
+      title={title}
+      description={description}
+      status={status}
+      statusTone={statusTone}
+      statusActions={statusActions}
+      trailing={trailing}
+    />
   );
 }

@@ -70,7 +70,7 @@ export default function ChatComposer({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (isLoading || !canSend) return;
-    if (mic.listening) mic.stop();
+    if (mic.listening) mic.cancel();
     onSubmit();
   };
 

@@ -3,6 +3,10 @@ import {
   getBrowserLaunchOptions,
   PUPPETEER_TIMEOUTS,
 } from "@/lib/puppeteer-utils";
+import {
+  fetchWithRefresh,
+  mergeSetCookieHeaders,
+} from "@/lib/auth/server-refresh";
 
 export async function POST(request: NextRequest) {
   let body;
@@ -57,6 +61,19 @@ export async function POST(request: NextRequest) {
     gotoRoute.searchParams.set("personalComment", sanitizedComment);
   }
 
+  // The report page reads the access token as-is, and the browser drops that
+  // cookie after 15 minutes. Refresh here first so an idle tab still exports,
+  // and hand any rotated pair back to the browser on the PDF response.
+  const session: { accessToken?: string; fingerprint?: string } = {};
+  const { response: authResponse, refreshSetCookieHeaders } =
+    await fetchWithRefresh(request, async (accessToken, fingerprint) => {
+      session.accessToken = accessToken;
+      session.fingerprint = fingerprint;
+      return new Response(null, { status: 204 });
+    });
+  const { accessToken, fingerprint } = session;
+  if (!accessToken) return authResponse;
+
   let browser;
   try {
     // Get browser configuration based on environment
@@ -73,14 +90,21 @@ export async function POST(request: NextRequest) {
     const domain = targetUrl.hostname;
     const isHttps = targetUrl.protocol === "https:";
     const fgpName = isHttps ? "__Secure-Fgp" : "fgp";
-    const authCookieNames = ["access_token", "refresh_token", fgpName];
-    const puppeteerCookies = authCookieNames
-      .map((name) => {
-        const value = request.cookies.get(name)?.value;
-        if (!value) return null;
-        return { name, value, domain, path: "/", secure: isHttps };
-      })
-      .filter((c) => c !== null);
+    // The refresh token stays out: the page never refreshes, and a rotated
+    // one would already be spent.
+    const authCookies: [string, string | undefined][] = [
+      ["access_token", accessToken],
+      [fgpName, fingerprint],
+    ];
+    const puppeteerCookies = authCookies
+      .filter((c): c is [string, string] => !!c[1])
+      .map(([name, value]) => ({
+        name,
+        value,
+        domain,
+        path: "/",
+        secure: isHttps,
+      }));
     if (puppeteerCookies.length > 0) {
       await page.setCookie(...puppeteerCookies);
     }
@@ -111,12 +135,15 @@ export async function POST(request: NextRequest) {
       scale: 1,
     };
     const pdfBuffer = await page.pdf(pdfOptions);
-    return new NextResponse(pdfBuffer, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": 'inline; filename="report.pdf"',
-      },
-    });
+    return mergeSetCookieHeaders(
+      new NextResponse(pdfBuffer, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": 'inline; filename="report.pdf"',
+        },
+      }),
+      refreshSetCookieHeaders,
+    );
   } catch (error: unknown) {
     console.error("PDF generation error:", error);
     const message =

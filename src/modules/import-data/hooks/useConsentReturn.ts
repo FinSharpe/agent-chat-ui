@@ -58,6 +58,15 @@ export function useConsentReturn() {
     error: null,
   });
   const handledRef = useRef<string | null>(null);
+  // Unmount, not a dependency change, ends a journey: stripping the return
+  // params re-renders with `ecres` gone, and the journey must outlive that.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const ecres = searchParams.get("ecres");
   const typeParam = searchParams.get("type");
@@ -83,8 +92,6 @@ export function useConsentReturn() {
     if (handledRef.current === journeyKey) return;
     handledRef.current = journeyKey;
 
-    let cancelled = false;
-
     void (async () => {
       setState({ phase: "resolving", step: 1, error: null });
       try {
@@ -96,7 +103,7 @@ export function useConsentReturn() {
           accountID: accountID ?? pending?.accountID ?? null,
         });
 
-        if (cancelled) return;
+        if (!mountedRef.current) return;
 
         if (result.status === "rejected") {
           clearPendingJourney();
@@ -146,11 +153,11 @@ export function useConsentReturn() {
         try {
           const blob = await fetchWithRetry(consentID, POLL.adopt);
           queryClient.setQueryData(aaFiDataKey(consentID), blob);
-          if (cancelled) return;
+          if (!mountedRef.current) return;
           setState({ phase: "linked", step: 3, error: null });
           toast.success("Account connected. Holdings are in.");
         } catch (error) {
-          if (cancelled) return;
+          if (!mountedRef.current) return;
           // Linked but the providers haven't served data yet — the row shows
           // "Syncing" and Sync retries. Not a failed consent.
           setState({
@@ -165,7 +172,7 @@ export function useConsentReturn() {
         // sweep picks up late FIPs without the user hunting for Sync.
         void lateFipSweep(consentID, queryClient);
       } catch (error) {
-        if (cancelled) return;
+        if (!mountedRef.current) return;
         clearPendingJourney();
         stripReturnParams();
         setState({
@@ -177,10 +184,6 @@ export function useConsentReturn() {
         });
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [ecres, resdate, fi, typeParam, accountID, queryClient]);
 
   return { ...state, dismiss };

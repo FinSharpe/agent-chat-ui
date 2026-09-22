@@ -8,6 +8,14 @@ const LANGGRAPH_API_URL =
   process.env.LANGGRAPH_API_URL || "http://localhost:2024";
 const LANGSMITH_API_KEY = process.env.LANGSMITH_API_KEY;
 
+const HOP_HEADERS = [
+  "host",
+  "connection",
+  "keep-alive",
+  "transfer-encoding",
+  "content-length",
+];
+
 async function handler(request: NextRequest) {
   const path = request.nextUrl.pathname.replace(/^\/api/, "");
   const url = new URL(path, LANGGRAPH_API_URL);
@@ -17,6 +25,10 @@ async function handler(request: NextRequest) {
     request,
     (accessToken, fingerprint) => {
       const headers = new Headers(request.headers);
+      // The browser's own cookies (the refresh token among them), host and
+      // hop-by-hop headers are for this server, not the LangGraph one.
+      for (const name of HOP_HEADERS) headers.delete(name);
+      headers.delete("cookie");
       headers.set("Authorization", `Bearer ${accessToken}`);
       if (fingerprint) headers.set("X-Fgp", fingerprint);
       if (LANGSMITH_API_KEY) headers.set("X-Api-Key", LANGSMITH_API_KEY);
@@ -34,11 +46,17 @@ async function handler(request: NextRequest) {
     },
   );
 
+  // fetch has already decoded the body, so its encoding and length headers
+  // no longer describe what we pass on.
+  const responseHeaders = new Headers(response.headers);
+  for (const name of HOP_HEADERS) responseHeaders.delete(name);
+  responseHeaders.delete("content-encoding");
+
   return mergeSetCookieHeaders(
     new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers: responseHeaders,
     }),
     refreshSetCookieHeaders,
   );

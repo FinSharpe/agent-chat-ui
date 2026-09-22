@@ -70,7 +70,8 @@ export function clearAuthCookies(response: NextResponse): void {
     FGP_COOKIE_NAME,
     USER_INFO_COOKIE,
   ]) {
-    response.cookies.set(name, "", { maxAge: 0, path: "/" });
+    // A `__Secure-` cookie is only accepted, and so only cleared, with Secure.
+    response.cookies.set(name, "", { maxAge: 0, path: "/", secure: IS_HTTPS });
   }
 }
 

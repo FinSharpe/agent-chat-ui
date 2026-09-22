@@ -109,11 +109,12 @@ export function QuoteScreen({
 
   async function onPurchase() {
     try {
-      const receipt = await purchase.mutateAsync({
+      const receipt = await purchase.purchaseOnce({
         pipelineId,
         symbol,
         threadId,
       });
+      if (!receipt) return; // a second click; the first one navigates
       // Replaced, not pushed: going back from the run should not land on a
       // quote for a report that is already paid for.
       router.replace(

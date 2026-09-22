@@ -118,9 +118,14 @@ export function useLegacyConsentAdoption(enabled: boolean) {
           if (result.status === "linked") adopted++;
           localStorage.removeItem(consent.storageKey);
         } catch (error) {
-          // Only a network-level failure is worth another page load; a refusal
-          // (404 not found, 409 someone else's) never becomes an adoption.
-          if ((error as AaError)?.kind === "transient" && (error as AaError)?.status === 0) {
+          // A network failure, a rate limit or a server error is worth another
+          // page load; a refusal (404 not found, 409 someone else's, 422)
+          // never becomes an adoption, so only those drop the consent.
+          const status = (error as AaError)?.status;
+          if (
+            (error as AaError)?.kind === "transient" &&
+            (status === 0 || status === 429 || status >= 500)
+          ) {
             transientFailure = true;
           } else {
             localStorage.removeItem(consent.storageKey);

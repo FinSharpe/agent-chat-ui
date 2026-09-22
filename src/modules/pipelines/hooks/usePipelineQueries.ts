@@ -8,7 +8,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   deletePurchase,
@@ -124,6 +124,12 @@ export function usePipelineQuote(
   });
 }
 
+interface PurchaseVars {
+  pipelineId: string;
+  symbol: string | null;
+  threadId?: string | null;
+}
+
 export function usePurchasePipeline() {
   const queryClient = useQueryClient();
   // The double-spend guard: a second click while the first request is in
@@ -132,30 +138,34 @@ export function usePurchasePipeline() {
   const inFlight = useRef(false);
 
   const mutation = useMutation({
-    mutationFn: async (vars: {
-      pipelineId: string;
-      symbol: string | null;
-      threadId?: string | null;
-    }) => {
-      if (inFlight.current) throw new Error("Purchase already in progress");
-      inFlight.current = true;
-      try {
-        return await purchasePipeline(
-          vars.pipelineId,
-          vars.symbol,
-          vars.threadId,
-        );
-      } finally {
-        inFlight.current = false;
-      }
-    },
+    mutationFn: (vars: PurchaseVars) =>
+      purchasePipeline(vars.pipelineId, vars.symbol, vars.threadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pipelineKeys.purchases() });
     },
   });
 
+  // Guarded outside the mutation: a refused second call must not become the
+  // mutation's latest state, which would read as a failed purchase and
+  // re-enable the button while the first one is still being charged.
+  const { mutateAsync } = mutation;
+  const purchaseOnce = useCallback(
+    async (vars: PurchaseVars) => {
+      if (inFlight.current) return null;
+      inFlight.current = true;
+      try {
+        return await mutateAsync(vars);
+      } finally {
+        inFlight.current = false;
+      }
+    },
+    [mutateAsync],
+  );
+
   return {
     ...mutation,
+    /** Resolves to null, without a request, while a purchase is in flight. */
+    purchaseOnce,
     /** True from the click until the receipt lands — the button's disabled state. */
     isPurchasing: mutation.isPending,
   };

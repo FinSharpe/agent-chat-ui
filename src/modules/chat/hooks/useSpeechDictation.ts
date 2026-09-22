@@ -63,6 +63,18 @@ export function useSpeechDictation({
     recognitionRef.current?.stop();
   }, []);
 
+  /**
+   * Stop and drop anything still in flight. `stop()` delivers a last final
+   * result after it is called, which would write the dictated text back into
+   * a composer that a send has just cleared.
+   */
+  const cancel = useCallback(() => {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    recognition.onresult = null;
+    recognition.abort();
+  }, []);
+
   const start = useCallback(() => {
     const Ctor = getRecognitionCtor();
     if (!Ctor || recognitionRef.current) return;
@@ -105,5 +117,5 @@ export function useSpeechDictation({
     [listening, start, stop],
   );
 
-  return { supported, listening, start, stop, toggle };
+  return { supported, listening, start, stop, cancel, toggle };
 }

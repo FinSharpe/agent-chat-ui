@@ -27,7 +27,7 @@ import React, {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { useThreads } from "./Thread";
+import { useQueryClient } from "@tanstack/react-query";
 import { PlannerModels } from "@/configs/models";
 
 export type StateType = {
@@ -112,7 +112,7 @@ const StreamSession = ({
   assistantId: string;
 }) => {
   const [threadId, setThreadId] = useQueryState("threadId");
-  const { getThreads, setThreads } = useThreads();
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -153,9 +153,11 @@ const StreamSession = ({
         setThreadId(id);
       }
 
-      // Refetch threads list when thread ID changes.
-      // Wait for some seconds before fetching so we're able to get the new thread that was created.
-      sleep().then(() => getThreads().then(setThreads).catch(console.error));
+      // The sidebar, drawer and Memory page read the ["threads"] query, so
+      // refetch it once the new thread has had time to be searchable.
+      sleep().then(() =>
+        queryClient.invalidateQueries({ queryKey: ["threads"] }),
+      );
     },
   });
 

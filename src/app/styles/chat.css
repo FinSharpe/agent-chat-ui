@@ -9,13 +9,6 @@
   border-color: rgba(244, 63, 94, 0.28);
   color: #fda4af;
 }
-:is(.dark [data-app-mode], [data-app-mode].dark) .chat-error-tile :is(p, pre) {
-  color: #fda4af;
-}
-:is(.dark [data-app-mode], [data-app-mode].dark) .chat-error-tile pre {
-  background-color: rgba(0, 0, 0, 0.2);
-}
-
 /* Idle send button: navy at 30% vanishes on the dark canvas. */
 :is(.dark [data-app-mode], [data-app-mode].dark) .chat-send-idle {
   color: rgba(248, 250, 252, 0.35);

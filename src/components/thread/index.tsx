@@ -10,7 +10,7 @@ import {
   useChatSubmit,
   usePendingPromptHandoff,
 } from "@/modules/chat";
-import { useStreamContext } from "@/providers/Stream";
+import { useChatConnection, useStreamContext } from "@/providers/Stream";
 import { ArrowDown, Paperclip } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -22,7 +22,8 @@ import { MessageList } from "./message-list";
 // The phone composer floats this far above the bottom of the page — clear of
 // the bottom nav, as in the reference — plus any home-indicator inset the nav
 // grows by.
-const PILL_BOTTOM = "calc(104px + max(0px, env(safe-area-inset-bottom) - 10px))";
+const PILL_BOTTOM =
+  "calc(104px + max(0px, env(safe-area-inset-bottom) - 10px))";
 
 function ScrollArea({
   children,
@@ -65,7 +66,7 @@ function ScrollToBottom({ desktop }: { desktop: boolean }) {
 
 function DropOverlay() {
   return (
-    <div className="pointer-events-none absolute inset-3 z-[60] flex items-center justify-center rounded-card border-2 border-dashed border-[#063BAA]/30 bg-[#063BAA]/6 backdrop-blur-[1px]">
+    <div className="rounded-card pointer-events-none absolute inset-3 z-[60] flex items-center justify-center border-2 border-dashed border-[#063BAA]/30 bg-[#063BAA]/6 backdrop-blur-[1px]">
       <div className="glass-nav flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-medium text-[#0A1F4D]">
         <Paperclip
           size={14}
@@ -87,7 +88,7 @@ export function Thread() {
   const desktop = useIsDesktopWeb();
   const [threadId] = useQueryState("threadId");
   const stream = useStreamContext();
-  const { submitMessage, regenerate } = useChatSubmit();
+  const { submitMessage, regenerate, retryLastTurn } = useChatSubmit();
 
   const [input, setInput] = useState("");
   const {
@@ -104,30 +105,45 @@ export function Thread() {
   const isLoading = stream.isLoading;
   const isEmpty = !threadId && messages.length === 0;
 
-  // A failed run also toasts once, so it is seen even when scrolled away.
+  // The thread itself carries the failure and the Retry; this toast only makes
+  // sure it is noticed when the user has scrolled away from it. Deliberately
+  // no status code, no error text and no deployment URL — the raw error is
+  // logged for developers in StreamSession's onError.
   const lastError = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!stream.error) {
       lastError.current = undefined;
       return;
     }
-    try {
-      const message = (stream.error as any).message;
-      if (!message || lastError.current === message) return;
-      lastError.current = message;
-      toast.error("An error occurred. Please try again.", {
-        description: (
-          <p>
-            <strong>Error:</strong> <code>{message}</code>
-          </p>
-        ),
-        richColors: true,
-        closeButton: true,
-      });
-    } catch {
-      // no-op
-    }
+    const signature =
+      (stream.error as { message?: string } | null)?.message ??
+      String(stream.error);
+    if (lastError.current === signature) return;
+    lastError.current = signature;
+    toast.error("FinSharpe GPT couldn't answer that", {
+      description:
+        "The connection dropped before the answer came through. Use Retry in the chat to send it again.",
+      richColors: true,
+      closeButton: true,
+    });
   }, [stream.error]);
+
+  // Nothing to resend means the conversation itself never loaded; a reload is
+  // the only way back from there.
+  const retry = useCallback(() => {
+    if (!retryLastTurn()) window.location.reload();
+  }, [retryLastTurn]);
+
+  // A saved chat that renders nothing. `useStream` surfaces no error when the
+  // history fetch itself fails, so an unreachable server looks exactly like a
+  // chat with no messages — ask the server which it is before letting the
+  // blank thread stand.
+  const { reachable, recheck } = useChatConnection();
+  const looksBlank =
+    !!threadId && messages.length === 0 && !isLoading && !stream.error;
+  useEffect(() => {
+    if (looksBlank) void recheck();
+  }, [looksBlank, recheck]);
 
   const sendTyped = () => {
     if (isLoading) return;
@@ -192,6 +208,8 @@ export function Thread() {
             <MessageList
               onSuggestion={sendPrompt}
               onRegenerate={regenerate}
+              onRetry={retry}
+              loadFailed={looksBlank && !reachable}
             />
           )}
         </div>

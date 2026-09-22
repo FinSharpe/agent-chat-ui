@@ -89,5 +89,52 @@ export function useChatSubmit() {
     [stream, model],
   );
 
-  return { submitMessage, regenerate };
+  /**
+   * Sends the last user turn again after a run failed — the send never
+   * reached the agent, or the stream dropped part-way through an answer.
+   *
+   * `regenerate` cannot cover this: a run that never started has no
+   * checkpoint to rewind to. The same message object is re-submitted with its
+   * original id, so LangGraph's message reducer replaces it rather than
+   * appending a second copy if the failed run did persist it. Whatever the
+   * failed run left on screen after that turn (half an answer, a tool call)
+   * is dropped optimistically, because the retry is about to produce it
+   * again.
+   *
+   * Returns false when there is no user turn to resend (the conversation
+   * itself failed to load), so the caller can fall back.
+   */
+  const retryLastTurn = useCallback(() => {
+    const messages = stream.messages;
+    let index = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].type === "human") {
+        index = i;
+        break;
+      }
+    }
+    if (index < 0) return false;
+
+    const humanMessage = messages[index];
+    const kept = messages.slice(0, index + 1);
+    const context =
+      Object.keys(artifactContext).length > 0 ? artifactContext : undefined;
+
+    stream.submit(
+      { messages: [humanMessage], context },
+      {
+        streamMode: ["values"],
+        config: { configurable: { model } },
+        optimisticValues: (prev) => ({
+          ...prev,
+          context,
+          next_prompt_suggestions: [],
+          messages: kept,
+        }),
+      },
+    );
+    return true;
+  }, [stream, artifactContext, model]);
+
+  return { submitMessage, regenerate, retryLastTurn };
 }

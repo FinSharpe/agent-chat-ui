@@ -7,6 +7,10 @@ import { useStreamContext } from "@/providers/Stream";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import McpAppToolMessage from "./messages/client-components/mcp-app";
 import { HumanMessage } from "./messages/human";
+import {
+  StreamErrorState,
+  type StreamErrorVariant,
+} from "./messages/stream-error";
 import { getContentString } from "./utils";
 
 /**
@@ -16,9 +20,16 @@ import { getContentString } from "./utils";
 export function MessageList({
   onSuggestion,
   onRegenerate,
+  onRetry,
+  loadFailed = false,
 }: {
   onSuggestion: (prompt: string) => void;
   onRegenerate: (parentCheckpoint: Checkpoint | null | undefined) => void;
+  /** Resends the last user turn after a failed or dropped run. */
+  onRetry: () => void;
+  /** The conversation is empty because it could not be fetched, not because
+   *  it has no turns — the server did not answer. */
+  loadFailed?: boolean;
 }) {
   const stream = useStreamContext();
   const messages = stream.messages;
@@ -29,6 +40,13 @@ export function MessageList({
     (m) => m.type === "ai" || m.type === "tool",
   );
   const last = messages[messages.length - 1];
+  // Which failure the user is looking at: nothing came back at all, an answer
+  // was cut off part-way, or the conversation never loaded.
+  const errorVariant: StreamErrorVariant = !last
+    ? "load"
+    : last.type === "human"
+      ? "send"
+      : "interrupted";
   // Values stream whole steps: once the final answer is on screen the run is
   // only wrapping up (suggestions, the grounding check), so the loader drops
   // its skeleton rather than promise more text.
@@ -100,19 +118,11 @@ export function MessageList({
             disabled={isLoading}
           />
         )}
-      {!!stream.error && !isLoading && (
-        <div className="chat-error-tile w-full rounded-nested border border-rose-100 bg-rose-50 p-4">
-          <p className="text-[12px] font-medium text-rose-600">
-            An error occurred
-          </p>
-          {typeof stream.error === "string" ? (
-            <p className="mt-1 text-[11px] text-rose-600/80">{stream.error}</p>
-          ) : (
-            <pre className="mt-1.5 max-h-40 overflow-auto rounded-tile bg-white/60 p-2 text-[10px] text-rose-600/80">
-              {JSON.stringify(stream.error, null, 2)}
-            </pre>
-          )}
-        </div>
+      {((!!stream.error && !isLoading) || loadFailed) && (
+        <StreamErrorState
+          variant={errorVariant}
+          onRetry={onRetry}
+        />
       )}
     </div>
   );

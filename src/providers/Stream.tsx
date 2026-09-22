@@ -20,8 +20,10 @@ import { useQueryState } from "nuqs";
 import React, {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -51,6 +53,28 @@ const useTypedStream = useStream<
 
 type StreamContextType = ReturnType<typeof useTypedStream>;
 const StreamContext = createContext<StreamContextType | undefined>(undefined);
+
+/**
+ * Whether the assistant answered its health check, and a way to ask again.
+ *
+ * Kept apart from the stream context because that value carries getters the
+ * SDK uses to track which stream modes a consumer reads; spreading it to add a
+ * field would fire them on every render.
+ *
+ * The thread uses this to tell a conversation that *could not load* apart from
+ * one that is genuinely empty: `useStream` reports a failed history fetch
+ * nowhere, so without it a saved chat renders blank while the server is down.
+ */
+interface ChatConnection {
+  reachable: boolean;
+  /** Re-runs the health check and returns the result. */
+  recheck: () => Promise<boolean>;
+}
+const ChatConnectionContext = createContext<ChatConnection>({
+  reachable: true,
+  recheck: async () => true,
+});
+export const useChatConnection = () => useContext(ChatConnectionContext);
 
 async function sleep(ms = 4000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,6 +121,12 @@ const StreamSession = ({
     apiKey: apiKey ?? undefined,
     assistantId,
     threadId: threadId ?? null,
+    // The SDK retries a failed request four times with exponential backoff,
+    // which leaves an unreachable server spinning "analyzing…" for the better
+    // part of a minute before anything is said. Two retries still ride out a
+    // blip or a cold start, and cost the user a handful of seconds before the
+    // thread tells them the truth and offers Retry.
+    callerOptions: { maxRetries: 2 },
     onCustomEvent: (event, options) => {
       if (isUIMessage(event) || isRemoveUIMessage(event)) {
         options.mutate((prev) => {
@@ -104,6 +134,16 @@ const StreamSession = ({
           return { ...prev, ui };
         });
       }
+    },
+    // The SDK's own error hook. Nothing user-visible happens here — the thread
+    // renders the failure and the toast (see `Thread`) says it in plain words.
+    // This is where the detail a developer needs survives, and the one place
+    // the deployment URL may appear, because it never leaves the console.
+    onError: (error) => {
+      console.error(
+        `[chat] run failed against ${apiUrl} (assistant ${assistantId}):`,
+        error,
+      );
     },
     onThreadId: (id) => {
       // If not on chat view, navigate there before setting threadId
@@ -119,28 +159,46 @@ const StreamSession = ({
     },
   });
 
+  const [reachable, setReachable] = useState(true);
+  const recheck = useCallback(async () => {
+    const ok = await checkGraphStatus(apiUrl, apiKey);
+    setReachable(ok);
+    // The deployment URL belongs here and nowhere else — the console is for
+    // developers, the screen is for the investor.
+    if (!ok) {
+      console.error(
+        `[chat] assistant unreachable at ${apiUrl} (assistant ${assistantId})`,
+      );
+    }
+    return ok;
+  }, [apiKey, apiUrl, assistantId]);
+
   useEffect(() => {
-    checkGraphStatus(apiUrl, apiKey).then((ok) => {
-      if (!ok) {
-        toast.error("Failed to connect to LangGraph server", {
-          description: () => (
-            <p>
-              Please ensure your graph is running at <code>{apiUrl}</code> and
-              your API key is correctly set (if connecting to a deployed graph).
-            </p>
-          ),
-          duration: 10000,
-          richColors: true,
-          closeButton: true,
-        });
-      }
+    recheck().then((ok) => {
+      if (ok) return;
+      // Written for an investor, not an operator: no deployment URL, no API
+      // key, no mention of the graph.
+      toast.error("Can't reach FinSharpe GPT", {
+        description:
+          "We couldn't connect to the assistant just now. Your chats are safe — please try again in a moment.",
+        duration: 10000,
+        richColors: true,
+        closeButton: true,
+      });
     });
-  }, [apiKey, apiUrl]);
+  }, [recheck]);
+
+  const connection = useMemo(
+    () => ({ reachable, recheck }),
+    [reachable, recheck],
+  );
 
   return (
-    <StreamContext.Provider value={streamValue}>
-      {children}
-    </StreamContext.Provider>
+    <ChatConnectionContext.Provider value={connection}>
+      <StreamContext.Provider value={streamValue}>
+        {children}
+      </StreamContext.Provider>
+    </ChatConnectionContext.Provider>
   );
 };
 

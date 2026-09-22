@@ -1,26 +1,63 @@
 import { z } from "zod";
 import type { UserResponse } from "@/api/generated/auth-apis/models";
+import { OTP_LENGTH } from "../constants/routes";
+
+// Rules mirror the backend's request models (`LoginRequest`, `RegisterRequest`,
+// `VerifyEmailRequest`); the copy follows the reference screens. Each screen
+// shows one message at a time, so a schema's field order is the order its
+// errors are reported in.
 
 export const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
-});
-
-export const registerSchema = z.object({
-  name: z.string().min(1, "Name is required").max(255),
-  email: z.string().email("Please enter a valid email"),
+  email: z.string().trim().email("Please enter a valid email address."),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(128),
+    .min(1, "Please enter your password.")
+    .max(128, "Password must be at most 128 characters."),
 });
 
+export const registerSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Please enter your full name.")
+      .max(255, "Name must be at most 255 characters."),
+    email: z.string().trim().email("Please enter a valid email address."),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters.")
+      .max(128, "Password must be at most 128 characters."),
+    // Client-side only: never sent to the backend.
+    confirmPassword: z.string(),
+    acceptTerms: z.boolean(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.password !== values.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "Passwords do not match.",
+      });
+    }
+    if (!values.acceptTerms) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["acceptTerms"],
+        message: "Please accept the terms and conditions to proceed.",
+      });
+    }
+  });
+
 export const verifyEmailSchema = z.object({
-  email: z.string().email(),
+  email: z
+    .string()
+    .email("We couldn't tell which email to verify. Go back and try again."),
   token: z
     .string()
-    .length(6, "Code must be 6 digits")
-    .regex(/^\d{6}$/, "Code must be 6 digits"),
+    .regex(
+      new RegExp(`^\\d{${OTP_LENGTH}}$`),
+      `Please enter the complete ${OTP_LENGTH}-digit verification code.`,
+    ),
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;

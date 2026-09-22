@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { UserResponse } from "@/api/generated/auth-apis/models";
 import { isPublicPage } from "@/lib/auth/public-paths";
+import { AUTH_ROUTES } from "@/modules/auth/constants/routes";
 
 /**
  * Minimal user data available from the user_info cookie.
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CookieUser | UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Global 401 interceptor — redirect to /login when any /api/* call
+  // Global 401 interceptor — redirect to Sign In when any /api/* call
   // returns 401, except auth endpoints where 401 is an expected input
   // error (wrong password, bad OTP, etc.). At this point the server-side
   // fetchWithRefresh has already attempted a token refresh, so 401
@@ -110,7 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         !AUTH_401_PASSTHROUGH.includes(pathname)
       ) {
         isRedirecting = true;
-        window.location.href = "/login";
+        // The session died under a signed-in visitor, so skip the Welcome
+        // screen a stranger gets: straight to Sign In, and back here after.
+        const here = window.location.pathname + window.location.search;
+        window.location.href =
+          here === "/"
+            ? AUTH_ROUTES.login
+            : `${AUTH_ROUTES.login}?next=${encodeURIComponent(here)}`;
       }
       return response;
     };

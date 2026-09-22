@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="209.852mm" height="152.196mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 20985.2 15219.64"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <defs>
+  <style type="text/css">
+   <![CDATA[
+    .fil7 {fill:#4593FF}
+    .fil8 {fill:#2C6AF2;fill-rule:nonzero}
+    .fil6 {fill:#63A4FF;fill-rule:nonzero}
+    .fil5 {fill:#75E1FF;fill-rule:nonzero}
+    .fil4 {fill:#7AEFFF;fill-rule:nonzero}
+    .fil3 {fill:#85F7FF;fill-rule:nonzero}
+    .fil2 {fill:#A8F9FF;fill-rule:nonzero}
+    .fil1 {fill:#BDFBFF;fill-rule:nonzero}
+    .fil0 {fill:#D4FCFF;fill-rule:nonzero}
+   ]]>
+  </style>
+    <mask id="id0">
+  <linearGradient id="id1" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+     <rect style="fill:url(#id1)" x="1508.4" y="-0.05" width="11320.51" height="2228.18"/>
+    </mask>
+     <mask id="id2">
+  <linearGradient id="id3" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id3)" x="9704.39" y="22.62" width="11276.5" height="3122.52"/>
+     </mask>
+     <mask id="id4">
+  <linearGradient id="id5" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id5)" x="-7.83" y="187.85" width="2844.45" height="1496.8"/>
+     </mask>
+    <mask id="id6">
+  <linearGradient id="id7" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+     <rect style="fill:url(#id7)" x="-7.83" y="1119.85" width="20988.72" height="3580.61"/>
+    </mask>
+     <mask id="id8">
+  <linearGradient id="id9" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id9)" x="15647.18" y="3000.36" width="5333.71" height="2055.86"/>
+     </mask>
+     <mask id="id10">
+  <linearGradient id="id11" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id11)" x="-7.83" y="2529.34" width="8102.23" height="4204.87"/>
+     </mask>
+    <mask id="id12">
+  <linearGradient id="id13" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+     <rect style="fill:url(#id13)" x="3681.52" y="3534.88" width="12971.44" height="5053.9"/>
+    </mask>
+    <mask id="id14">
+  <linearGradient id="id15" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+     <rect style="fill:url(#id15)" x="-7.83" y="4508.12" width="20988.72" height="5530.44"/>
+    </mask>
+     <mask id="id16">
+  <linearGradient id="id17" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id17)" x="-7.83" y="8018.22" width="1074.1" height="899.76"/>
+     </mask>
+     <mask id="id18">
+  <linearGradient id="id19" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+      <rect style="fill:url(#id19)" x="7732.65" y="7232.84" width="13248.24" height="4705.87"/>
+     </mask>
+    <mask id="id20">
+  <linearGradient id="id21" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+     <rect style="fill:url(#id21)" x="-6.32" y="8360.91" width="20985.7" height="5007.66"/>
+    </mask>
+    <mask id="id22">
+  <linearGradient id="id23" gradientUnits="userSpaceOnUse" x1="10187.92" y1="-75.07" x2="10187.96" y2="15221.35">
+   <stop offset="0" style="stop-opacity:0; stop-color:white"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:white"/>
+  </linearGradient>
+     <rect style="fill:url(#id23)" x="-7.83" y="11083.76" width="20988.72" height="4139.35"/>
+    </mask>
+ </defs>
+ <g id="Layer_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <g id="_2243650695664">
+   <path class="fil0" style="mask:url(#id0)" d="M2834.86 1168.64c-365.33,-184.71 -796.51,-376.8 -1324.7,-560.42 1378.81,-388.01 2571.52,-531.46 3456.83,-583.92 566.16,-33.34 3184.12,-158.21 6393.92,879.02 553.33,178.71 1045.17,366.43 1466.24,542.94 -209.04,62.58 -441.02,127.61 -701.15,194.82 -821.1,212.04 -1630.18,421.35 -2419.85,585.29 -255.22,-107.65 -574.37,-227.88 -1023.03,-366.69 -2365.48,-731.75 -4315.09,-741.04 -4781.78,-737.76 -365.61,2.46 -721.1,18.86 -1066.48,46.72z"/>
+   <g>
+    <path class="fil1" style="mask:url(#id2)" d="M20979.13 134.69l0 1524.15c-1905.07,732.03 -3558.47,1069.76 -4754.46,1239.17 -1608.04,227.62 -3016.08,413.7 -4754.46,0 -883.4,-210.12 -1121.4,-401.4 -1764.06,-671.64 789.67,-163.94 1598.75,-373.25 2419.85,-585.29 260.13,-67.21 492.11,-132.24 701.15,-194.82 1659.13,-496.48 1890.85,-853.61 3588.79,-1171.39 1745.76,-326.81 3313.09,-288.83 4563.19,-140.18z"/>
+    <path class="fil1" style="mask:url(#id4)" d="M1510.16 608.22c528.19,183.62 959.37,375.71 1324.7,560.42 -1048.44,84.71 -2001.24,276.26 -2840.93,514.25l0 -1493.28c413.69,85.8 895.97,208.22 1420.88,385.82 32.24,10.93 63.67,21.86 95.09,32.79 0.26,0 0.26,0 0.26,0z"/>
+   </g>
+   <path class="fil2" style="mask:url(#id6)" d="M2834.86 1168.64c345.38,-27.86 700.87,-44.26 1066.48,-46.72 466.69,-3.28 2416.3,6.01 4781.78,737.76 448.66,138.81 767.81,259.04 1023.03,366.69 642.66,270.24 880.66,461.52 1764.06,671.64 1738.38,413.7 3146.42,227.62 4754.46,0 1195.99,-169.41 2849.39,-507.14 4754.46,-1239.17l0 1343.28c-1023.3,326.25 -2389.8,736.12 -4016.7,1152.82 -492.66,126.23 -924.38,236.63 -1313.49,332.81l-0.27 0c-611.24,-297.29 -1351.2,-573.26 -2211.1,-742.68 -713.44,-140.44 -1973.37,-388.83 -3442.88,0 -862.36,228.16 -1336.44,553.86 -1902.05,953.63 -165.59,-40.44 -333.09,-84.99 -502.5,-133.89 -2590.37,-748.42 -2975.36,-1770.63 -5027.7,-1994.69 -962.92,-105.2 -1838.12,15.02 -2568.51,209.03l0 -1096.26c839.69,-237.99 1792.49,-429.54 2840.93,-514.25z"/>
+   <g>
+    <path class="fil3" style="mask:url(#id8)" d="M20979.13 3002.12l0 1835.93c-567.53,-188 -1262.39,-335.27 -2049.33,-327.9 -378.72,3.56 -992.71,45.09 -2278.32,544.31l-0.28 0c-281.17,-183.08 -616.16,-378.99 -1002.26,-566.71 389.11,-96.18 820.83,-206.58 1313.49,-332.81 1626.9,-416.7 2993.4,-826.57 4016.7,-1152.82z"/>
+    <path class="fil3" style="mask:url(#id10)" d="M7590.14 4564.81c169.41,48.9 336.91,93.45 502.5,133.89 -444.03,314.22 -943.79,673.82 -1732.1,1068.38 -629.84,315.32 -1517.88,689.94 -2677.26,965.37 -186.89,-136.34 -401.12,-284.17 -656.33,-446.2 -1059.37,-672.19 -2099.89,-1123.86 -3033.02,-1433.45l0 -2073.65c730.39,-194.01 1605.59,-314.23 2568.51,-209.03 2052.34,224.06 2437.33,1246.27 5027.7,1994.69z"/>
+   </g>
+   <path class="fil4" style="mask:url(#id12)" d="M15648.94 4487.75c386.1,187.72 721.09,383.63 1002.26,566.71 -552.77,214.49 -1229.87,513.7 -2066,931.22 -3036.01,1515.4 -5072.65,3583.99 -8880.45,2076.65 -914.27,-362.04 -1211.02,-737.49 -2021.47,-1329.88 1159.38,-275.43 2047.42,-650.05 2677.26,-965.37 788.31,-394.56 1288.07,-754.16 1732.1,-1068.38 565.61,-399.77 1039.69,-725.47 1902.05,-953.63 1469.51,-388.83 2729.44,-140.44 3442.88,0 859.9,169.42 1599.86,445.39 2211.1,742.68l0.27 0z"/>
+   <path class="fil5" style="mask:url(#id14)" d="M20979.13 4838.05l0 3237.13c-2324.22,-946.79 -4098.12,-935.59 -5328.28,-723.28 -1373.86,236.9 -1640.56,650.59 -5300.94,1885.39 -1180.96,398.39 -2015.18,646.23 -2615.5,799.51 -685.29,-524.63 -1304.47,-1021.66 -2576.15,-1373.33 -1047.62,-289.63 -1920.91,-310.13 -2377.23,-300.56 -622.45,12.84 -1197.09,97.27 -1716.52,221.05 -397.31,-195.92 -755.52,-386.92 -1070.58,-563.98l0 -3167.18c933.13,309.59 1973.65,761.26 3033.02,1433.45 255.21,162.03 469.44,309.86 656.33,446.2 810.45,592.39 1107.2,967.84 2021.47,1329.88 3807.8,1507.34 5844.44,-561.25 8880.45,-2076.65 836.13,-417.52 1513.23,-716.73 2066,-931.22l0.28 0c1285.61,-499.22 1899.6,-540.75 2278.32,-544.31 786.94,-7.37 1481.8,139.9 2049.33,327.9z"/>
+   <g>
+    <path class="fil6" style="mask:url(#id16)" d="M1064.51 8583.96c-388.83,93.18 -746.78,208.21 -1070.58,332.26l0 -896.24c315.06,177.06 673.27,368.06 1070.58,563.98z"/>
+    <path class="fil6" style="mask:url(#id18)" d="M20979.13 8075.18l0 1024.94c-1583.73,943.24 -2985.47,1561.6 -4044.02,1967.91 -1937.58,743.5 -2857.87,827.11 -3114.99,847.06 -425.72,33.06 -2003.71,121.59 -3880.08,-601.14 -1041.33,-401.4 -1645.48,-848.43 -2205.63,-1277.15 600.32,-153.28 1434.54,-401.12 2615.5,-799.51 3660.38,-1234.8 3927.08,-1648.49 5300.94,-1885.39 1230.16,-212.31 3004.06,-223.51 5328.28,723.28z"/>
+   </g>
+   <path class="fil7" style="mask:url(#id20)" d="M20979.13 9100.12l0 1985.4c-645.68,35.52 -1472.52,129.78 -2404.56,365.05 -885.03,223.24 -1337.8,440.47 -2158.63,739.68 -886.4,322.96 -2556.75,931.49 -4235.29,1118.39 -1712.97,190.72 -3023.45,-103.3 -4754.46,-491.84 -1919.82,-430.91 -2260.82,-769.74 -4125.99,-1202.29 -1290.27,-299.2 -2425.05,-437.73 -3306.27,-503.31l0 -2194.98c323.8,-124.05 681.75,-239.08 1070.58,-332.26 519.43,-123.78 1094.07,-208.21 1716.52,-221.05 456.32,-9.57 1329.61,10.93 2377.23,300.56 1271.68,351.67 1890.86,848.7 2576.15,1373.33 560.15,428.72 1164.3,875.75 2205.63,1277.15 1876.37,722.73 3454.36,634.2 3880.08,601.14 257.12,-19.95 1177.41,-103.56 3114.99,-847.06 1058.55,-406.31 2460.29,-1024.67 4044.02,-1967.91z"/>
+   <path class="fil8" style="mask:url(#id22)" d="M20979.13 11085.52l0 4135.83 -20985.2 0 0 -4110.15c881.22,65.58 2016,204.11 3306.27,503.31 1865.17,432.55 2206.17,771.38 4125.99,1202.29 1731.01,388.54 3041.49,682.56 4754.46,491.84 1678.54,-186.9 3348.89,-795.43 4235.29,-1118.39 820.83,-299.21 1273.6,-516.44 2158.63,-739.68 932.04,-235.27 1758.88,-329.53 2404.56,-365.05z"/>
+  </g>
+ </g>
+</svg>

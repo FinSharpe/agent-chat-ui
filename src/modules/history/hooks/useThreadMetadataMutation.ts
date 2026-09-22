@@ -59,6 +59,10 @@ export function useThreadMetadataMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
+    // Writes run one at a time, in the order they were made. The server merges
+    // metadata, so two quick edits to one chat (rename, then clear) sent in
+    // parallel could land in the wrong order and keep the stale value.
+    scope: { id: "thread-metadata" },
     mutationFn: async ({ threadId, metadata }: ThreadMetadataVariables) => {
       const client = createClient(apiUrl, getApiKey() ?? undefined);
       return client.threads.update(threadId, { metadata });

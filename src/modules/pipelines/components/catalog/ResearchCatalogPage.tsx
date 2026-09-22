@@ -1,122 +1,115 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Coins, Library } from "lucide-react";
+import { Library } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import FeatureHeader from "@/components/discover/FeatureHeader";
+import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
 import { creditsLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import { usePipelineCatalog } from "../../hooks/usePipelineQueries";
 import type { CatalogEntry } from "../../types/pipelines.types";
-import { needsSymbol, stepsAreOrdered } from "../../utils/target";
-import { ResearchShell } from "../shared/ResearchShell";
-import { StepList } from "../shared/StepList";
-import { PipelineFeaturePanel } from "./PipelineFeaturePanel";
+import {
+  HEADER_PILL,
+  Placeholder,
+  SCROLL_BODY,
+  StatStrip,
+} from "../shared/kit";
+import { WorkflowCard } from "./WorkflowCard";
 
-/**
- * One Pipeline in the grid.
- *
- * The card names its Steps rather than counting them: with more than one
- * product on the screen, what the price buys is the thing being compared. The
- * whole card is the control, so the action is stated rather than nested as a
- * second button inside it — and what it says comes off the Pipeline's declared
- * target: autopilot has nothing to pick, so it offers Run.
- */
-function PipelineCard({ entry }: { entry: CatalogEntry }) {
-  const router = useRouter();
-  const ordered = stepsAreOrdered(entry);
-  const wantsSymbol = needsSymbol(entry);
-
-  return (
-    <button
-      type="button"
-      // Both kinds land on the quote: the picker a stock Pipeline needs lives
-      // there, and a market Pipeline has nothing to pick on the way.
-      onClick={() => router.push(researchRoutes.quote(entry.id))}
-      className="border-border-default bg-bg-card flex h-full flex-col rounded-xl border p-5 text-left transition-shadow hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-text-primary font-medium">{entry.name}</h3>
-        <span className="text-text-secondary inline-flex shrink-0 items-center gap-1 text-xs">
-          <Coins className="text-accent-amber size-3.5" />
-          {creditsLabel(entry.price_credits)}
-        </span>
-      </div>
-      <p className="text-text-secondary mt-2 text-sm">{entry.description}</p>
-
-      {(entry.steps?.length ?? 0) > 0 && (
-        <div className="mt-4 flex-1">
-          <p className="text-text-tertiary text-[11px] font-medium tracking-wide uppercase">
-            {ordered ? "In this order" : "What you get"}
-          </p>
-          <StepList
-            steps={entry.steps!}
-            ordered={ordered}
-            className="mt-2 space-y-1.5"
-          />
-        </div>
-      )}
-
-      <span className="text-primary mt-5 inline-flex items-center gap-1.5 text-sm font-medium">
-        {wantsSymbol ? "Choose a stock" : "Run"}
-        <ArrowRight className="size-4" />
-      </span>
-    </button>
-  );
+/** Real figures for the strip under the banner. The reference quotes an
+ *  average runtime; nothing on the wire measures one, so the strip spends
+ *  that slot on what the catalog does declare — the entry price. */
+function catalogStats(catalog: CatalogEntry[] | undefined) {
+  const entries = catalog ?? [];
+  const steps = entries.map((entry) => entry.steps?.length ?? 0);
+  const prices = entries.map((entry) => entry.price_credits);
+  const avgSteps = steps.length
+    ? Math.round(steps.reduce((sum, n) => sum + n, 0) / steps.length)
+    : 0;
+  return [
+    { label: "Pipelines", value: catalog ? `${entries.length}` : "—" },
+    {
+      label: "Starting At",
+      value: prices.length ? creditsLabel(Math.min(...prices)) : "—",
+    },
+    { label: "Avg Steps", value: catalog ? `${avgSteps}` : "—" },
+  ];
 }
 
+/**
+ * Agent Workflows — the research Pipelines as the reference presents its
+ * workflow list: the Discover banner, a stat strip, then one divided card
+ * with a row per Pipeline. Every row leads to the same place, the quote,
+ * where a stock Pipeline asks for its stock and a market one simply runs.
+ */
 export function ResearchCatalogPage() {
+  const router = useRouter();
   const { data: catalog, isLoading, error } = usePipelineCatalog();
 
   return (
-    <ResearchShell
-      title="Research Reports"
-      subtitle="Commission a full research report — on a stock, or on the whole market. Each one is produced once, then frozen."
-      backHref="/discover"
-      backLabel="Discover"
-      actions={
-        <Button
-          asChild
-          variant="outline"
-        >
-          <Link href={researchRoutes.library}>
-            <Library className="size-4" />
-            Your reports
-          </Link>
-        </Button>
-      }
-    >
-      {isLoading && <Skeleton className="h-72 w-full rounded-xl" />}
+    <div className="relative flex h-full flex-1 flex-col overflow-hidden bg-transparent">
+      <FeatureHeader
+        title="Agent Workflows"
+        subtitle="Deep agent research pipelines"
+        onBack={() => router.push("/discover")}
+        right={
+          <button
+            type="button"
+            onClick={() => router.push(researchRoutes.library)}
+            className={HEADER_PILL}
+          >
+            <Library size={14} />
+            Your Reports
+          </button>
+        }
+      />
 
-      {error && (
-        <p className="border-error-border bg-error-bg text-error-fg rounded-lg border px-4 py-3 text-sm">
-          The report catalog could not be loaded. Please try again.
-        </p>
-      )}
-
-      {catalog && catalog.length === 0 && (
-        <p className="border-border-default bg-bg-card text-text-tertiary rounded-lg border px-4 py-8 text-center text-sm">
-          No research reports are available right now.
-        </p>
-      )}
-
-      {/* One Pipeline is a product panel; several are a grid. */}
-      {catalog && catalog.length === 1 && (
-        <PipelineFeaturePanel entry={catalog[0]} />
-      )}
-
-      {catalog && catalog.length > 1 && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {catalog.map((entry) => (
-            <PipelineCard
-              key={entry.id}
-              entry={entry}
-            />
-          ))}
+      <div className={`${SCROLL_BODY} space-y-6`}>
+        <div className="space-y-3">
+          <SectionBanner
+            eyebrow="Agent Workflows"
+            title="Multi-step AI agents chaining macro, fundamental and technical analysis"
+            tone="blue"
+            height={260}
+            image={BANNER_WAVE.cyan}
+            imageScrim
+          />
+          <StatStrip stats={catalogStats(catalog)} />
         </div>
-      )}
-    </ResearchShell>
+
+        {isLoading && (
+          <div className="glass-card rounded-card space-y-3 p-4.5">
+            <Placeholder className="h-4 w-40" />
+            <Placeholder className="h-3 w-full" />
+            <Placeholder className="h-3 w-2/3" />
+          </div>
+        )}
+
+        {error && (
+          <p className="text-[11px] text-rose-500">
+            The workflows could not be loaded. Please try again.
+          </p>
+        )}
+
+        {catalog && catalog.length === 0 && (
+          <p className="py-8 text-center text-[11px] text-slate-400">
+            No agent workflows are available right now.
+          </p>
+        )}
+
+        {catalog && catalog.length > 0 && (
+          <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
+            {catalog.map((entry) => (
+              <WorkflowCard
+                key={entry.id}
+                entry={entry}
+                onRun={() => router.push(researchRoutes.quote(entry.id))}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

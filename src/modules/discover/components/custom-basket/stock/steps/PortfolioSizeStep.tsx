@@ -1,98 +1,58 @@
-import { Check } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useStockBasketBuilderContext } from "../../../../hooks/useStockBasketBuilderContext";
+"use client";
+
 import { portfolioSizeOptions } from "../../../../constants/stock-basket-data";
+import { useStockBasketBuilderContext } from "../../../../hooks/useStockBasketBuilderContext";
+import { OptionCard } from "../../shared/OptionCard";
+import { OPTION_LIST, StepHeading } from "../../shared/StepHeading";
 
 /**
- * Step 3: Portfolio size selection for stock baskets
- * Allows user to choose concentrated (15), diversified (25), or custom number
+ * Stock flow, portfolio size: concentrated (15), diversified (25), or a
+ * number of the reader's own.
  */
 export function PortfolioSizeStep() {
-  const { basketConfig, updateConfig, nextStep, canProceed } =
-    useStockBasketBuilderContext();
+  const { basketConfig, updateConfig } = useStockBasketBuilderContext();
 
-  /**
-   * Handle portfolio size option selection
-   */
-  const handlePortfolioSizeSelect = (optionId: string, stockCount: string) => {
-    updateConfig("portfolioSize", optionId);
-    if (optionId !== "custom") {
-      updateConfig("customStockCount", stockCount);
-    }
+  const select = (id: string, stockCount: string) => {
+    updateConfig("portfolioSize", id);
+    if (id !== "custom") updateConfig("customStockCount", stockCount);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-4">
-        <p className="text-sm text-text-secondary">
-          How many stocks would you like in your basket?
-        </p>
-      </div>
-
-      <div className="space-y-3">
+    <>
+      <StepHeading title="Portfolio Size" />
+      <div className={OPTION_LIST}>
         {portfolioSizeOptions.map((option) => (
-          <Card
+          <OptionCard
             key={option.id}
-            className={`p-4 cursor-pointer transition-all ${
-              basketConfig.portfolioSize === option.id
-                ? "border-accent-blue bg-info-bg"
-                : "hover:border-info-border"
-            }`}
-            onClick={() =>
-              handlePortfolioSizeSelect(option.id, option.stockCount || "")
-            }
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium text-text-primary">
-                  {option.name}
-                </h4>
-                <p className="text-sm text-text-secondary">
-                  {option.description}
-                </p>
-              </div>
-              {basketConfig.portfolioSize === option.id && (
-                <Check className="w-5 h-5 text-accent-blue" />
-              )}
-            </div>
-          </Card>
+            title={option.name}
+            description={option.description}
+            selected={basketConfig.portfolioSize === option.id}
+            onClick={() => select(option.id, option.stockCount || "")}
+          />
         ))}
       </div>
 
-      {/* Custom Stock Count Input */}
       {basketConfig.portfolioSize === "custom" && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">
-            Enter number of stocks
-          </label>
-          <Input
+        <div className="mt-3 space-y-1.5">
+          <input
             type="number"
-            min="1"
-            max="50"
-            placeholder="e.g., 20"
+            min={1}
+            max={50}
+            inputMode="numeric"
             value={basketConfig.customStockCount}
-            onChange={(e) => updateConfig("customStockCount", e.target.value)}
-            className="w-full h-12 text-base"
+            onChange={(event) =>
+              updateConfig("customStockCount", event.target.value)
+            }
+            placeholder="Number of stocks"
+            aria-label="Number of stocks"
+            autoFocus
+            className="glass-tile w-full rounded-full px-4 py-3 text-sm text-[#0A1F4D] placeholder-[#0A1F4D]/50 focus:outline-none"
           />
-          <p className="text-xs text-text-secondary">
+          <p className="px-4 text-[10px] text-slate-400">
             Choose between 1 and 50 stocks
           </p>
         </div>
       )}
-
-      {basketConfig.portfolioSize && (
-        <div className="pt-4">
-          <Button
-            onClick={nextStep}
-            disabled={!canProceed()}
-            className="w-full h-12 bg-accent-blue hover:bg-info-icon text-white disabled:bg-muted disabled:cursor-not-allowed"
-          >
-            Continue
-          </Button>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

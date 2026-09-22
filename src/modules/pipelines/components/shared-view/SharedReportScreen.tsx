@@ -1,10 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Download, Eye } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { AppViewport } from "@/modules/shell";
 import {
   PipelineApiError,
   sharedReportPdfUrl,
@@ -13,15 +14,26 @@ import { formatTimestamp } from "../../constants/presentation";
 import { useSharedReport } from "../../hooks/usePipelineQueries";
 import { targetLabel } from "../../utils/target";
 import { ReportDocumentView } from "../report/ReportDocumentView";
+import {
+  CIRCLE_BUTTON,
+  Label,
+  Placeholder,
+  PRIMARY_BUTTON,
+} from "../shared/kit";
+
+const CTA_PILL =
+  "bg-brand-gradient flex h-8 items-center rounded-full px-3.5 text-[10.5px] font-medium tracking-wide text-white uppercase transition-all hover:brightness-110";
 
 /**
  * The public share view.
  *
  * Its reader has no account and no navigation, so the page carries its own
- * chrome and never assumes a session. It shows the *same* frozen document as
- * the owner's page — a shared report is not a preview — with the disclaimer
- * and the per-source vintages permanently in place: this reader has no other
- * way to learn how old the report is or what it does not claim.
+ * chrome and never assumes a session — but it is drawn inside the same
+ * viewport frame as the app, so the type scale, colours and desktop scaling
+ * match the report its owner sees. It shows the *same* frozen document — a
+ * shared report is not a preview — with the disclaimer and the per-source
+ * vintages permanently in place: this reader has no other way to learn how old
+ * the report is or what it does not claim.
  */
 export function SharedReportScreen({ token }: { token: string }) {
   const { data, isLoading, error } = useSharedReport(token);
@@ -29,111 +41,124 @@ export function SharedReportScreen({ token }: { token: string }) {
   const about = document ? targetLabel(document.target) : "";
 
   return (
-    <div className="bg-background min-h-dvh">
-      <header className="border-border-default bg-bg-card border-b">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+    <AppViewport>
+      <div className="font-funnel flex h-full flex-col overflow-hidden bg-transparent">
+        <header className="flex h-[56px] shrink-0 items-center justify-between border-b border-slate-50 bg-white px-5">
           <Link
             href="/"
-            className="text-text-primary text-sm font-semibold"
+            className="flex items-center gap-2"
           >
-            FinSharpe
+            <Image
+              src="/logo/Finsharpe Logo - Icon.svg"
+              alt="FinSharpe"
+              width={22}
+              height={22}
+              className="h-[22px] w-[22px]"
+              priority
+            />
+            <span className="font-geist text-[13px] font-medium tracking-tight text-[#0A1F4D]">
+              FinSharpe<span className="text-[#063BAA]">GPT</span>
+            </span>
           </Link>
           <div className="flex items-center gap-2">
             {document && (
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
+              <a
+                href={sharedReportPdfUrl(token)}
+                className={CIRCLE_BUTTON}
+                title="Download PDF"
+                aria-label="Download PDF"
               >
-                <a href={sharedReportPdfUrl(token)}>
-                  <Download className="size-4" />
-                  PDF
-                </a>
-              </Button>
+                <Download size={14} />
+              </a>
             )}
-            <Button
-              asChild
-              size="sm"
+            <Link
+              href="/register"
+              className={CTA_PILL}
             >
-              <Link href="/register">Get your own report</Link>
-            </Button>
+              Get your own report
+            </Link>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto max-w-6xl space-y-4 px-6 py-8">
-        {isLoading && (
-          <div className="space-y-4">
-            <Skeleton className="h-40 w-full rounded-xl" />
-            <Skeleton className="h-64 w-full rounded-xl" />
-          </div>
-        )}
-
-        {error && (
-          <div className="border-border-default bg-bg-card rounded-xl border px-6 py-10 text-center">
-            <h1 className="text-text-primary text-lg font-medium">
-              {error instanceof PipelineApiError && error.isNotFound
-                ? "This link is no longer active"
-                : "This report could not be loaded"}
-            </h1>
-            <p className="text-text-secondary mx-auto mt-2 max-w-md text-sm">
-              {error instanceof PipelineApiError && error.isNotFound
-                ? "Whoever shared this report has revoked the link, or it never existed."
-                : "Please try again in a moment."}
-            </p>
-            <Button
-              asChild
-              className="mt-5"
-            >
-              <Link href="/register">Explore FinSharpe</Link>
-            </Button>
-          </div>
-        )}
-
-        {document && (
-          <>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h1 className="text-text-primary text-2xl font-semibold">
-                  {about ? `${about} — research report` : "Research report"}
-                </h1>
-                <p className="text-text-secondary mt-1 text-sm">
-                  Published {formatTimestamp(document.published_at)} · shared
-                  with you as a frozen document
-                </p>
+        <div className="scrollbar-none flex-1 overflow-y-auto">
+          <main className="mx-auto w-full max-w-[calc(804px*var(--wx,1))] space-y-5 px-5 pt-6 pb-16">
+            {isLoading && (
+              <div className="space-y-4">
+                <Placeholder className="h-10 w-64" />
+                <Placeholder className="rounded-card h-[200px] w-full" />
+                <Placeholder className="rounded-card h-64 w-full" />
               </div>
-              {typeof data?.view_count === "number" && (
-                <p className="text-text-tertiary flex items-center gap-1.5 text-xs">
-                  <Eye className="size-3.5" />
-                  {data.view_count} {data.view_count === 1 ? "view" : "views"}
+            )}
+
+            {error && (
+              <div className="space-y-2 py-16 text-center">
+                <h1 className="font-geist text-base font-medium text-[#0A1F4D] dark:text-white">
+                  {error instanceof PipelineApiError && error.isNotFound
+                    ? "This link is no longer active"
+                    : "This report could not be loaded"}
+                </h1>
+                <p className="mx-auto max-w-md text-[11px] leading-relaxed text-slate-500">
+                  {error instanceof PipelineApiError && error.isNotFound
+                    ? "Whoever shared this report has revoked the link, or it never existed."
+                    : "Please try again in a moment."}
                 </p>
-              )}
-            </div>
+                <Link
+                  href="/register"
+                  className={cn(PRIMARY_BUTTON, "mx-auto mt-5 w-fit px-6")}
+                >
+                  Explore FinSharpe
+                </Link>
+              </div>
+            )}
 
-            <ReportDocumentView
-              document={document}
-              disclaimer={data?.disclaimer}
-            />
+            {document && (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="space-y-1">
+                    <Label>Shared research report</Label>
+                    <h1 className="font-geist text-base font-medium text-[#0A1F4D] dark:text-white">
+                      {about ? `${about} Research Report` : "Research Report"}
+                    </h1>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Published {formatTimestamp(document.published_at)} ·
+                      shared with you as a frozen document
+                    </p>
+                  </div>
+                  {typeof data?.view_count === "number" && (
+                    <p className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <Eye size={12} />
+                      {data.view_count}{" "}
+                      {data.view_count === 1 ? "view" : "views"}
+                    </p>
+                  )}
+                </div>
 
-            <section className="border-border-default bg-bg-card rounded-xl border px-6 py-8 text-center">
-              <h2 className="text-text-primary text-base font-medium">
-                Commission a report like this one
-              </h2>
-              <p className="text-text-secondary mx-auto mt-1 max-w-lg text-sm">
-                Every section is produced from data fetched for that report and
-                frozen at publish — so it says the same thing whenever you come
-                back to it.
-              </p>
-              <Button
-                asChild
-                className="mt-4"
-              >
-                <Link href="/register">Create an account</Link>
-              </Button>
-            </section>
-          </>
-        )}
-      </main>
-    </div>
+                <ReportDocumentView
+                  document={document}
+                  disclaimer={data?.disclaimer}
+                />
+
+                <section className="glass-card rounded-card space-y-3 px-6 py-8 text-center">
+                  <h2 className="font-geist text-sm font-medium text-[#0A1F4D] dark:text-white">
+                    Commission a report like this one
+                  </h2>
+                  <p className="mx-auto max-w-lg text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                    Every section is produced from data fetched for that report
+                    and frozen at publish — so it says the same thing whenever
+                    you come back to it.
+                  </p>
+                  <Link
+                    href="/register"
+                    className={cn(PRIMARY_BUTTON, "mx-auto w-fit px-6")}
+                  >
+                    Create an account
+                  </Link>
+                </section>
+              </>
+            )}
+          </main>
+        </div>
+      </div>
+    </AppViewport>
   );
 }

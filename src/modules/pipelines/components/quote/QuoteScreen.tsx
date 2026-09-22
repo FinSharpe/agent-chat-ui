@@ -2,40 +2,52 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { AlertTriangle, Coins, Loader2, Zap } from "lucide-react";
+import { Loader2, Play, Zap } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import FeatureHeader from "@/components/discover/FeatureHeader";
 import { PipelineApiError } from "../../api/pipelines-client";
-import {
-  creditsLabel,
-  vintageDetail,
-  vintageSourceLabel,
-} from "../../constants/presentation";
+import { creditsLabel, pipelineKindLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import {
   usePipelineCatalog,
   usePipelineQuote,
   usePurchasePipeline,
 } from "../../hooks/usePipelineQueries";
-import { isMarketTarget, needsSymbol, targetLabel } from "../../utils/target";
-import { ResearchShell } from "../shared/ResearchShell";
-import { StockPicker } from "../catalog/StockPicker";
+import {
+  isMarketTarget,
+  needsSymbol,
+  stepsAreOrdered,
+  targetLabel,
+  targetSymbol,
+} from "../../utils/target";
+import {
+  ActionBar,
+  PRIMARY_BUTTON,
+  Placeholder,
+  SCROLL_BODY,
+  StatStrip,
+} from "../shared/kit";
+import { PipelineSteps, type StepRow } from "../shared/PipelineSteps";
+import { ProgressBlock } from "../shared/ProgressBlock";
+import { QuoteDetails } from "./QuoteDetails";
+import { TargetField } from "./TargetField";
 
 /**
- * The screen before the payment boundary.
+ * The screen before the payment boundary, drawn as the reference run view
+ * before its Run button is pressed: every Step listed and waiting, the bar at
+ * 0/N, the run button in the sticky bar.
  *
  * Everything that could surprise someone after they pay is said here: the
- * price, their balance, the sections that will not run for this stock, how old
- * each source is, and — for a market Pipeline — that the report is not
- * exclusive. The quote is fetched fresh every time: a stale balance or a stale
- * vintage on the screen that takes the money would be a lie with a button
- * under it.
+ * price, their balance, the sections that will not run for this stock (marked
+ * on their own rows), how old each source is, and — for a market Pipeline —
+ * that the report is not exclusive. The quote is fetched fresh every time: a
+ * stale balance or vintage on the screen that takes the money would be a lie
+ * with a button under it.
  *
- * A market Pipeline arrives here with no symbol and quotes anyway; what the
- * screen shows keys off the *resolved* target the quote came back with, since
- * the server is the one that decided what this Run is about.
+ * A market Pipeline arrives with no symbol and quotes anyway; what the screen
+ * shows keys off the *resolved* target the quote came back with, since the
+ * server decided what this Run is about.
  */
 export function QuoteScreen({
   pipelineId,
@@ -52,48 +64,12 @@ export function QuoteScreen({
 
   const entry = catalog?.find((item) => item.id === pipelineId);
   const wantsSymbol = needsSymbol(entry);
+  const ordered = stepsAreOrdered(entry);
   const quote = usePipelineQuote(pipelineId, symbol, {
-    enabled: !wantsSymbol || !!symbol,
+    // Held until the catalog says which kind this is, so a stock Pipeline is
+    // never quoted without its stock.
+    enabled: !!entry && (!wantsSymbol || !!symbol),
   });
-  const stepNames = useMemo(() => {
-    const names = new Map<string, string>();
-    for (const step of entry?.steps ?? []) names.set(step.id, step.name);
-    return names;
-  }, [entry]);
-
-  // Which branch this is depends on the catalog's declaration, so hold the
-  // page rather than flashing a stock picker at a Pipeline that has no stock.
-  if (catalogLoading) {
-    return (
-      <ResearchShell
-        title="Research report"
-        backHref={researchRoutes.catalog}
-        backLabel="Research Reports"
-      >
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </ResearchShell>
-    );
-  }
-
-  if (wantsSymbol && !symbol) {
-    return (
-      <ResearchShell
-        title={entry?.name ?? "Research report"}
-        subtitle="Choose the stock this report is about."
-        backHref={researchRoutes.catalog}
-        backLabel="Research Reports"
-      >
-        <div className="border-border-default bg-bg-card rounded-xl border p-5">
-          <StockPicker
-            autoFocus
-            onSelect={(next) =>
-              router.replace(researchRoutes.quote(pipelineId, next))
-            }
-          />
-        </div>
-      </ResearchShell>
-    );
-  }
 
   const data = quote.data;
   const price = data?.price_credits ?? entry?.price_credits ?? 0;
@@ -105,6 +81,24 @@ export function QuoteScreen({
   const label = targetLabel(data?.target);
   const isMarket = isMarketTarget(data?.target);
 
+  const steps: StepRow[] = useMemo(() => {
+    const gaps = new Map(
+      (data?.coverage_gaps ?? []).map((gap) => [gap.step_id, gap.reason]),
+    );
+    return (entry?.steps ?? []).map((step) =>
+      gaps.has(step.id)
+        ? {
+            id: step.id,
+            name: step.name,
+            status: "coverage_gap",
+            line: gaps.get(step.id),
+          }
+        : { id: step.id, name: step.name, status: "pending" },
+    );
+  }, [entry, data]);
+
+  const close = () => router.push(researchRoutes.catalog);
+
   async function onPurchase() {
     try {
       const receipt = await purchase.mutateAsync({
@@ -112,174 +106,162 @@ export function QuoteScreen({
         symbol,
         threadId,
       });
-      router.push(
+      // Replaced, not pushed: going back from the run should not land on a
+      // quote for a report that is already paid for.
+      router.replace(
         receipt.run_status === "published"
           ? researchRoutes.report(receipt.run_id)
           : researchRoutes.run(receipt.run_id, label),
       );
     } catch (error) {
-      const message =
+      toast.error(
         error instanceof PipelineApiError
           ? error.message
-          : "The purchase could not be completed.";
-      toast.error(message);
+          : "The purchase could not be completed.",
+      );
     }
   }
 
-  // What the copy calls the thing being quoted. Written once: the same word
-  // appears in both arms of the coverage notice below, and two spellings of
-  // one fact is where they drift.
-  const subject = isMarket ? "market" : "stock";
+  const subtitle = entry
+    ? `${pipelineKindLabel(entry.target_kind)} · ${creditsLabel(entry.price_credits)}`
+    : undefined;
+
+  const runLabel = !entry
+    ? "Run"
+    : wantsSymbol && !symbol
+      ? "Choose a stock to run"
+      : data?.instant_reuse
+        ? "Get the report"
+        : `Run ${entry.name}`;
 
   return (
-    <ResearchShell
-      title={entry?.name ?? "Research report"}
-      subtitle={
-        isMarket ? (
-          <span>{label} — there is no stock to choose</span>
-        ) : (
-          <span>
-            {symbol}
-            {data?.target?.symbol && data.target.symbol !== symbol
-              ? ` (resolved to ${data.target.symbol})`
-              : ""}
-          </span>
-        )
-      }
-      backHref={researchRoutes.catalog}
-      backLabel="Research Reports"
-    >
-      {quote.isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
+    <div className="flex h-full flex-1 flex-col overflow-hidden bg-transparent">
+      <FeatureHeader
+        title={entry?.name ?? "Agent workflow"}
+        subtitle={subtitle}
+        onBack={close}
+      />
 
-      {quote.error && (
-        <div className="border-error-border bg-error-bg text-error-fg rounded-lg border px-4 py-3 text-sm">
-          {quote.error instanceof PipelineApiError && quote.error.isNotFound
-            ? `We do not recognise the stock “${symbol}”.`
-            : "The quote could not be loaded. Please try again."}
-        </div>
-      )}
+      <div className={`${SCROLL_BODY} space-y-5`}>
+        {catalogLoading && (
+          <div className="space-y-3">
+            <Placeholder className="h-3 w-32" />
+            <Placeholder className="h-2 w-full" />
+            <Placeholder className="h-40 w-full" />
+          </div>
+        )}
 
-      {data && (
-        <div className="space-y-4">
-          {data.instant_reuse && (
-            <div className="border-info-border bg-info-bg text-info-foreground flex items-start gap-3 rounded-lg border px-4 py-3 text-sm">
-              <Zap className="mt-0.5 size-4 shrink-0" />
-              <p>
-                This exact report already exists on today&apos;s data. You will
-                get it immediately — nothing has to run.
-              </p>
-            </div>
-          )}
+        {!catalogLoading && !entry && (
+          <p className="text-[11px] text-rose-500">
+            This workflow is not in the catalog any more.
+          </p>
+        )}
 
-          {(data.coverage_gaps?.length ?? 0) > 0 && (
-            <div className="border-warning-border bg-warning-bg text-warning-fg rounded-lg border px-4 py-3">
-              <p className="flex items-center gap-2 text-sm font-medium">
-                <AlertTriangle className="size-4" />
-                {data.coverage_gaps!.length === 1
-                  ? `One section will not run for this ${subject}`
-                  : `${data.coverage_gaps!.length} sections will not run for this ${subject}`}
-              </p>
-              <ul className="mt-2 space-y-1 text-sm">
-                {data.coverage_gaps!.map((gap) => (
-                  <li key={gap.step_id}>
-                    <span className="font-medium">
-                      {stepNames.get(gap.step_id) ?? gap.step_id}
-                    </span>{" "}
-                    — {gap.reason}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs">
-                The price is the same. The report keeps a visible placeholder
-                for each, so nothing goes quietly missing.
-              </p>
-            </div>
-          )}
+        {entry && (
+          <>
+            {wantsSymbol && (
+              <TargetField
+                symbol={symbol}
+                resolvedSymbol={targetSymbol(data?.target) || undefined}
+                onSelect={(next) =>
+                  router.replace(
+                    researchRoutes.quote(pipelineId, next, threadId),
+                  )
+                }
+                onClear={() =>
+                  router.replace(
+                    researchRoutes.quote(pipelineId, null, threadId),
+                  )
+                }
+              />
+            )}
 
-          <section className="border-border-default bg-bg-card rounded-xl border p-5">
-            <h2 className="text-text-primary text-sm font-medium">
-              Data this report will be built on
-            </h2>
-            <dl className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-              {Object.entries(data.vintage_map ?? {}).map(([source, token]) => (
-                <div
-                  key={source}
-                  className="border-border-subtle flex items-baseline justify-between gap-4 border-b pb-1.5 text-sm"
-                >
-                  <dt className="text-text-secondary">
-                    {vintageSourceLabel(source)}
-                  </dt>
-                  <dd className="text-text-primary text-right">
-                    {vintageDetail(source, String(token))}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="text-text-tertiary mt-3 text-xs">
-              The report is pinned to exactly these vintages and never re-reads
-              a source afterwards.
-            </p>
-          </section>
+            {quote.isLoading && <Placeholder className="h-[62px] w-full" />}
 
-          <section className="border-border-default bg-bg-card rounded-xl border p-5">
-            {isMarket && (
-              // The honest reason for the price belongs on this side of the
-              // payment boundary, and above it. A market Run is content-keyed,
-              // so every Purchase inside one Data Vintage window resolves onto
-              // the same frozen Report — which is what makes the second
-              // buyer's copy instant, and equally what makes it common.
-              //
-              // Deliberately no count of the names (#114). How many stocks a
-              // Report ends up naming is a ceiling, not a promise — the
-              // one-per-sector cap publishes fewer when fewer sectors are
-              // represented — so a number here would be pre-payment copy the
-              // Report can contradict. The claim this sentence carries is
-              // that the document is not exclusive, which the count does not
-              // make truer. The Pipeline's own description states the width,
-              // with the qualifier that makes it honest, on the card the
-              // buyer came from.
-              <p className="border-border-default bg-bg-subtle text-text-secondary mb-4 rounded-md border px-3 py-2 text-sm">
-                This report is not exclusive. Everyone who buys it on this data
-                receives the same document, naming the same stocks.
+            {quote.error && (
+              <p className="text-[11px] text-rose-500">
+                {quote.error instanceof PipelineApiError &&
+                quote.error.isNotFound
+                  ? `We do not recognise the stock “${symbol}”.`
+                  : "The quote could not be loaded. Please try again."}
               </p>
             )}
 
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-text-primary flex items-center gap-2 text-lg font-semibold">
-                  <Coins className="text-accent-amber size-5" />
-                  {creditsLabel(price)}
-                </p>
-                <p className="text-text-secondary mt-1 text-sm">
-                  Your balance: {creditsLabel(balance)}
-                </p>
-              </div>
-
-              <Button
-                onClick={onPurchase}
-                disabled={!canAfford || purchase.isPurchasing}
-                size="lg"
-              >
-                {purchase.isPurchasing && (
-                  <Loader2 className="size-4 animate-spin" />
-                )}
-                {data.instant_reuse ? "Get the report" : "Start the report"}
-              </Button>
-            </div>
-
-            {!canAfford && (
-              // ADR-0013: credits are an entitlement, not a sale. A short
-              // balance states the shortfall and offers nothing — there is no
-              // top-up path anywhere in the product, and inventing a link to
-              // one here would be the in-app sale that decision forbids.
-              <p className="border-border-default bg-bg-subtle text-text-secondary mt-4 rounded-md border px-3 py-2 text-sm">
-                You need {creditsLabel(shortfall)} more to commission this
-                report.
-              </p>
+            {data && (
+              <StatStrip
+                stats={[
+                  { label: "Price", value: creditsLabel(price) },
+                  { label: "Your Balance", value: creditsLabel(balance) },
+                  // A stock report's subject is already on the field above,
+                  // so its slot says how much of the report will run instead.
+                  isMarket
+                    ? { label: "Covers", value: label || "—" }
+                    : {
+                        label: "Sections",
+                        value: data.coverage_gaps?.length
+                          ? `${steps.length - data.coverage_gaps.length} of ${steps.length}`
+                          : `${steps.length}`,
+                      },
+                ]}
+              />
             )}
-          </section>
-        </div>
-      )}
-    </ResearchShell>
+
+            <ProgressBlock
+              done={0}
+              total={steps.length}
+              note={
+                ordered
+                  ? "Each step narrows the one before it, so they run in order."
+                  : "The sections are researched in parallel and finish out of order."
+              }
+            />
+
+            <PipelineSteps
+              steps={steps}
+              ordered={ordered}
+            />
+
+            {data && (
+              <QuoteDetails
+                quote={data}
+                subject={isMarket ? "market" : "stock"}
+                shortfall={shortfall}
+              />
+            )}
+          </>
+        )}
+      </div>
+
+      <ActionBar>
+        <button
+          type="button"
+          onClick={onPurchase}
+          disabled={!canAfford || purchase.isPurchasing}
+          className={PRIMARY_BUTTON}
+        >
+          {purchase.isPurchasing ? (
+            <>
+              <Loader2
+                size={15}
+                className="animate-spin"
+              />
+              Starting…
+            </>
+          ) : (
+            <>
+              {data?.instant_reuse ? (
+                <Zap size={14} />
+              ) : (
+                <Play
+                  size={14}
+                  fill="currentColor"
+                />
+              )}
+              {runLabel}
+            </>
+          )}
+        </button>
+      </ActionBar>
+    </div>
   );
 }

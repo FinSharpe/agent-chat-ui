@@ -23,13 +23,13 @@ export function ChartTableView({
   xLabel?: string;
 }) {
   return (
-    <div className="border-border-default max-h-72 overflow-auto rounded-md border">
-      <table className="w-full text-left text-xs">
-        <thead className="bg-bg-subtle text-text-secondary sticky top-0">
-          <tr>
+    <div className="scrollbar-none rounded-nested max-h-72 overflow-auto border border-slate-100 dark:border-slate-800/60">
+      <table className="w-full text-left text-[11px]">
+        <thead className="sticky top-0 bg-white dark:bg-[#0C1524]">
+          <tr className="border-b border-slate-100 dark:border-slate-800/60">
             <th
               scope="col"
-              className="px-3 py-2 font-medium"
+              className="px-3 py-2 text-[9px] font-medium tracking-wider text-slate-400 uppercase"
             >
               {xLabel || (chart.xKind === "date" ? "Date" : "Point")}
             </th>
@@ -37,29 +37,26 @@ export function ChartTableView({
               <th
                 key={series.key}
                 scope="col"
-                className="px-3 py-2 text-right font-medium"
+                className="px-3 py-2 text-right text-[9px] font-medium tracking-wider text-slate-400 uppercase"
               >
                 {series.name}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
           {chart.data.map((row, index) => (
-            <tr
-              key={String(row.x) + index}
-              className="border-border-subtle border-t"
-            >
+            <tr key={String(row.x) + index}>
               <th
                 scope="row"
-                className="text-text-secondary px-3 py-1.5 font-normal"
+                className="px-3 py-1.5 font-normal text-slate-500 dark:text-slate-400"
               >
                 {formatXLong(row.x, chart.xKind)}
               </th>
               {chart.series.map((series) => (
                 <td
                   key={series.key}
-                  className="text-text-primary px-3 py-1.5 text-right tabular-nums"
+                  className="px-3 py-1.5 text-right text-[#0A1F4D] tabular-nums dark:text-white"
                 >
                   {formatNumber(row[series.key] as number | null)}
                 </td>

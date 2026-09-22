@@ -1,112 +1,208 @@
+"use client";
+
 import {
-  ArrowLeft,
-  Target,
-  Share,
-  Download,
-  MessageSquare,
+  AlertTriangle,
+  PieChart,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+import { useAppNavigation } from "@/hooks/useAppNavigation";
+import { PortfolioMetric } from "@/modules/core/portfolio/constants/portfolio-metrics";
+import type { MFPortfolioItem } from "@/types/mf-portfolio";
+import {
+  categoryPreferenceOptions,
+  planTypeOptions,
+} from "../../../constants/mutual-fund-basket-data";
+import { useBasketBuilderContext } from "../../../hooks/useBasketBuilderContext";
 import { useMutualFundBasketBuilderContext } from "../../../hooks/useMutualFundBasketBuilderContext";
-import { MutualFundBasketOverview } from "./results/MutualFundBasketOverview";
-import { MutualFundConfigSummary } from "./results/MutualFundConfigSummary";
-import { MFPortfolioAnalyticsTabs } from "@/modules/core/portfolio/mf-portfolio/components";
-import { useImportStrategyMutation } from "@/modules/discover/hooks/useImportStrategyMutation";
+import {
+  basketChatMessage,
+  num,
+  pct,
+  rupees,
+  statNumber,
+  statRows,
+} from "../results/basketFormat";
+import { BasketResultView } from "../results/BasketResultView";
+import {
+  AllocationSection,
+  MetricRowsSection,
+  PerformanceSection,
+} from "../results/ResultSections";
+
+/** A fund's one-year return, the reference's coloured change column. */
+function YearReturn({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return <span className="text-slate-400">—</span>;
+  }
+  const up = value >= 0;
+  return (
+    <span
+      className={`flex items-center justify-end gap-0.5 font-medium ${up ? "text-[#0A9E6E]" : "text-rose-500"}`}
+    >
+      {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+      {Math.abs(value).toFixed(1)}%
+    </span>
+  );
+}
 
 /**
- * Results view for generated mutual fund basket
- * Displays basket overview, metrics, configuration summary, and holdings
+ * The generated fund basket in the reference result layout, filled from the
+ * MF portfolio API: CAGR, schemes, expense ratio, volatility and Sharpe; each
+ * scheme with its weight and one-year return; then returns, category split,
+ * running cost and every statistic it reported.
  */
 export function MutualFundBasketResults() {
-  const { basketConfig, handleModify, portfolioResponse } =
+  const { createNewChat } = useAppNavigation();
+  const { resetInvestmentType } = useBasketBuilderContext();
+  const { basketConfig, portfolioResponse, restart } =
     useMutualFundBasketBuilderContext();
 
-  const importMutation = useImportStrategyMutation();
+  if (!portfolioResponse) return null;
+  const analytics = portfolioResponse.analytics;
+  const stats = analytics.stats;
+  const funds = analytics.holdings as unknown as MFPortfolioItem[];
+  const cost = analytics.cost_analysis;
 
-  const handleAddToChat = () => {
-    if (!portfolioResponse) return;
+  const plan =
+    planTypeOptions.find((option) => option.id === portfolioResponse.plan_type)
+      ?.name ?? "Direct Plan";
+  const preference = categoryPreferenceOptions.find(
+    (option) => option.id === basketConfig.categoryPreference,
+  )?.name;
+  const categoryCount = portfolioResponse.categories.length;
+  const title = `${plan} Mutual Fund Basket`;
+  const description = `A ${plan.toLowerCase()} basket of ${analytics.total_schemes} ${analytics.total_schemes === 1 ? "scheme" : "schemes"} across ${categoryCount} fund ${categoryCount === 1 ? "category" : "categories"}, weighted to the split you set.`;
 
-    importMutation.mutate({
-      strategy: portfolioResponse,
-      type: "mf-basket",
-      customIntro: `I have created a custom mutual fund portfolio with ${basketConfig.planType} plan. Here are the created portfolio holdings:`,
-    });
-  };
+  const cagr = statNumber(stats, PortfolioMetric.CAGR);
+  const preferences = [
+    "Mutual Funds",
+    plan,
+    ...(preference ? [preference] : []),
+    ...basketConfig.fundCategories.map(
+      (category) => `${category.name} · ${category.percentage}%`,
+    ),
+  ];
 
-  // Handle case where API response is not available yet
-  if (!portfolioResponse) {
-    return (
-      <div className="bg-bg-subtle flex min-h-screen items-center justify-center">
-        <div className="text-text-secondary">Loading portfolio data...</div>
-      </div>
-    );
-  }
+  const holdings = funds.map((fund, index) => ({
+    key: fund.ISIN || String(index),
+    name: fund.Scheme_Name,
+    cells: [
+      {
+        text: `${Number(fund.weight ?? 0).toFixed(1)}%`,
+        className: "w-12 text-slate-500 dark:text-slate-400",
+      },
+      {
+        text: <YearReturn value={fund.Y_per} />,
+        className: "w-14",
+      },
+    ],
+  }));
+  const missing = analytics.missing_holdings ?? [];
+  const metrics = statRows(stats);
 
-  const description = `${basketConfig.planType.charAt(0).toUpperCase() + basketConfig.planType.slice(1)} plan with ${portfolioResponse.categories.length} fund ${portfolioResponse.categories.length === 1 ? "category" : "categories"}`;
+  const chatRows = funds.map((fund) => ({
+    "Scheme Name": String(fund.Scheme_Name ?? "N/A"),
+    "SEBI Category": String(fund.Sebi_Category ?? "N/A"),
+    "Weight (%)": Number(fund.weight ?? 0).toFixed(2),
+    ISIN: String(fund.ISIN ?? "N/A"),
+  }));
 
   return (
-    <div className="bg-bg-subtle mx-auto flex min-h-screen max-w-md flex-col md:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
-      {/* Header */}
-      <div className="bg-bg-base border-border-subtle sticky top-0 z-10 border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={handleModify}
-            className="hover:bg-bg-hover rounded-full p-2 transition-colors"
-          >
-            <ArrowLeft className="text-icon-primary h-5 w-5" />
-          </button>
-          <div className="text-center">
-            <h1 className="text-text-primary text-lg font-semibold">
-              Your Mutual Fund Basket
-            </h1>
-            <p className="text-text-secondary text-xs">
-              AI-generated based on your preferences
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="hover:bg-bg-hover rounded-full p-2 transition-colors">
-              <Share className="text-text-secondary h-4 w-4" />
-            </button>
-            <button className="hover:bg-bg-hover rounded-full p-2 transition-colors">
-              <Download className="text-text-secondary h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Basket Overview */}
-      <MutualFundBasketOverview
-        response={portfolioResponse}
-        description={description}
-      />
-
-      {/* Configuration Summary */}
-      <MutualFundConfigSummary basketConfig={basketConfig} />
-
-      {/* Portfolio Analytics Tabs */}
-      <MFPortfolioAnalyticsTabs analytics={portfolioResponse.analytics} />
-
-      {/* Action Buttons */}
-      <div className="space-y-3 px-6 pb-20">
-        <div className="grid grid-cols-2 gap-3 md:mx-auto md:max-w-md md:grid-cols-2">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleAddToChat}
-            disabled={importMutation.isPending}
-          >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            {importMutation.isPending ? "Adding..." : "Add to chat"}
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleModify}
-          >
-            <Target className="mr-2 h-4 w-4" />
-            Modify Basket
-          </Button>
-        </div>
-      </div>
-    </div>
+    <BasketResultView
+      icon={<PieChart size={20} />}
+      title={title}
+      description={description}
+      stats={[
+        { label: "CAGR", value: pct(cagr, true), accent: (cagr ?? 0) > 0 },
+        { label: "Schemes", value: `${analytics.total_schemes}` },
+        {
+          label: "Expense Ratio",
+          value: cost ? pct(cost.weighted_expense_ratio) : "—",
+        },
+        {
+          label: "Volatility",
+          value: pct(statNumber(stats, PortfolioMetric.Volatility)),
+        },
+        {
+          label: "Sharpe Ratio",
+          value: num(statNumber(stats, PortfolioMetric.SharpeRatio)),
+        },
+      ]}
+      preferences={preferences}
+      holdings={holdings}
+      holdingColumns={[
+        { label: "Weight", className: "w-12" },
+        { label: "1Y", className: "w-14" },
+      ]}
+      holdingsNotice={
+        missing.length > 0 && (
+          <p className="flex items-start gap-1.5 pb-1.5 text-[10px] leading-relaxed text-amber-600">
+            <AlertTriangle
+              size={12}
+              className="mt-px shrink-0"
+            />
+            {missing.length}{" "}
+            {missing.length === 1 ? "scheme lacks" : "schemes lack"} screener
+            data and {missing.length === 1 ? "is" : "are"} left out of the
+            analytics.
+          </p>
+        )
+      }
+      sections={
+        <>
+          <PerformanceSection chart={analytics.returns_chart_data} />
+          <AllocationSection
+            title="Category Allocation"
+            items={analytics.category_wise_allocations}
+          />
+          {cost && (
+            <MetricRowsSection
+              title="Running Cost"
+              rows={[
+                {
+                  label: "Weighted expense ratio",
+                  values: [pct(cost.weighted_expense_ratio)],
+                },
+                {
+                  label: `Annual cost on ${rupees(cost.portfolio_value)}`,
+                  values: [rupees(cost.annual_cost)],
+                },
+                {
+                  label: `Monthly cost on ${rupees(cost.portfolio_value)}`,
+                  values: [rupees(cost.monthly_cost)],
+                },
+              ]}
+            />
+          )}
+          <MetricRowsSection
+            title="Key Metrics"
+            rows={metrics.rows}
+            columns={metrics.columns}
+          />
+        </>
+      }
+      onInvest={() =>
+        createNewChat(
+          basketChatMessage(
+            `I'd like to invest in the custom "${title}" I just built. Help me plan how to invest in it — a lump sum or a SIP per scheme at these weights.`,
+            chatRows,
+          ),
+        )
+      }
+      onAddToChat={() =>
+        createNewChat(
+          basketChatMessage(
+            `I have created a custom mutual fund portfolio with the ${plan.toLowerCase()}. Review my custom "${title}" and suggest improvements.`,
+            chatRows,
+          ),
+        )
+      }
+      onModify={() => {
+        restart();
+        resetInvestmentType();
+      }}
+    />
   );
 }

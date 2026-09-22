@@ -13,10 +13,20 @@
 export const researchRoutes = {
   catalog: "/discover/research",
   library: "/discover/research/library",
-  quote: (pipelineId: string, symbol?: string) =>
-    symbol
-      ? `/discover/research/quote/${pipelineId}?symbol=${encodeURIComponent(symbol)}`
-      : `/discover/research/quote/${pipelineId}`,
+  // `threadId` rides along when the flow was entered from a chat thread, so a
+  // stock picked (or changed) on the quote does not drop the thread the
+  // Summary Card is to be delivered to.
+  quote: (
+    pipelineId: string,
+    symbol?: string | null,
+    threadId?: string | null,
+  ) => {
+    const params = new URLSearchParams();
+    if (symbol) params.set("symbol", symbol);
+    if (threadId) params.set("threadId", threadId);
+    const query = params.toString();
+    return `/discover/research/quote/${pipelineId}${query ? `?${query}` : ""}`;
+  },
   // `label` only ever labels the page — a ticker for a stock report, the
   // market for a market one. Nothing depends on it, which is why it may be
   // omitted and why the run view falls back to the owned list for the name.

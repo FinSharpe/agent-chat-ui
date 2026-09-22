@@ -8,9 +8,15 @@ import type { InvestmentType } from "../types/basket-builder.types";
  * Only manages investment type selection
  */
 export interface BasketBuilderContextValue {
+  /** The flow the builder is in; empty while on the first step. */
   investmentType: InvestmentType;
   setInvestmentType: (type: InvestmentType) => void;
+  /** Back to the first step. The choice stays selected there, and each
+   *  flow's own answers are kept, so Continue picks up where it left off. */
   resetInvestmentType: () => void;
+  /** The option highlighted on the first step, before Continue commits it. */
+  selectedType: InvestmentType;
+  setSelectedType: (type: InvestmentType) => void;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -30,19 +36,24 @@ interface BasketBuilderProviderProps {
 export function BasketBuilderProvider({
   children,
 }: BasketBuilderProviderProps) {
-  const [investmentType, setInvestmentType] = useState<InvestmentType>("");
+  const [investmentType, setInvestmentTypeState] = useState<InvestmentType>("");
+  const [selectedType, setSelectedType] = useState<InvestmentType>("");
 
-  /**
-   * Reset investment type to empty state
-   */
+  const setInvestmentType = (type: InvestmentType) => {
+    setInvestmentTypeState(type);
+    if (type) setSelectedType(type);
+  };
+
   const resetInvestmentType = () => {
-    setInvestmentType("");
+    setInvestmentTypeState("");
   };
 
   const value: BasketBuilderContextValue = {
     investmentType,
     setInvestmentType,
     resetInvestmentType,
+    selectedType,
+    setSelectedType,
   };
 
   return (

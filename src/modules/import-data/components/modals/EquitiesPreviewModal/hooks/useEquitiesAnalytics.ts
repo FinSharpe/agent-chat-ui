@@ -39,11 +39,16 @@ export function useEquitiesAnalytics() {
       ? (response as analyzePortfolioApiPortfoliosAnalyzePostResponse200).data
       : null;
 
+  // A non-200 reply (e.g. 422 for unrecognised holdings) resolves the
+  // mutation without data — surface it as a failed run, not a silent reset.
+  const failed = mutation.isError || (!!response && response.status !== 200);
+
   return {
     analytics,
     isAnalyzing: mutation.isPending,
     isError: mutation.isError,
     error: mutation.error,
+    failed,
     analyzePortfolio,
     reset: mutation.reset,
   };

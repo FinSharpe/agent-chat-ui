@@ -1,35 +1,54 @@
 /**
- * Shared "Calm Ledger" UI kit for the import-data preview & analytics surfaces.
- * One cohesive design language — tiles, panels, modal frame, skeletons, and
- * INR formatting — so the five surfaces inherit identical spacing, typography,
- * and token treatment instead of each re-inventing them.
+ * Shared UI kit for the Import modals, ported from the reference design's
+ * analysis and add-asset popups: the overlay frame (desktop popup / mobile
+ * full screen), headers and pill footers, stat tiles, glass-card panels, the
+ * small SVG charts, the recharts trend chart, skeletons and INR formatting —
+ * so every modal inherits identical spacing, type and colour.
  */
 
-export { formatINR, formatINRCompact, formatCount } from "./format";
+export {
+  formatINR,
+  formatINRCompact,
+  formatINRShort,
+  formatPct,
+  formatCount,
+} from "./format";
 export { INTENT_CHIP, INTENT_VALUE, type SurfaceIntent } from "./intent";
-export { StatTile } from "./StatTile";
-export { SectionLabel, DataPanel, EmptyState } from "./layout";
 export {
-  PreviewHeader,
-  PreviewBody,
-  PreviewFooter,
-  previewDialogContentClass,
-} from "./PreviewShell";
+  ImportOverlay,
+  OverlayHeader,
+  FormOverlayHeader,
+  OverlayBody,
+  OverlayFooter,
+  FooterButton,
+  CloseButton,
+} from "./ImportOverlay";
+export { AnalyseButton, ConnectButton } from "./triggers";
+export { StatTile, StatGrid } from "./StatTile";
 export {
-  workspaceDialogContentClass,
-  MetricStrip,
-  WorkspaceHeader,
-  WorkspaceSplit,
-  WorkspaceColumn,
-  WorkspaceSingle,
-  WorkspaceFooter,
-  WorkspaceCanvasEmpty,
-  WorkspaceCanvasLoading,
-  type WorkspaceMetric,
-} from "./AnalysisWorkspace";
+  SectionLabel,
+  DataPanel,
+  EmptyState,
+  Notice,
+  FlagList,
+  Badge,
+  TagChip,
+  type Flag,
+} from "./layout";
 export {
+  DonutBreakdown,
+  ScoreRing,
+  MeterRow,
+  BarRow,
+  type DonutSegment,
+} from "./charts";
+// TrendChart (recharts) is imported from "./TrendChart" directly, so pulling
+// a tile or a panel from this index never drags recharts into a bundle.
+export {
+  Bone,
   StatTileSkeleton,
   StatTileGridSkeleton,
   TableSkeleton,
   CardListSkeleton,
+  ChartSkeleton,
 } from "./skeletons";

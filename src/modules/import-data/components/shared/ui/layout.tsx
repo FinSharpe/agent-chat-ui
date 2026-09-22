@@ -1,92 +1,94 @@
 import type { ComponentType, ReactNode } from "react";
+import { AlertTriangle, Check, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { INTENT_CHIP, type SurfaceIntent } from "./intent";
 
-type IconType = ComponentType<{ className?: string }>;
+type IconType = ComponentType<{ size?: number; className?: string }>;
 
 /**
- * Tiny uppercase section eyebrow used to title a region without the weight of a
- * heading. Optional leading icon and a right-aligned addon (count, action).
+ * Card eyebrow from the reference modals: optional coloured icon + small
+ * uppercase grey label, with an optional right-aligned addon (a count, a link).
  */
 export function SectionLabel({
   icon: Icon,
+  iconClassName = "text-[#063BAA]",
   children,
   addon,
   className,
 }: {
   icon?: IconType;
+  iconClassName?: string;
   children: ReactNode;
   addon?: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      {Icon && <Icon className="text-text-tertiary h-3.5 w-3.5" />}
-      <span className="text-text-tertiary text-[11px] font-semibold tracking-[0.08em] uppercase">
-        {children}
-      </span>
-      {addon && <div className="ml-auto flex items-center">{addon}</div>}
+    <div className={cn("flex items-center justify-between gap-2", className)}>
+      <div className="flex min-w-0 items-center gap-1.5">
+        {Icon && (
+          <Icon
+            size={13}
+            className={cn("shrink-0", iconClassName)}
+          />
+        )}
+        <span className="truncate text-[10px] font-medium tracking-wider text-slate-400 uppercase">
+          {children}
+        </span>
+      </div>
+      {addon && (
+        <div className="flex shrink-0 items-center text-[10px] font-medium text-slate-400">
+          {addon}
+        </div>
+      )}
     </div>
   );
 }
 
-/**
- * A bordered, elevated content surface with an optional header strip. The shell
- * every table / chart / list in the preview modals sits inside, so they share
- * one frame, one radius, one hairline.
- */
+/** A titled glass card — the frame every chart, list and table sits in. */
 export function DataPanel({
   title,
-  icon: Icon,
+  icon,
+  iconClassName,
   addon,
   children,
   className,
   bodyClassName,
-  noPadding = false,
 }: {
   title?: ReactNode;
   icon?: IconType;
+  iconClassName?: string;
   addon?: ReactNode;
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
-  noPadding?: boolean;
 }) {
   return (
     <section
-      className={cn(
-        "border-border bg-card overflow-hidden rounded-xl border shadow-sm",
-        className,
-      )}
+      className={cn("glass-card rounded-card min-w-0 space-y-3 p-5", className)}
     >
       {(title || addon) && (
-        <header className="border-border-subtle bg-bg-subtle/60 flex items-center gap-2 border-b px-4 py-2.5">
-          {Icon && <Icon className="text-text-tertiary h-4 w-4" />}
-          {title && (
-            <span className="text-text-secondary text-sm font-medium">
-              {title}
-            </span>
-          )}
-          {addon && <div className="ml-auto flex items-center">{addon}</div>}
-        </header>
+        <SectionLabel
+          icon={icon}
+          iconClassName={iconClassName}
+          addon={addon}
+        >
+          {title}
+        </SectionLabel>
       )}
-      <div className={cn(noPadding ? "" : "p-4", bodyClassName)}>
-        {children}
-      </div>
+      <div className={bodyClassName}>{children}</div>
     </section>
   );
 }
 
 /**
- * Centred empty / zero-data state — a tinted icon chip, a title, and an
- * optional one-line hint, plus room for a call to action. Used in place of the
- * old bare "No holdings found" strings.
+ * Centred empty / error state: a tinted round icon, a title and a short hint,
+ * plus room for a call to action (the reference FD analysis empty state).
  */
 export function EmptyState({
   icon: Icon,
   title,
   description,
-  intent = "neutral",
+  intent = "brand",
   action,
   className,
 }: {
@@ -100,29 +102,133 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-3 px-6 py-12 text-center",
+        "flex flex-col items-center justify-center gap-3 p-8 text-center",
         className,
       )}
     >
       {Icon && (
-        <span
+        <div
           className={cn(
-            "inline-flex h-12 w-12 items-center justify-center rounded-2xl",
+            "flex h-14 w-14 items-center justify-center rounded-full",
             INTENT_CHIP[intent],
           )}
         >
-          <Icon className="h-6 w-6" />
-        </span>
+          <Icon size={24} />
+        </div>
       )}
-      <div className="space-y-1">
-        <p className="text-text-primary text-sm font-medium">{title}</p>
-        {description && (
-          <p className="text-text-tertiary mx-auto max-w-sm text-sm">
-            {description}
-          </p>
-        )}
-      </div>
+      <p className="text-forest-deep text-[13px] font-medium dark:text-white">
+        {title}
+      </p>
+      {description && (
+        <p className="max-w-[300px] text-[11px] leading-relaxed text-slate-400">
+          {description}
+        </p>
+      )}
       {action}
     </div>
+  );
+}
+
+const NOTICE_TONE = {
+  success: "bg-emerald-50 text-[#0A9E6E] dark:bg-emerald-500/10",
+  warning:
+    "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  info: "bg-[#063BAA]/5 text-[#063BAA] dark:bg-blue-500/10 dark:text-[#8FB4FF]",
+  danger: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
+} as const;
+
+/** Tinted one-line banner (e.g. "Savings rate: 32% — healthy"). */
+export function Notice({
+  tone = "info",
+  children,
+  className,
+}: {
+  tone?: keyof typeof NOTICE_TONE;
+  children: ReactNode;
+  className?: string;
+}) {
+  const Icon =
+    tone === "success" ? Check : tone === "info" ? Info : AlertTriangle;
+  return (
+    <div
+      className={cn(
+        "rounded-nested flex gap-1.5 px-3 py-2.5 text-[10px] leading-relaxed",
+        NOTICE_TONE[tone],
+        className,
+      )}
+    >
+      <Icon
+        size={12}
+        strokeWidth={tone === "success" ? 2.5 : 2}
+        className="mt-0.5 shrink-0"
+      />
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+export type Flag = { text: ReactNode; warn: boolean };
+
+/** Observation list — amber warning triangles and green checks. */
+export function FlagList({ flags }: { flags: Flag[] }) {
+  return (
+    <div className="text-forest-deep space-y-2 text-[11px] dark:text-slate-200">
+      {flags.map((f, i) => (
+        <div
+          key={i}
+          className="flex gap-2 leading-relaxed"
+        >
+          {f.warn ? (
+            <AlertTriangle
+              size={13}
+              className="mt-0.5 shrink-0 text-amber-500"
+            />
+          ) : (
+            <Check
+              size={13}
+              strokeWidth={2.5}
+              className="mt-0.5 shrink-0 text-[#0A9E6E]"
+            />
+          )}
+          <span>{f.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Small neutral pill, optionally led by a warning/check glyph. */
+export function Badge({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone?: "warn" | "ok";
+}) {
+  return (
+    <span className="flex items-center gap-1.5 rounded-full border border-slate-200/20 bg-slate-100 px-2.5 py-1 text-[9.5px] font-medium text-slate-600 shadow-2xs dark:border-slate-700/20 dark:bg-slate-800 dark:text-slate-300">
+      {tone === "warn" && (
+        <AlertTriangle
+          size={10}
+          className="shrink-0 text-amber-500"
+        />
+      )}
+      {tone === "ok" && (
+        <Check
+          size={10}
+          className="shrink-0 text-[#0A9E6E]"
+        />
+      )}
+      <span>{children}</span>
+    </span>
+  );
+}
+
+/** Uppercase blue tag chip (sector tags, facets). */
+export function TagChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full bg-[#063BAA]/8 px-2 py-0.5 text-[9px] font-medium tracking-wider text-[#063BAA] uppercase">
+      {children}
+    </span>
   );
 }

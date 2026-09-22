@@ -1,11 +1,13 @@
 "use client";
 import type { ComponentType } from "react";
 import { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import {
-  WorkspaceCanvasEmpty,
-  WorkspaceCanvasLoading,
+  Badge,
+  ChartSkeleton,
+  DataPanel,
+  Notice,
+  ScoreRing,
 } from "@/modules/import-data/components/shared/ui";
 import type { AnalyticsPanelProps } from "./analytics-panel.types";
 
@@ -15,26 +17,33 @@ type UseAnalytics<A, H> = () => {
   isAnalyzing: boolean;
   analyzePortfolio: (holdings: H[]) => void;
   reset: () => void;
+  /** The last run errored or came back without data. */
+  failed?: boolean;
+  /** The mutation's error (an Error, or the API's validation payload). */
+  error?: unknown;
 };
 
 /** Results component that renders the analytics payload. */
 type Results<A> = ComponentType<{
   analytics: A;
   showMissingHoldingsWarning?: boolean;
+  onRerun?: () => void;
+  isRerunning?: boolean;
 }>;
 
-const EMPTY_CHIPS = [
+const FACETS = [
   "Cumulative returns",
   "FinSharpe & risk scores",
   "Allocation",
+  "Risk flags",
 ];
 
 /**
- * Build the right-hand "analysis canvas" for an asset class. Curate state shows
- * an inviting empty prompt + Run CTA; running shows a loader; results render the
- * flat dashboard (returns + scores + allocation) promoted to the front. The
- * panel fills its column so the canvas reads as a co-equal half of the
- * workspace — not an afterthought stacked under a table.
+ * Build the analysis section for an asset class. Before a run it's a single
+ * card inviting the user to run the one-year analysis; while running, card
+ * skeletons in the dashboard's shape; with results, the reference analysis
+ * cards (score, returns, allocation…) rendered straight into the modal column.
+ * Editing the ledger (adding or removing a holding) clears stale results.
  */
 export function createAnalyticsPanel<A, H>(
   useAnalytics: UseAnalytics<A, H>,
@@ -44,7 +53,8 @@ export function createAnalyticsPanel<A, H>(
     holdingsCount,
     getHoldings,
   }: AnalyticsPanelProps) {
-    const { analytics, isAnalyzing, analyzePortfolio, reset } = useAnalytics();
+    const { analytics, isAnalyzing, analyzePortfolio, reset, failed, error } =
+      useAnalytics();
 
     // Clear stale analytics when holdings change (add/remove).
     const prevCount = useRef(holdingsCount);
@@ -57,60 +67,73 @@ export function createAnalyticsPanel<A, H>(
 
     if (analytics) {
       return (
-        <div className="flex h-full min-h-0 flex-col">
-          <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
-            <span className="text-text-muted text-xs">
-              1-year analysis · live
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={runAnalysis}
-              disabled={isAnalyzing}
-            >
-              {isAnalyzing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              Re-run
-            </Button>
-          </div>
-          <div className="scrollbar-thin animate-fade-in-up -mr-1.5 min-h-0 flex-1 overflow-y-auto pr-1.5">
-            <ResultsView
-              analytics={analytics}
-              showMissingHoldingsWarning
-            />
-          </div>
-        </div>
+        <ResultsView
+          analytics={analytics}
+          showMissingHoldingsWarning
+          onRerun={runAnalysis}
+          isRerunning={isAnalyzing}
+        />
+      );
+    }
+
+    if (isAnalyzing) {
+      return (
+        <>
+          <DataPanel
+            title="FinSharpe Portfolio Score"
+            bodyClassName="flex items-center gap-5"
+          >
+            <div className="animate-pulse">
+              <ScoreRing value={null} />
+            </div>
+            <div className="flex-1 space-y-1 text-[11px]">
+              <p className="text-forest-deep font-medium dark:text-white">
+                Analysing your portfolio…
+              </p>
+              <p className="text-[10px] leading-relaxed text-slate-400">
+                Computing one-year returns, scores and allocation across your
+                holdings.
+              </p>
+            </div>
+          </DataPanel>
+          <ChartSkeleton height={150} />
+        </>
       );
     }
 
     return (
-      <div className="border-border bg-card/40 flex h-full min-h-0 rounded-xl border border-dashed">
-        {isAnalyzing ? (
-          <WorkspaceCanvasLoading hint="Computing returns, scores and allocation across your holdings" />
-        ) : (
-          <WorkspaceCanvasEmpty
-            title="Reveal your portfolio's shape"
-            description="Run a one-year analysis for cumulative returns vs Nifty 500, your FinSharpe & risk scores, and allocation — recomputed whenever you edit the ledger."
-            chips={EMPTY_CHIPS}
-            action={
-              <Button
-                type="button"
-                onClick={runAnalysis}
-                disabled={holdingsCount === 0 || isAnalyzing}
-                className="from-primary to-brand-teal gap-2 bg-gradient-to-r text-white shadow-[0_14px_34px_-14px_rgba(37,99,235,0.8)] hover:opacity-95"
-              >
-                <Sparkles className="h-4 w-4" />
-                Run Analysis
-              </Button>
-            }
-          />
+      <DataPanel
+        title="Portfolio Analysis"
+        icon={Sparkles}
+        bodyClassName="space-y-4"
+      >
+        <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          Run a one-year analysis for cumulative returns against the benchmark,
+          your FinSharpe &amp; risk scores and allocation — recomputed whenever
+          you edit the holdings below.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {FACETS.map((f) => (
+            <Badge key={f}>{f}</Badge>
+          ))}
+        </div>
+        {failed && (
+          <Notice tone="danger">
+            The analysis couldn&apos;t run
+            {error instanceof Error ? ` (${error.message})` : ""}. Check the
+            holdings and try again.
+          </Notice>
         )}
-      </div>
+        <button
+          type="button"
+          onClick={runAnalysis}
+          disabled={holdingsCount === 0}
+          className="bg-brand-gradient flex w-full items-center justify-center gap-1.5 rounded-full py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Sparkles size={13} />
+          {failed ? "Try Again" : "Run Analysis"}
+        </button>
+      </DataPanel>
     );
   };
 }

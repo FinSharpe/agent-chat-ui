@@ -1,286 +1,253 @@
 /**
- * Comprehensive Analysis Modal - Separate Modal Component
- * Contains Dialog with trigger and manages its own state
+ * Comprehensive Analysis Modal — renders the reference "Run Comprehensive
+ * Analysis" gradient button and opens a reference analysis popup listing
+ * which connected accounts are ready, what the analysis covers, and the run
+ * action (which sends every ready account's holdings to chat).
  */
 
 "use client";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { useMemo, type ComponentType } from "react";
+import { AnimatePresence } from "framer-motion";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import useModalState from "@/hooks/useModalState";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import { getAllUserConsents } from "@/lib/moneyone/moneyone.storage";
-import {
-  Activity,
+  ArrowRight,
   BarChart3,
-  CheckCircle,
   CreditCard,
   PieChart,
+  Repeat,
   TrendingUp,
-  XCircle,
 } from "lucide-react";
-import { useMemo } from "react";
+import useModalState from "@/hooks/useModalState";
+import { cn } from "@/lib/utils";
+import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { getAllUserConsents } from "@/lib/moneyone/moneyone.storage";
 import { useComprehensiveAnalysisMutation } from "../../hooks/useComprehensiveAnalysisMutation";
+import {
+  DataPanel,
+  FlagList,
+  FooterButton,
+  ImportOverlay,
+  Notice,
+  OverlayBody,
+  OverlayFooter,
+  OverlayHeader,
+  StatGrid,
+  StatTile,
+} from "../shared/ui";
+
+type IconType = ComponentType<{ size?: number }>;
+
+const ACCOUNT_TYPES: { type: ConsentType; label: string; icon: IconType }[] = [
+  { type: ConsentType.EQUITIES, label: "Equity Holdings", icon: BarChart3 },
+  {
+    type: ConsentType.MUTUAL_FUNDS,
+    label: "Mutual Fund Holdings",
+    icon: PieChart,
+  },
+  { type: ConsentType.ETF, label: "ETF Holdings", icon: TrendingUp },
+  { type: ConsentType.BANK_ACCOUNTS, label: "Bank Accounts", icon: CreditCard },
+  { type: ConsentType.SIP, label: "SIP Accounts", icon: Repeat },
+];
+
+const TONES = [
+  "bg-[#063BAA]/8 text-[#063BAA]",
+  "bg-[#97edcc]/30 text-[#0A9E6E]",
+  "bg-[#0A1F4D]/8 text-forest-deep dark:text-white",
+];
+
+const WHAT_YOU_GET = [
+  "Holistic view of your entire portfolio across all connected accounts",
+  "AI-powered insights on asset allocation and diversification",
+  "Personalized recommendations based on your complete financial picture",
+  "Cross-asset correlation analysis and risk assessment",
+];
+
+type Status = "ready" | "syncing" | "none";
+
+const STATUS: Record<
+  Status,
+  { line: string; lineClass: string; pill: string; pillClass: string }
+> = {
+  ready: {
+    line: "Ready for analysis",
+    lineClass: "text-[#0A9E6E]",
+    pill: "Ready",
+    pillClass: "bg-[#97edcc]/25 text-[#0A9E6E]",
+  },
+  syncing: {
+    line: "Connected, fetching data…",
+    lineClass: "text-amber-600",
+    pill: "Syncing",
+    pillClass: "bg-amber-50 text-amber-600 dark:bg-amber-500/10",
+  },
+  none: {
+    line: "Not connected",
+    lineClass: "text-slate-400",
+    pill: "Not connected",
+    pillClass: "bg-slate-100 text-slate-500",
+  },
+};
 
 export function ComprehensiveAnalysisModal() {
-  const { open, handleClose, handleOpenChange } = useModalState();
-
+  const { open, handleOpen, handleClose } = useModalState();
   const comprehensiveAnalysisMutation = useComprehensiveAnalysisMutation();
 
-  // Get all consents and filter valid ones (recompute when dialog opens)
-  const allConsents = useMemo(() => {
-    const consents = getAllUserConsents();
+  // Non-expired consents, re-read from storage each time the modal opens.
+  const consentsByType = useMemo(() => {
     const now = new Date();
-
-    // Filter non-expired consents
-    return consents.filter((c) => new Date(c.consentExpiry) > now);
+    const valid = getAllUserConsents().filter(
+      (c) => new Date(c.consentExpiry) > now,
+    );
+    return new Map(valid.map((c) => [c.type, c]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Group consents by type
-  const consentsByType = useMemo(() => {
-    const grouped: Record<ConsentType, (typeof allConsents)[0] | null> = {
-      [ConsentType.EQUITIES]: null,
-      [ConsentType.MUTUAL_FUNDS]: null,
-      [ConsentType.ETF]: null,
-      [ConsentType.BANK_ACCOUNTS]: null,
-      [ConsentType.SIP]: null,
-    };
-
-    allConsents.forEach((consent) => {
-      if (consent.type in grouped) {
-        grouped[consent.type] = consent;
-      }
-    });
-
-    return grouped;
-  }, [allConsents]);
-
-  // Check if we have at least one ready consent
-  const hasReadyConsents = useMemo(() => {
-    return Object.values(consentsByType).some((c) => c?.isDataReady);
-  }, [consentsByType]);
+  const rows = ACCOUNT_TYPES.map((a) => {
+    const consent = consentsByType.get(a.type) ?? null;
+    const status: Status = consent?.isDataReady
+      ? "ready"
+      : consent
+        ? "syncing"
+        : "none";
+    return { ...a, consent, status };
+  });
+  const ready = rows.filter((r) => r.status === "ready");
+  const syncing = rows.filter((r) => r.status === "syncing").length;
+  const hasReadyConsents = ready.length > 0;
 
   const handleAnalyze = () => {
     if (!hasReadyConsents) return;
-
     handleClose();
-
-    // Collect all ready consents
-    const readyConsents = Object.entries(consentsByType)
-      .filter(([, consent]) => consent?.isDataReady)
-      .map(([type, consent]) => ({
-        consentID: consent!.consentID,
-        type: type as ConsentType,
-      }));
-
-    // Call mutation to send comprehensive analysis to chat
-    comprehensiveAnalysisMutation.mutate({ consents: readyConsents });
-  };
-
-  const getConsentIcon = (type: ConsentType) => {
-    switch (type) {
-      case ConsentType.EQUITIES:
-        return BarChart3;
-      case ConsentType.MUTUAL_FUNDS:
-        return PieChart;
-      case ConsentType.ETF:
-        return TrendingUp;
-      case ConsentType.BANK_ACCOUNTS:
-        return CreditCard;
-      default:
-        return Activity;
-    }
-  };
-
-  const getConsentLabel = (type: ConsentType) => {
-    switch (type) {
-      case ConsentType.EQUITIES:
-        return "Equity Holdings";
-      case ConsentType.MUTUAL_FUNDS:
-        return "Mutual Fund Holdings";
-      case ConsentType.ETF:
-        return "ETF Holdings";
-      case ConsentType.BANK_ACCOUNTS:
-        return "Bank Accounts";
-      default:
-        return type;
-    }
+    comprehensiveAnalysisMutation.mutate({
+      consents: ready.map((r) => ({
+        consentID: r.consent!.consentID,
+        type: r.type,
+      })),
+    });
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={handleOpenChange}
-    >
-      <DialogTrigger asChild>
-        <Button
-          size="lg"
-          className="w-full border-0 bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700 text-white hover:from-slate-950 hover:via-blue-950 hover:to-blue-800"
-          type="button"
-        >
-          <Activity className="mr-2 h-5 w-5" />
-          Run Comprehensive Analysis
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-blue-600" />
-            Comprehensive Portfolio Analysis
-          </DialogTitle>
-          <DialogDescription>
-            Review your connected accounts and run a comprehensive analysis
-            across all your holdings
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <button
+        type="button"
+        onClick={handleOpen}
+        className="bg-brand-gradient flex w-full items-center justify-center gap-1.5 rounded-full py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98"
+      >
+        Run Comprehensive Analysis <ArrowRight size={14} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <ImportOverlay
+            onClose={handleClose}
+            label="Comprehensive Portfolio Analysis"
+          >
+            <OverlayHeader
+              title="Comprehensive Portfolio Analysis"
+              subtitle={`${ready.length} of ${rows.length} accounts ready`}
+              onClose={handleClose}
+            />
+            <OverlayBody>
+              <StatGrid>
+                <StatTile
+                  label="Ready"
+                  value={ready.length}
+                  intent={hasReadyConsents ? "positive" : "neutral"}
+                  hint="accounts with data"
+                />
+                <StatTile
+                  label="Syncing"
+                  value={syncing}
+                  intent={syncing ? "warning" : "neutral"}
+                  hint="fetching data"
+                />
+                <StatTile
+                  label="Not Connected"
+                  value={rows.length - ready.length - syncing}
+                  hint="connect to include"
+                />
+              </StatGrid>
 
-        <div className="flex-1 space-y-4 overflow-y-auto">
-          {/* Connected Accounts Overview */}
-          <div>
-            <h3 className="mb-3 text-sm font-medium text-gray-900">
-              Connected Accounts
-            </h3>
-            <div className="space-y-2">
-              {Object.entries(consentsByType).map(([type, consent]) => {
-                const Icon = getConsentIcon(type as ConsentType);
-                const label = getConsentLabel(type as ConsentType);
-                const isConnected = consent !== null;
-                const isReady = consent?.isDataReady ?? false;
-
-                return (
-                  <Card
-                    key={type}
-                    className="p-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+              <DataPanel
+                title="Connected Accounts"
+                addon={`${rows.length} types`}
+              >
+                <div className="divide-y divide-slate-50 dark:divide-slate-800/40">
+                  {rows.map((r, idx) => {
+                    const Icon = r.icon;
+                    const s = STATUS[r.status];
+                    return (
+                      <div
+                        key={r.type}
+                        className="flex items-center gap-3.5 py-3"
+                      >
                         <div
-                          className={`rounded-lg p-2 ${isReady ? "bg-blue-50" : "bg-gray-50"}`}
+                          className={cn(
+                            "rounded-tile flex h-10 w-10 shrink-0 items-center justify-center",
+                            TONES[idx % TONES.length],
+                          )}
                         >
-                          <Icon
-                            className={`h-5 w-5 ${isReady ? "text-blue-600" : "text-gray-400"}`}
-                          />
+                          <Icon size={18} />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {label}
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="text-forest-deep text-[13px] leading-snug font-medium dark:text-white">
+                            {r.label}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            {!isConnected && "Not connected"}
-                            {isConnected &&
-                              !isReady &&
-                              "Connected, fetching data..."}
-                            {isReady && "Ready for analysis"}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        {isReady && (
-                          <Badge className="border-green-200 bg-green-50 text-green-700">
-                            <CheckCircle className="mr-1 h-3 w-3" />
-                            Ready
-                          </Badge>
-                        )}
-                        {isConnected && !isReady && (
-                          <Badge className="border-yellow-200 bg-yellow-50 text-yellow-700">
-                            Syncing
-                          </Badge>
-                        )}
-                        {!isConnected && (
-                          <Badge
-                            variant="outline"
-                            className="text-gray-500"
+                          <p
+                            className={cn(
+                              "text-[10px] font-medium",
+                              s.lineClass,
+                            )}
                           >
-                            <XCircle className="mr-1 h-3 w-3" />
-                            Not Connected
-                          </Badge>
-                        )}
+                            {s.line}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wider uppercase",
+                            s.pillClass,
+                          )}
+                        >
+                          {s.pill}
+                        </span>
                       </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
+                    );
+                  })}
+                </div>
+              </DataPanel>
 
-          {/* Analysis Information */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <h4 className="mb-2 text-sm font-medium text-blue-900">
-              What You'll Get
-            </h4>
-            <ul className="space-y-1 text-sm text-blue-800">
-              <li className="flex items-start gap-2">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <span>
-                  Holistic view of your entire portfolio across all connected
-                  accounts
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <span>
-                  AI-powered insights on asset allocation and diversification
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <span>
-                  Personalized recommendations based on your complete financial
-                  picture
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <span>
-                  Cross-asset correlation analysis and risk assessment
-                </span>
-              </li>
-            </ul>
-          </div>
+              <DataPanel title="What You'll Get">
+                <FlagList
+                  flags={WHAT_YOU_GET.map((text) => ({ text, warn: false }))}
+                />
+              </DataPanel>
 
-          {!hasReadyConsents && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <p className="text-sm text-yellow-800">
-                Please connect at least one account and wait for the data to
-                sync before running a comprehensive analysis.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2 border-t pt-4">
-          <Button
-            variant="outline"
-            size="default"
-            className="flex-1"
-            onClick={handleClose}
-          >
-            Close
-          </Button>
-          <Button
-            size="default"
-            className="flex-1 bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700 text-white hover:from-slate-950 hover:via-blue-950 hover:to-blue-800"
-            onClick={handleAnalyze}
-            disabled={
-              !hasReadyConsents || comprehensiveAnalysisMutation.isPending
-            }
-          >
-            <Activity className="mr-2 h-5 w-5" />
-            {comprehensiveAnalysisMutation.isPending
-              ? "Analyzing..."
-              : "Run Comprehensive Analysis"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+              {!hasReadyConsents && (
+                <Notice tone="warning">
+                  Connect at least one account and wait for its data to sync
+                  before running a comprehensive analysis.
+                </Notice>
+              )}
+            </OverlayBody>
+            <OverlayFooter>
+              <FooterButton
+                variant="secondary"
+                onClick={handleClose}
+              >
+                Close
+              </FooterButton>
+              <FooterButton
+                onClick={handleAnalyze}
+                disabled={
+                  !hasReadyConsents || comprehensiveAnalysisMutation.isPending
+                }
+                busy={comprehensiveAnalysisMutation.isPending}
+                busyLabel="Analysing…"
+              >
+                Run Analysis
+              </FooterButton>
+            </OverlayFooter>
+          </ImportOverlay>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

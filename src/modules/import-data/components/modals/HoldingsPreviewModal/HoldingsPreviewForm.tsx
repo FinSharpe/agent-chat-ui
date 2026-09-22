@@ -1,26 +1,22 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { FiDataResponse } from "@/lib/moneyone/moneyone.types";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { type Control, useWatch } from "react-hook-form";
 import {
-  WorkspaceHeader,
-  WorkspaceSplit,
-  WorkspaceColumn,
-  WorkspaceFooter,
+  DataPanel,
+  FooterButton,
+  OverlayBody,
+  OverlayFooter,
+  StatTileGridSkeleton,
   TableSkeleton,
-  formatCount,
-  formatINR,
-  type WorkspaceMetric,
+  ChartSkeleton,
 } from "@/modules/import-data/components/shared/ui";
 import { HoldingsSearch } from "./components/HoldingsSearch";
 import { HoldingsTable } from "./components/HoldingsTable";
+import { LedgerHeader, LedgerStats } from "./components/LedgerSummary";
+import { holdingNoun } from "./utils/holding-value";
 import { HoldingFormData, useHoldingsForm } from "./hooks/useHoldingsForm";
 import {
   HoldingWithQuantity,
-  getAssetTypeName,
   transformFormDataToHoldings,
 } from "./utils/holdings-transformer";
 import type { EditableHoldingsConfig } from "./editable-configs";
@@ -36,7 +32,7 @@ type HoldingsPreviewFormProps = {
   isLoading: boolean;
   /** Whether the import mutation is in progress. */
   isImporting: boolean;
-  /** Total current value (shown when config.showCurrentValue). */
+  /** Account-level current value (fallback when holdings carry no price). */
   currentValue?: string | null;
   /** Called with the edited FI-data payload on submit. */
   onSubmit: (modifiedFiData: FiDataResponse) => void;
@@ -45,24 +41,11 @@ type HoldingsPreviewFormProps = {
 };
 
 /**
- * Live sum of holding quantities. Isolated into its own subscriber so the
- * heavy analysis canvas doesn't re-render on every quantity keystroke.
- */
-function LiveUnits({ control }: { control: Control<HoldingFormData> }) {
-  const holdings = useWatch({ control, name: "holdings" }) as
-    | HoldingWithQuantity[]
-    | undefined;
-  const total = (holdings ?? []).reduce(
-    (sum, h) => sum + (Number(h?.quantity) || 0),
-    0,
-  );
-  return <>{formatCount(total)}</>;
-}
-
-/**
- * Editable-holdings workspace shared by Equities, ETF, and Mutual Funds. The
- * left "ledger" curates holdings; the right "canvas" runs and renders analysis.
- * Differences between asset types live entirely in `config`.
+ * Editable-holdings analysis modal shared by Equities, ETF and Mutual Funds,
+ * laid out like the reference analysis popups: live stat tiles, the portfolio
+ * analysis cards, then the editable holdings table (search to add, edit units,
+ * remove), with Cancel / Import to Chat pinned below. Asset differences live in
+ * `config`.
  */
 export function HoldingsPreviewForm({
   config,
@@ -75,7 +58,6 @@ export function HoldingsPreviewForm({
   onClose,
 }: HoldingsPreviewFormProps) {
   const { consentType, showCurrentValue, AnalyticsPanel } = config;
-  const assetType = getAssetTypeName(consentType);
 
   const {
     control,
@@ -85,6 +67,9 @@ export function HoldingsPreviewForm({
     handleRemoveHolding,
     getValues,
   } = useHoldingsForm(defaultValues, consentType);
+
+  const fallbackValue =
+    showCurrentValue && currentValue ? parseFloat(currentValue) : null;
 
   const handleFormSubmit = (data: HoldingFormData) => {
     if (!fiData) {
@@ -127,116 +112,80 @@ export function HoldingsPreviewForm({
 
   const count = fields.length;
 
-  const metrics: WorkspaceMetric[] = [
-    { label: "Holdings", value: count },
-    { label: "Total units", value: <LiveUnits control={control} /> },
-  ];
-  if (showCurrentValue && currentValue) {
-    metrics.push({ label: "Est. value", value: formatINR(currentValue) });
-  }
-
   return (
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
     >
-      <WorkspaceHeader
-        icon={config.icon}
-        eyebrow={config.eyebrow}
+      <LedgerHeader
+        control={control}
+        consentType={consentType}
         title={config.title}
-        metrics={metrics}
-        srDescription={config.description}
+        fallbackValue={fallbackValue}
+        isLoading={isLoading}
+        onClose={onClose}
       />
 
-      <WorkspaceSplit
-        ledger={
-          <WorkspaceColumn
-            label="Holdings Ledger"
-            addon={
-              <span className="text-text-muted text-xs">
-                edit · add · remove
-              </span>
-            }
-          >
-            {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-11 w-full rounded-xl" />
-                <TableSkeleton rows={7} />
-              </div>
-            ) : (
-              <>
-                <HoldingsSearch
-                  consentType={consentType}
-                  onSelectResult={handleAddSearchResult}
-                />
-                <div className="mt-3 flex min-h-0 flex-1 flex-col">
-                  <HoldingsTable
-                    fields={fields}
-                    control={control}
-                    consentType={consentType}
-                    onRemove={handleRemoveHolding}
-                  />
-                  <div className="text-text-tertiary mt-2 flex items-center justify-between px-1 text-xs">
-                    <span>
-                      {formatCount(count)} holding{count === 1 ? "" : "s"}
-                    </span>
-                    <span className="tabular-nums">
-                      <LiveUnits control={control} /> units
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-          </WorkspaceColumn>
-        }
-        canvas={
-          <WorkspaceColumn
-            label="Portfolio Analysis"
-            className="@container/canvas"
-          >
-            {isLoading ? (
-              <div className="border-border bg-card/40 flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed">
-                <p className="text-text-muted text-sm">Loading holdings…</p>
-              </div>
-            ) : (
-              <AnalyticsPanel
-                holdingsCount={count}
-                getHoldings={() => getValues("holdings")}
+      <OverlayBody>
+        {isLoading ? (
+          <>
+            <StatTileGridSkeleton />
+            <ChartSkeleton />
+            <TableSkeleton
+              rows={5}
+              label={`Loading ${config.assetLabel}`}
+            />
+          </>
+        ) : (
+          <>
+            <LedgerStats
+              control={control}
+              consentType={consentType}
+              fallbackValue={fallbackValue}
+            />
+
+            <AnalyticsPanel
+              holdingsCount={count}
+              getHoldings={() => getValues("holdings")}
+            />
+
+            <DataPanel
+              title="Holdings"
+              addon={`${count} ${holdingNoun(consentType, count)}`}
+              bodyClassName="space-y-4"
+            >
+              <HoldingsSearch
+                consentType={consentType}
+                onSelectResult={handleAddSearchResult}
               />
-            )}
-          </WorkspaceColumn>
-        }
-      />
+              <HoldingsTable
+                fields={fields}
+                control={control}
+                consentType={consentType}
+                onRemove={handleRemoveHolding}
+              />
+            </DataPanel>
+          </>
+        )}
+      </OverlayBody>
 
-      <WorkspaceFooter
-        start={
-          !isLoading && count > 0
-            ? `${formatCount(count)} ${assetType.toLowerCase()} holding${count === 1 ? "" : "s"} selected for import`
-            : null
-        }
-      >
-        <Button
-          type="button"
-          variant="outline"
+      <OverlayFooter>
+        <FooterButton
+          variant="secondary"
           onClick={onClose}
           disabled={isImporting}
         >
           Cancel
-        </Button>
-        <Button
+        </FooterButton>
+        <FooterButton
           type="submit"
           disabled={isLoading || count === 0 || isImporting}
+          busy={isImporting}
+          busyLabel="Importing…"
         >
-          {isImporting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Adding to Chat…
-            </>
-          ) : (
-            "Add to Chat & Analyze"
-          )}
-        </Button>
-      </WorkspaceFooter>
+          Import to Chat
+        </FooterButton>
+      </OverlayFooter>
     </form>
   );
 }

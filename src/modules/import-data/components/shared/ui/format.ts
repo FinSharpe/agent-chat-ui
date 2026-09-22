@@ -75,3 +75,37 @@ export function formatCount(value: number | string | null | undefined): string {
     num,
   );
 }
+
+/**
+ * Tight compact INR in the reference design's style — no space before the
+ * unit (`₹12.4L`, `₹1.2Cr`, `₹47K`), used on stat tiles, headers and rows.
+ * Trailing `.0` is dropped so round figures read `₹5L`, not `₹5.0L`.
+ */
+export function formatINRShort(
+  value: number | string | null | undefined,
+  opts: { decimals?: number; signed?: boolean } = {},
+): string {
+  const num = toNumber(value);
+  if (num === null) return EM_DASH;
+  const { decimals = 1, signed = false } = opts;
+  const sign = num < 0 ? "-" : signed && num > 0 ? "+" : "";
+  const abs = Math.abs(num);
+  const fixed = (n: number) => n.toFixed(decimals).replace(/\.0+$/, "");
+  if (abs >= 1e7) return `${sign}₹${fixed(abs / 1e7)}Cr`;
+  if (abs >= 1e5) return `${sign}₹${fixed(abs / 1e5)}L`;
+  if (abs >= 1e3) return `${sign}₹${fixed(abs / 1e3)}K`;
+  const whole = abs.toFixed(0);
+  return `${whole === "0" ? "" : sign}₹${whole}`;
+}
+
+/** Signed percentage, e.g. `+12.4%` / `-3.1%`; em-dash for nullish input. */
+export function formatPct(
+  value: number | string | null | undefined,
+  opts: { decimals?: number; signed?: boolean } = {},
+): string {
+  const num = toNumber(value);
+  if (num === null) return EM_DASH;
+  const { decimals = 1, signed = true } = opts;
+  const sign = signed && num > 0 ? "+" : "";
+  return `${sign}${num.toFixed(decimals)}%`;
+}

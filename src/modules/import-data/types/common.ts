@@ -45,6 +45,10 @@ export interface BaseAccountType<THolding> {
  */
 export interface BaseAnalysisModalProps {
   consent?: ConsentData | null;
+  /** Extra classes for the modal's own "Analyse" trigger pill. */
+  triggerClassName?: string;
+  /** Trigger text (defaults to "Analyse"). */
+  triggerLabel?: string;
 }
 
 /**
@@ -55,4 +59,3 @@ export interface ColumnConfig {
   label: string;
   align: "left" | "right" | "center";
 }
-

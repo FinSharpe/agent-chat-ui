@@ -40,8 +40,10 @@ async function fetchSearchResults(
     throw new Error("Search API URL is not configured");
   }
 
+  // ETFs trade on the exchange, so they come from the stock search (the ETF
+  // holding transform expects a stock result — the MF search would throw).
   const endpoint =
-    consentType === ConsentType.EQUITIES
+    consentType === ConsentType.EQUITIES || consentType === ConsentType.ETF
       ? `${apiUrl}/utilities/search/stocks`
       : `${apiUrl}/utilities/search/mutual-funds`;
 

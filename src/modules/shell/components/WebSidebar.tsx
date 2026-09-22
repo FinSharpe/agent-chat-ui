@@ -49,7 +49,7 @@ export default function WebSidebar() {
   const { activeTab, setActiveTab, createNewChat, openThread } =
     useAppNavigation();
   const [threadId] = useQueryState("threadId");
-  const { chats, renameChat, deleteChat } = useChatHistory();
+  const { chats, isLoading, renameChat, deleteChat } = useChatHistory();
   const { user } = useAuth();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const onToggleCollapsed = useUiStore((s) => s.toggleSidebar);
@@ -372,7 +372,7 @@ export default function WebSidebar() {
             </div>
           );
         })}
-        {filteredChats.length === 0 && (
+        {!isLoading && filteredChats.length === 0 && (
           <div className="py-6 text-center text-[13px] text-slate-400">
             No conversations found.
           </div>

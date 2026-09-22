@@ -30,7 +30,7 @@ export default function ChatHistoryDrawer() {
   const setHistoryDrawerOpen = useUiStore((s) => s.setHistoryDrawerOpen);
   const { createNewChat, openThread } = useAppNavigation();
   const [threadId] = useQueryState("threadId");
-  const { chats, renameChat, deleteChat } = useChatHistory();
+  const { chats, isLoading, renameChat, deleteChat } = useChatHistory();
   const { user, logout } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -225,7 +225,7 @@ export default function ChatHistoryDrawer() {
                 );
               })}
 
-              {filteredChats.length === 0 && (
+              {!isLoading && filteredChats.length === 0 && (
                 <div className="py-6 text-center text-sm text-[#0A1F4D]">
                   No conversations found.
                 </div>

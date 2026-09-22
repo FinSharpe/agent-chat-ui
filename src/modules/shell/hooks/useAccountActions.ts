@@ -19,12 +19,15 @@ export function useAccountActions() {
   const { user, isLoading, status, logout } = useAuth();
   const themeMode = useUiStore((s) => s.themeMode);
   const toggleThemeMode = useUiStore((s) => s.toggleThemeMode);
+  const setThemeMode = useUiStore((s) => s.setThemeMode);
   const setProfileSettingsOpen = useUiStore((s) => s.setProfileSettingsOpen);
 
   const name = user?.name?.trim() || "";
   // A session we cannot name is still a session; "signed in" follows the
   // user object, never the name, so an unnamed account keeps its menu.
   const signedIn = !!user;
+  // Only the /auth/me answer carries an email; the user_info cookie does not.
+  const email = user && "email" in user ? user.email : null;
 
   const openProfile = useCallback(
     () => setProfileSettingsOpen(true),
@@ -42,6 +45,7 @@ export function useAccountActions() {
 
   return {
     name,
+    email,
     signedIn,
     /**
      * We have no identity *and* no answer — /api/auth/me is still out, or it
@@ -54,6 +58,7 @@ export function useAccountActions() {
     initials: name ? getInitials(name) : null,
     themeMode,
     toggleThemeMode,
+    setThemeMode,
     openProfile,
     openMcpAccess,
     openDeleteAccount,

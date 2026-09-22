@@ -138,7 +138,7 @@ src/modules/
 
 ### shell module
 `src/modules/shell/` is the signed-in frame: `AppViewport`, `AppShell`, the desktop `WebSidebar` (nav, New chat, chat history with search/rename/delete; collapsible to an icon rail) and the mobile `ChatHistoryDrawer`.
-- `SidebarAccountFooter` carries MCP Access, Delete Account, the light/dark switch and the identity row — the name opens Profile, a separate button signs out — or a Login button when signed out. On mobile the same menu hangs off the header avatar (`MobileAccountMenu`); the bottom tab bar holds navigation only.
+- `SidebarAccountFooter` carries MCP Access, Delete Account, the light/dark switch and the identity row — the name opens Profile, a separate button signs out — or a Login button when signed out. On mobile the header avatar opens the same actions as a bottom sheet (`MobileAccountMenu`, after finsharpe-mobile's `account_sheet.dart`); the bottom tab bar holds navigation only.
 - Navigation is Next routing, wrapped by `useAppNavigation()` (`src/hooks/`): tabs chat `/`, home `/home`, discover `/discover`, import `/import`, memory `/history`. `createNewChat(prompt?)` opens a fresh chat; with a prompt it sets `useUiStore.pendingPrompt`, which the chat page sends once as the first message.
 - `useUiStore` (`src/store/`, zustand, persists only theme and sidebar state) holds the shell's overlay flags, `pendingPrompt` and `pendingDiscoverFeature`.
 - Reference layout kit shared by the pages: `src/components/shared/{SectionKit,WavePattern,HeroCarousel,Popup,OverlayColumn}`, `src/components/discover/FeatureHeader`, `CarouselDots`, `SoftLoader`. On desktop, detail views open as `PopupFrame`/`OverlayRoot` popups portalled into `<main data-popup-root>`; feature pages sit in the centred `OverlayColumn`.

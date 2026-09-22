@@ -1,46 +1,52 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion, type PanInfo } from "framer-motion";
 import {
+  ChevronRight,
   LogIn,
-  LogOut,
   Moon,
   Plug,
   Sun,
-  Trash2,
   User,
-  UserCog,
+  type LucideIcon,
 } from "lucide-react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useAccountActions } from "../hooks/useAccountActions";
 
 /**
- * The mobile header avatar's menu (T-02, the user's decision: here rather
- * than in the chat-history drawer; the 5-tab bottom bar is left alone).
+ * The mobile header avatar's account sheet — finsharpe-mobile's
+ * `account_sheet.dart`, drawn on the web: drag handle, the identity row
+ * (opens Profile, the web's "Your account"), Appearance, Sign out, and
+ * Delete account kept faint at the foot, where the owner wanted it on the
+ * app (findable by someone looking, invisible to someone who is not).
  *
- * It goes through the app's Popover wrapper, so it portals into the unzoomed
- * floating root and inherits the shell's theme (see portal-container.tsx).
+ * MCP Access is web-only, so it is the one row the app's sheet does not have.
+ * The app's System theme segment is left out: the web theme is light or dark.
  * Signed out, the avatar is replaced by a Login button.
  */
-
-const ITEM =
-  "rounded-tile hover-tint flex h-9 w-full items-center gap-2.5 px-2.5 text-left text-[12.5px] font-medium transition-colors";
 
 const AVATAR_BUTTON =
   "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#063BAA]/10 bg-[#DFF9EF] text-[10px] font-medium text-[#0A1F4D] transition-colors";
 
+// A drag past this, or a flick, dismisses — Material's sheet behaviour.
+const DISMISS_OFFSET = 80;
+const DISMISS_VELOCITY = 500;
+
 export default function MobileAccountMenu() {
   const {
     name,
+    email,
     signedIn,
     isResolving,
     initials,
     themeMode,
-    toggleThemeMode,
+    setThemeMode,
     openProfile,
     openMcpAccess,
     openDeleteAccount,
@@ -48,8 +54,6 @@ export default function MobileAccountMenu() {
     logout,
   } = useAccountActions();
   const [open, setOpen] = useState(false);
-  const dark = themeMode === "dark";
-  const ThemeIcon = dark ? Moon : Sun;
 
   // Session still unknown — a placeholder, never a Login button (see
   // useAccountActions' isResolving).
@@ -71,110 +75,183 @@ export default function MobileAccountMenu() {
     );
   }
 
-  // Every row but the theme switch navigates or signs out, so it closes the
-  // menu first — the menu sits above the page it is sending you to.
+  // Every action but the theme switch leaves the sheet, so it closes first.
   const run = (action: () => void) => () => {
     setOpen(false);
     action();
   };
 
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.y > DISMISS_OFFSET || info.velocity.y > DISMISS_VELOCITY) {
+      setOpen(false);
+    }
+  };
+
   return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <PopoverTrigger asChild>
-        <button
-          className={AVATAR_BUTTON}
-          title={name || "Account"}
-          aria-label="Account menu"
-        >
-          {initials ? <span>{initials}</span> : <User size={15} />}
-        </button>
-      </PopoverTrigger>
-
-      <PopoverContent
-        align="end"
-        sideOffset={8}
-        className="font-funnel w-[214px] rounded-[18px] border-slate-100 p-1.5 shadow-[0_18px_40px_-20px_rgba(10,31,77,0.35)] dark:border-slate-800"
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className={AVATAR_BUTTON}
+        title={name || "Account"}
+        aria-label="Account"
+        aria-haspopup="dialog"
       >
-        {name && (
-          <p className="truncate px-2.5 pt-1 pb-2 text-[11px] text-slate-400">
-            {name}
-          </p>
-        )}
+        {initials ? <span>{initials}</span> : <User size={15} />}
+      </button>
 
-        <button
-          onClick={toggleThemeMode}
-          aria-pressed={dark}
-          className={`${ITEM} text-[#0A1F4D] dark:text-slate-200`}
+      <Sheet
+        open={open}
+        onOpenChange={setOpen}
+      >
+        <SheetContent
+          side="bottom"
+          showClose={false}
+          overlayClassName="bg-[#0A1F4D]/30 backdrop-blur-none dark:bg-black/60"
+          className="font-funnel mx-auto max-w-[560px] gap-0 rounded-t-[30px] border-0 bg-[var(--card-bg)] shadow-none"
         >
-          <ThemeIcon
-            size={16}
-            className="shrink-0 text-slate-400"
-          />
-          <span className="flex-1">{dark ? "Dark mode" : "Light mode"}</span>
-          <span
-            aria-hidden
-            className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-              dark ? "bg-[#063BAA]" : "bg-slate-200 dark:bg-slate-700"
+          <motion.div
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={onDragEnd}
+            className="touch-pan-y"
+          >
+            <div className="flex justify-center pt-[18px] pb-2">
+              <span className="h-1 w-9 rounded-full bg-[var(--card-border)]" />
+            </div>
+
+            <div
+              className="px-5 pt-2"
+              style={{
+                paddingBottom: "max(20px, env(safe-area-inset-bottom))",
+              }}
+            >
+              <SheetTitle className="sr-only">Account</SheetTitle>
+              <SheetDescription className="sr-only">
+                Your profile, appearance and sign out
+              </SheetDescription>
+
+              <SheetRow
+                icon={User}
+                title={name || "Signed in"}
+                subtitle={email}
+                onClick={run(openProfile)}
+              />
+
+              <p className="mt-3.5 text-[10px] font-semibold tracking-[0.07em] text-slate-400 uppercase">
+                Appearance
+              </p>
+              <ThemeToggle
+                value={themeMode}
+                onChange={setThemeMode}
+              />
+
+              <div className="mt-4">
+                <SheetRow
+                  icon={Plug}
+                  title="MCP Access"
+                  onClick={run(openMcpAccess)}
+                />
+              </div>
+
+              {/* One tap signs out, no confirm — the app's sheet does the
+                  same; a drag or the scrim is the way out without it. */}
+              <button
+                onClick={run(logout)}
+                className="mt-4 flex h-[52px] w-full items-center justify-center rounded-full border border-[#063BAA]/30 text-[14px] font-medium text-[#063BAA] transition-colors hover:bg-[var(--tone-blue-weak)] dark:border-white/20 dark:text-[var(--tone-blue-fg)]"
+              >
+                Sign out
+              </button>
+
+              <div className="mt-2 flex justify-center">
+                <button
+                  onClick={run(openDeleteAccount)}
+                  className="px-2 py-2.5 text-[11px] text-slate-400 transition-colors hover:text-rose-600 dark:hover:text-rose-400"
+                >
+                  Delete account
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}
+
+function SheetRow({
+  icon: Icon,
+  title,
+  subtitle,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-nested hover-tint flex w-full items-center gap-3 py-1.5 text-left"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--tone-blue)] text-[var(--tone-blue-fg)]">
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-medium text-[#0A1F4D] dark:text-slate-100">
+          {title}
+        </span>
+        {subtitle && (
+          <span className="block truncate text-[12px] text-slate-400">
+            {subtitle}
+          </span>
+        )}
+      </span>
+      <ChevronRight
+        size={18}
+        className="shrink-0 text-slate-400"
+      />
+    </button>
+  );
+}
+
+const THEME_SEGMENTS = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+] as const;
+
+function ThemeToggle({
+  value,
+  onChange,
+}: {
+  value: "light" | "dark";
+  onChange: (mode: "light" | "dark") => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Appearance"
+      className="mt-2 flex gap-1 rounded-full border border-[var(--card-border)] bg-[var(--tone-blue-weak)] p-1"
+    >
+      {THEME_SEGMENTS.map(({ value: mode, label, icon: Icon }) => {
+        const selected = value === mode;
+        return (
+          <button
+            key={mode}
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(mode)}
+            // Solid brand blue + white in both themes, as on the app.
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[12px] font-medium transition-colors ${
+              selected ? "bg-[#063BAA] text-white" : "text-slate-500"
             }`}
           >
-            <span
-              className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
-                dark ? "translate-x-3" : "translate-x-0"
-              }`}
-            />
-          </span>
-        </button>
-
-        <button
-          onClick={run(openProfile)}
-          className={`${ITEM} text-[#0A1F4D] dark:text-slate-200`}
-        >
-          <UserCog
-            size={16}
-            className="shrink-0 text-slate-400"
-          />
-          Profile
-        </button>
-
-        <button
-          onClick={run(openMcpAccess)}
-          className={`${ITEM} text-[#0A1F4D] dark:text-slate-200`}
-        >
-          <Plug
-            size={16}
-            className="shrink-0 text-slate-400"
-          />
-          MCP Access
-        </button>
-
-        <button
-          onClick={run(openDeleteAccount)}
-          className={`${ITEM} text-slate-400 hover:text-rose-600 dark:hover:text-rose-400`}
-        >
-          <Trash2
-            size={16}
-            className="shrink-0"
-          />
-          Delete Account
-        </button>
-
-        <div className="my-1 h-px bg-slate-100 dark:bg-slate-800" />
-
-        {/* One tap signs out — no confirm, matching the reference. */}
-        <button
-          onClick={run(logout)}
-          className={`${ITEM} text-rose-600 dark:text-rose-400`}
-        >
-          <LogOut
-            size={16}
-            className="shrink-0"
-          />
-          Sign out
-        </button>
-      </PopoverContent>
-    </Popover>
+            <Icon size={13} />
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

@@ -1,61 +1,73 @@
 import type { MCPGrantResponse } from "@/api/generated/mcp-apis/models";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { KeyRound } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
-import { deriveDisplayStatus } from "../utils/grant-display";
+import {
+  deriveDisplayStatus,
+  type DisplayStatus,
+} from "../utils/grant-display";
 
 interface GrantCardProps {
   grant: MCPGrantResponse;
   className?: string;
 }
 
+// Icon tile tone follows the badge: usable grants read mint, the rest calm.
+const TILE_TONE: Record<DisplayStatus, string> = {
+  active: "tone-mint",
+  pending: "tone-blue",
+  queued: "tone-blue",
+  expired: "tone-navy",
+  rejected: "tone-navy",
+  revoked: "tone-navy",
+};
+
+const day = (iso: string) => format(new Date(iso), "MMM d, yyyy");
+
+/** One grant as a hairline row: duration, its dates, and its status. */
 export function GrantCard({ grant, className }: GrantCardProps) {
   const displayStatus = deriveDisplayStatus(grant);
 
-  const requested = grant.requested_at
-    ? format(new Date(grant.requested_at), "MMM d, yyyy")
-    : null;
-  const starts = grant.starts_at
-    ? format(new Date(grant.starts_at), "MMM d, yyyy")
-    : null;
-  const expires = grant.expires_at
-    ? format(new Date(grant.expires_at), "MMM d, yyyy")
-    : null;
+  const dates = [
+    grant.requested_at && `Requested ${day(grant.requested_at)}`,
+    grant.starts_at && `Starts ${day(grant.starts_at)}`,
+    grant.expires_at && `Expires ${day(grant.expires_at)}`,
+  ].filter(Boolean);
 
   return (
     <div
       className={cn(
-        "group flex flex-col gap-2 rounded-lg border border-border-subtle px-4 py-3 transition-colors",
-        "hover:border-border-default hover:bg-bg-hover/60",
-        "sm:flex-row sm:items-center sm:gap-4",
+        "flex items-center gap-3.5 border-b border-slate-50 py-3.5 last:border-b-0",
         className,
       )}
     >
-      <div className="flex items-center gap-3 sm:w-36 sm:shrink-0">
-        <StatusBadge displayStatus={displayStatus} />
+      <div
+        className={cn(
+          "rounded-tile flex h-9 w-9 shrink-0 items-center justify-center",
+          TILE_TONE[displayStatus],
+        )}
+      >
+        <KeyRound size={15} />
       </div>
 
-      <dl className="flex flex-1 flex-wrap gap-x-6 gap-y-1 text-xs">
-        <Meta label="Duration" value={`${grant.duration_days} days`} />
-        {requested && <Meta label="Requested" value={requested} />}
-        {starts && <Meta label="Starts" value={starts} />}
-        {expires && <Meta label="Expires" value={expires} />}
-      </dl>
-
-      {displayStatus === "rejected" && grant.rejection_reason && (
-        <p className="text-xs italic text-text-tertiary sm:max-w-xs sm:text-right">
-          &ldquo;{grant.rejection_reason}&rdquo;
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-xs font-medium text-[#0A1F4D]">
+          {grant.duration_days} days access
         </p>
-      )}
-    </div>
-  );
-}
+        {dates.length > 0 && (
+          <p className="text-[10px] leading-relaxed text-slate-400">
+            {dates.join(" · ")}
+          </p>
+        )}
+        {displayStatus === "rejected" && grant.rejection_reason && (
+          <p className="text-[10px] text-slate-400 italic">
+            &ldquo;{grant.rejection_reason}&rdquo;
+          </p>
+        )}
+      </div>
 
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="text-text-tertiary">{label}</dt>
-      <dd className="font-medium text-text-secondary">{value}</dd>
+      <StatusBadge displayStatus={displayStatus} />
     </div>
   );
 }

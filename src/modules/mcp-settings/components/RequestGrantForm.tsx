@@ -5,28 +5,18 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Loader2, Send } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { FieldLabel, SectionHeading, inputClass } from "./McpKit";
 
 const PRESET_DURATIONS = ["7", "30", "90", "custom"] as const;
 type DurationPreset = (typeof PRESET_DURATIONS)[number];
+
+const PRESET_LABELS: Record<DurationPreset, string> = {
+  "7": "7 days",
+  "30": "30 days",
+  "90": "90 days",
+  custom: "Custom",
+};
 
 const formSchema = z
   .object({
@@ -37,10 +27,7 @@ const formSchema = z
       .min(1, "Must be at least 1 day")
       .max(365, "Max 365 days")
       .optional(),
-    reason: z
-      .string()
-      .max(1000, "Keep it under 1000 characters")
-      .optional(),
+    reason: z.string().max(1000, "Keep it under 1000 characters").optional(),
   })
   .refine(
     (v) => v.duration_preset !== "custom" || typeof v.custom_days === "number",
@@ -86,6 +73,7 @@ export function RequestGrantForm({
 
   const preset = watch("duration_preset");
   const showCustom = preset === "custom";
+  const locked = disabled || isSubmitting;
 
   const submit = handleSubmit((values) => {
     const duration_days =
@@ -100,105 +88,118 @@ export function RequestGrantForm({
   });
 
   return (
-    <Card className={cn("overflow-hidden py-4", className)}>
-      <CardHeader>
-        <CardTitle className="text-base">Request access</CardTitle>
-        <CardDescription>
-          Admin approval required. You&apos;ll be emailed when your request is
-          approved.
-        </CardDescription>
-      </CardHeader>
+    <section className={cn("space-y-3", className)}>
+      <SectionHeading
+        title="Request Access"
+        sub="Admin approval required. You'll be emailed when your request is approved."
+      />
 
-      <CardContent>
+      <div className="glass-card rounded-card p-5">
         {disabled && (
-          <div className="mb-4 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-sm text-warning-fg">
+          <div className="rounded-nested mb-4 border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/5 dark:text-amber-400">
             You already have a pending request awaiting admin approval.
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-5">
-          <fieldset disabled={disabled || isSubmitting} className="contents">
-            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="space-y-1.5">
-                <Label htmlFor="duration_preset" className="text-xs font-medium text-text-secondary">
-                  Duration
-                </Label>
-                <Controller
-                  name="duration_preset"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={(v) => field.onChange(v as DurationPreset)}
-                      disabled={disabled || isSubmitting}
-                    >
-                      <SelectTrigger id="duration_preset">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">7 days</SelectItem>
-                        <SelectItem value="30">30 days</SelectItem>
-                        <SelectItem value="90">90 days</SelectItem>
-                        <SelectItem value="custom">Custom…</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-
-              {showCustom && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="custom_days" className="text-xs font-medium text-text-secondary">
-                    Custom (days)
-                  </Label>
-                  <Input
-                    id="custom_days"
-                    type="number"
-                    min={1}
-                    max={365}
-                    placeholder="1–365"
-                    {...register("custom_days", { valueAsNumber: true })}
-                  />
-                  {errors.custom_days && (
-                    <p className="text-xs text-error-fg">
-                      {errors.custom_days.message}
-                    </p>
-                  )}
-                </div>
-              )}
+        <form onSubmit={submit}>
+          {/* `contents` keeps the fieldset out of layout; its children still
+              take the spacing. */}
+          <fieldset
+            disabled={locked}
+            className="contents space-y-4"
+          >
+            <div>
+              <FieldLabel>Duration</FieldLabel>
+              <Controller
+                name="duration_preset"
+                control={control}
+                render={({ field }) => (
+                  <div
+                    role="radiogroup"
+                    aria-label="Duration"
+                    className="glass-tile flex items-center gap-1 rounded-full p-1"
+                  >
+                    {PRESET_DURATIONS.map((value) => {
+                      const selected = field.value === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => field.onChange(value)}
+                          className={cn(
+                            "flex-1 rounded-full py-2 text-[11px] font-medium transition-colors disabled:opacity-50",
+                            selected
+                              ? "bg-[#063BAA] text-white"
+                              : "text-slate-500 hover:text-[#063BAA]",
+                          )}
+                        >
+                          {PRESET_LABELS[value]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="reason" className="text-xs font-medium text-text-secondary">
-                Reason <span className="text-text-tertiary">(optional)</span>
-              </Label>
-              <Textarea
+            {showCustom && (
+              <div>
+                <FieldLabel htmlFor="custom_days">Custom (days)</FieldLabel>
+                <input
+                  id="custom_days"
+                  type="number"
+                  min={1}
+                  max={365}
+                  placeholder="1–365"
+                  className={inputClass}
+                  {...register("custom_days", { valueAsNumber: true })}
+                />
+                {errors.custom_days && (
+                  <p className="mt-1 text-[10.5px] text-rose-600 dark:text-rose-400">
+                    {errors.custom_days.message}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <FieldLabel htmlFor="reason">
+                Reason <span className="text-slate-400">(optional)</span>
+              </FieldLabel>
+              <textarea
                 id="reason"
                 rows={3}
                 maxLength={1000}
                 placeholder="Briefly explain why you need MCP access…"
+                className={cn(inputClass, "resize-none")}
                 {...register("reason")}
               />
               {errors.reason && (
-                <p className="text-xs text-error-fg">
+                <p className="mt-1 text-[10.5px] text-rose-600 dark:text-rose-400">
                   {errors.reason.message}
                 </p>
               )}
             </div>
 
-            <div className="flex justify-end mt-4">
-              <Button type="submit" className="gap-2">
-                {isSubmitting ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Send className="size-4" />
-                )}
-                {isSubmitting ? "Requesting…" : "Submit request"}
-              </Button>
-            </div>
+            <button
+              type="submit"
+              className="bg-brand-gradient flex w-full items-center justify-center gap-1.5 rounded-full py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:pointer-events-none disabled:opacity-40"
+            >
+              {isSubmitting ? (
+                <Loader2
+                  size={14}
+                  className="animate-spin"
+                />
+              ) : (
+                <Send size={14} />
+              )}
+              {isSubmitting ? "Requesting…" : "Submit Request"}
+            </button>
           </fieldset>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

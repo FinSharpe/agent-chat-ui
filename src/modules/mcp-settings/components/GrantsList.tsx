@@ -1,14 +1,8 @@
 import type { MCPGrantResponse } from "@/api/generated/mcp-apis/models";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { History } from "lucide-react";
 import { GrantCard } from "./GrantCard";
+import { EmptyRows, RowSkeletons, SectionHeading } from "./McpKit";
 
 interface GrantsListProps {
   grants: MCPGrantResponse[] | undefined;
@@ -26,46 +20,30 @@ export function GrantsList({ grants, isLoading, className }: GrantsListProps) {
     : [];
 
   return (
-    <Card className={cn("overflow-hidden py-4", className)}>
-      <CardHeader>
-        <CardTitle className="text-base">Grant history</CardTitle>
-        <CardDescription>
-          Every access grant you&apos;ve requested, active and past.
-        </CardDescription>
-      </CardHeader>
+    <section className={cn("space-y-3", className)}>
+      <SectionHeading
+        title="Grant History"
+        sub="Every access grant you've requested, active and past."
+      />
 
-      <CardContent>
+      <div className="glass-card rounded-card p-5">
         {isLoading ? (
-          <div className="space-y-2">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-14 animate-pulse rounded-lg bg-bg-subtle"
-              />
-            ))}
-          </div>
+          <RowSkeletons count={3} />
         ) : sorted.length === 0 ? (
-          <EmptyState />
+          <EmptyRows
+            icon={<History size={17} />}
+            title="No grants yet"
+            sub="Submit a request above to get started."
+          />
         ) : (
-          <div className="space-y-2">
-            {sorted.map((grant) => (
-              <GrantCard key={grant.id} grant={grant} />
-            ))}
-          </div>
+          sorted.map((grant) => (
+            <GrantCard
+              key={grant.id}
+              grant={grant}
+            />
+          ))
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-default py-10 text-center">
-      <History className="size-6 text-text-tertiary" />
-      <p className="text-sm font-medium text-text-secondary">No grants yet</p>
-      <p className="text-xs text-text-tertiary">
-        Submit a request above to get started.
-      </p>
-    </div>
+      </div>
+    </section>
   );
 }

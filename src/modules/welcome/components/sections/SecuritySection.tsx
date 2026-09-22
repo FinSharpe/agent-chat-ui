@@ -1,9 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Landmark, Lock, Eye } from "lucide-react";
+import { Landmark, KeyRound, Eye } from "lucide-react";
 import SectionWrapper from "../shared/SectionWrapper";
 
+// Every line here has to be something we can point at: the RBI framework, what
+// the consent actually grants, and what we never receive. The old copy claimed
+// "256-bit encryption for all data transfers and storage" and "bank-level
+// security", which nobody here could substantiate.
 const badges = [
   {
     icon: Landmark,
@@ -11,14 +15,14 @@ const badges = [
     description: "Account Aggregator framework approved by the Reserve Bank of India",
   },
   {
-    icon: Lock,
-    title: "256-bit Encryption",
-    description: "Bank-level encryption for all data transfers and storage",
-  },
-  {
     icon: Eye,
     title: "Read-Only Access",
-    description: "We can only view your data — never initiate transactions",
+    description: "We can only view your holdings — never move money or place an order",
+  },
+  {
+    icon: KeyRound,
+    title: "Never Your Credentials",
+    description: "You approve each account on the Aggregator, and can revoke it any time",
   },
 ];
 
@@ -42,7 +46,7 @@ export default function SecuritySection() {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="mb-4 text-3xl font-bold sm:text-4xl"
         >
-          Bank-Level Security
+          Your Data, On Your Consent
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 16 }}
@@ -51,9 +55,9 @@ export default function SecuritySection() {
           transition={{ delay: 0.2, duration: 0.5 }}
           className="mx-auto mb-14 max-w-2xl text-blue-200"
         >
-          Your financial data is protected with the highest standards of
-          security and privacy. We follow industry best practices and
-          regulatory guidelines.
+          Your accounts connect through the RBI-regulated Account Aggregator.
+          FinSharpe receives read-only data, never sees your credentials, and
+          only for as long as you allow it.
         </motion.p>
       </div>
 

@@ -51,10 +51,9 @@ export default function HeroSection() {
             variants={fadeUp}
             className="mx-auto max-w-2xl text-lg text-text-secondary sm:text-xl"
           >
-            Make smarter investment decisions with AI that understands your
-            portfolio, goals, and risk appetite. Get personalized insights,
-            discover opportunities, and manage your wealth — all through
-            natural conversation.
+            Bring your holdings in through the RBI-regulated Account
+            Aggregator, then ask about them in plain language — screen the
+            market, read what the filings say, and get a research report back.
           </motion.p>
 
           <motion.div

@@ -5,15 +5,10 @@ import { useGetStrategyAnalyticsApiStrategiesStrategyNameGet } from "@/api/gener
 import { StrategyAnalyticsResponse } from "@/api/generated/strategy-apis/models";
 import FeatureHeader from "@/components/discover/FeatureHeader";
 import SoftLoader from "@/components/SoftLoader";
-import { useAppNavigation } from "@/hooks/useAppNavigation";
-import { findStaticIdea } from "../../constants/discover-data";
 import { useImportStrategyMutation } from "../../hooks/useImportStrategyMutation";
 import { IdeaStrategy } from "../../types/discover.types";
 import { downloadHoldingsCsv } from "../../utils/holdings-csv";
-import {
-  advisorDetailModel,
-  basketDetailModel,
-} from "../../utils/strategy-detail-model";
+import { advisorDetailModel } from "../../utils/strategy-detail-model";
 import { StrategyDetailView } from "./StrategyDetailView";
 
 interface Props {
@@ -21,29 +16,6 @@ interface Props {
   /** The advisor list row, when loaded — gives the header a title early. */
   listItem?: IdeaStrategy;
   onBack: () => void;
-}
-
-/** A static basket: placeholder figures, and "Analyse in chat" seeds a chat. */
-function BasketDetail({
-  idea,
-  onBack,
-}: {
-  idea: IdeaStrategy;
-  onBack: () => void;
-}) {
-  const { createNewChat } = useAppNavigation();
-  const model = useMemo(() => basketDetailModel(idea), [idea]);
-  const prompt = `I'd like to explore the "${idea.title}" investment idea${
-    idea.description ? ` — ${idea.description}` : ""
-  }. Which Indian stocks fit it best, and what are the key risks?`;
-
-  return (
-    <StrategyDetailView
-      model={model}
-      onBack={onBack}
-      onAnalyse={() => createNewChat(prompt)}
-    />
-  );
 }
 
 /** An advisor strategy: real analytics from the strategies API. */
@@ -119,19 +91,12 @@ function AdvisorDetail({ strategyId, listItem, onBack }: Props) {
 
 /**
  * Strategy detail for Explore Investment Ideas — the reference StrategyDetail
- * layout, fed by the strategies API for advisor strategies and by placeholder
- * figures for the static baskets.
+ * layout, fed by the strategies API. Every category but "Created by Advisors"
+ * is disabled and empty, so there is nothing else this can be asked to render
+ * (T-04): an id that is not an advisor strategy is a retired or invented one,
+ * and AdvisorDetail says so rather than drawing figures for it.
  */
 export function StrategyDetail({ strategyId, listItem, onBack }: Props) {
-  const staticIdea = findStaticIdea(strategyId);
-  if (staticIdea) {
-    return (
-      <BasketDetail
-        idea={staticIdea}
-        onBack={onBack}
-      />
-    );
-  }
   return (
     <AdvisorDetail
       strategyId={strategyId}

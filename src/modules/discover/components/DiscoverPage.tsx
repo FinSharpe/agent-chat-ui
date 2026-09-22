@@ -6,9 +6,8 @@ import { useDiscoverNavigation } from "../hooks/useDiscoverNavigation";
 import { LocalDiscoverFeature } from "../types/discover.types";
 import { DiscoverLanding } from "./landing/DiscoverLanding";
 import { ExploreIdeas } from "./explore-ideas/ExploreIdeas";
-import { NewsImpact } from "./news-impact/NewsImpact";
-import { TradingIdeas } from "./trading-ideas/TradingIdeas";
-import { GlobalInvesting } from "./global-investing/GlobalInvesting";
+import { IpoWatch } from "./ipo/IpoWatch";
+import { MarketNews } from "./news/MarketNews";
 
 /**
  * The Discover tab: a landing list of features, each opening in place with
@@ -23,7 +22,7 @@ export function DiscoverPage() {
   const renderFeature = (f: LocalDiscoverFeature) => {
     switch (f) {
       case "news":
-        return <NewsImpact onBack={nav.closeFeature} />;
+        return <MarketNews onBack={nav.closeFeature} />;
       case "ideas":
         return (
           <ExploreIdeas
@@ -33,10 +32,15 @@ export function DiscoverPage() {
             onCloseDetail={nav.closeStrategy}
           />
         );
-      case "trading":
-        return <TradingIdeas onBack={nav.closeFeature} />;
-      case "global":
-        return <GlobalInvesting onBack={nav.closeFeature} />;
+      case "ipos":
+        return (
+          <IpoWatch
+            onBack={nav.closeFeature}
+            selectedFincode={nav.issueFincode}
+            onSelect={nav.openIssue}
+            onCloseDetail={nav.closeIssue}
+          />
+        );
     }
   };
 

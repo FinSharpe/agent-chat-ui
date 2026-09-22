@@ -3,22 +3,27 @@
  * Ideas catalog, and the view model the strategy detail renders from.
  */
 
-/** A Discover sub-feature. `workflows` and `builder` are separate routes. */
+/**
+ * A Discover sub-feature that can actually be entered. `workflows` and
+ * `builder` are separate routes; the rest render inside the Discover screen.
+ *
+ * Explore Trading Ideas and Global Investing are deliberately absent: their
+ * screens were invented content and have been deleted (T-04), so they are
+ * coming-soon rows with no route rather than features with a broken one.
+ */
 export type DiscoverFeature =
   | "news"
   | "ideas"
+  | "ipos"
   | "workflows"
-  | "builder"
-  | "trading"
-  | "global";
+  | "builder";
 
 export const DISCOVER_FEATURES: readonly DiscoverFeature[] = [
   "news",
   "ideas",
+  "ipos",
   "workflows",
   "builder",
-  "trading",
-  "global",
 ];
 
 /** Features rendered inside the Discover screen (the rest are routes). */
@@ -30,13 +35,12 @@ export type LocalDiscoverFeature = Exclude<
 export type RiskLevel = "Low" | "Medium" | "High" | "Very High";
 
 /**
- * One strategy row in Explore Investment Ideas. Advisor strategies come from
- * the strategies API; every other category is the app's static catalog.
+ * One strategy row in Explore Investment Ideas. Every row on screen comes
+ * from the strategies API — there is no static catalog any more.
  */
 export interface IdeaStrategy {
-  /** Advisor: the API strategy id. Static baskets: a slug from the catalog. */
+  /** The API strategy id. */
   id: string;
-  source: "advisor" | "basket";
   title: string;
   /** Short line under the title in the list (a tag, sub-theme or style). */
   summary?: string;
@@ -47,8 +51,6 @@ export interface IdeaStrategy {
   return1Y?: string;
   risk?: string;
   stocks?: number;
-  /** Shown instead of a return (IPO Corner). */
-  launchStatus?: string;
 }
 
 export interface IdeaCategory {
@@ -58,6 +60,11 @@ export interface IdeaCategory {
   /** The advisor category is fetched; the others are static. */
   isLoading?: boolean;
   isError?: boolean;
+  /**
+   * Nothing backs this category, so its card cannot be opened and carries a
+   * "Coming soon" chip in place of a strategy count.
+   */
+  disabled?: boolean;
 }
 
 /* ---------- strategy detail view model ---------- */

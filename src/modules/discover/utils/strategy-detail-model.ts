@@ -2,20 +2,9 @@ import { StrategyAnalyticsResponse } from "@/api/generated/strategy-apis/models"
 import { PortfolioMetric } from "@/modules/core/portfolio/constants/portfolio-metrics";
 import { getStatValue } from "@/modules/core/portfolio/utils/get-stat-value";
 import {
-  PLACEHOLDER_MIN_INVESTMENT,
-  placeholderBenchmark,
-  placeholderHoldings,
-  placeholderKeyMetrics,
-  placeholderMarketCapAllocation,
-  placeholderPerformance,
-  placeholderRisk,
-  placeholderSectorAllocation,
-} from "../constants/strategy-detail-placeholder";
-import {
   AllocationItem,
   ChartSeries,
   DetailRow,
-  IdeaStrategy,
   StrategyDetailModel,
 } from "../types/discover.types";
 import { formatPct, formatRatio, toNumber } from "./format";
@@ -304,88 +293,6 @@ export function advisorDetailModel(
           : [{ label: "Risk Score", value: riskScore, higherIsBetter: false }]),
       ],
       risk: riskRows,
-    },
-  };
-}
-
-/** Illustrative detail for a static basket (no analytics backend yet). */
-export function basketDetailModel(s: IdeaStrategy): StrategyDetailModel {
-  const holdingsCount = s.stocks ?? 20;
-  const return1Y = s.return1Y ?? s.launchStatus ?? "+24.0%";
-  return {
-    id: s.id,
-    title: s.title,
-    eyebrow: s.tags[0] ?? "Strategy",
-    bannerTitle:
-      s.description ||
-      `A ${s.risk ?? "balanced"}-risk basket of ${holdingsCount} curated holdings, rebalanced quarterly`,
-    tags: s.tags,
-    risk: s.risk,
-    stats: [
-      { label: "1Y Returns", value: return1Y, accent: !!s.return1Y },
-      { label: "Holdings", value: String(holdingsCount) },
-      { label: "Min Invest", value: PLACEHOLDER_MIN_INVESTMENT },
-    ],
-    tabs: ["overview", "holdings", "performance", "analytics"],
-    overview: {
-      keyMetrics: [
-        { label: "1Y Returns", value: return1Y },
-        ...placeholderKeyMetrics,
-      ],
-      sectorLabel: "Sector Allocation",
-      sectorAllocation: placeholderSectorAllocation,
-      marketCapAllocation: placeholderMarketCapAllocation,
-    },
-    holdings: {
-      columns: ["Weight", "Price", "Chg"],
-      rows: placeholderHoldings.map((h) => ({
-        key: h.name,
-        name: h.name,
-        cells: [
-          { text: `${h.weight}%` },
-          { text: `₹${h.price.toLocaleString("en-IN")}` },
-          {
-            text: `${Math.abs(h.change)}%`,
-            tone: h.change >= 0 ? "up" : "down",
-            arrow: true,
-          },
-        ],
-      })),
-    },
-    performance: {
-      label: "This Basket vs Nifty 50 vs Industry Avg",
-      xKey: "m",
-      data: placeholderPerformance,
-      series: [
-        {
-          key: "basket",
-          name: "This Basket",
-          color: SERIES_COLORS[0],
-          width: 2,
-        },
-        { key: "nifty", name: "Nifty 50", color: SERIES_COLORS[1], width: 2 },
-        {
-          key: "industry",
-          name: "Industry Avg",
-          color: SERIES_COLORS[2],
-          width: 1.5,
-          dashed: true,
-        },
-      ],
-    },
-    analytics: {
-      benchmark: {
-        data: placeholderBenchmark,
-        series: [
-          { key: "basket", name: "This Basket", color: SERIES_COLORS[0] },
-          { key: "nifty", name: "Nifty 50", color: SERIES_COLORS[1] },
-        ],
-      },
-      scores: [],
-      risk: [
-        { label: "Risk Level", value: s.risk ?? "Medium" },
-        ...placeholderRisk,
-      ],
     },
   };
 }

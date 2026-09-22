@@ -32,18 +32,12 @@ export function StrategyRow({
         )}
       </span>
       <span className="flex shrink-0 items-center gap-2">
-        {s.return1Y ? (
+        {s.return1Y && (
           <span
             className={`text-[12px] font-medium tabular-nums ${signTone(s.return1Y)}`}
           >
             {s.return1Y}
           </span>
-        ) : (
-          s.launchStatus && (
-            <span className="text-[10px] font-medium text-slate-400">
-              {s.launchStatus}
-            </span>
-          )
         )}
         {s.risk && (
           <span

@@ -36,6 +36,11 @@ function StatusRow({ children }: { children: React.ReactNode }) {
 /**
  * A category card with a collapsible header. Open, its strategies show as
  * cardless rows — about three visible, the rest scrolling within the card.
+ *
+ * A category with nothing behind it (`category.disabled`) is not a closed
+ * card that could be opened: it has no click target, no chevron and no count,
+ * and carries a "Coming soon" chip where the count would be. It must never
+ * show a strategy count for content that does not exist.
  */
 export function IdeaCategoryCard({
   category,
@@ -52,9 +57,46 @@ export function IdeaCategoryCard({
 }) {
   const Icon = CATEGORY_ICONS[category.id] ?? Sparkles;
   const count = category.strategies.length;
-  const countLabel = category.isLoading
-    ? "Loading strategies…"
-    : `${count} ${count === 1 ? "strategy" : "strategies"}`;
+  const disabled = !!category.disabled;
+
+  const header = (
+    <>
+      <span
+        className={`rounded-tile flex h-10 w-10 shrink-0 items-center justify-center ${TONES[index % 3]} ${disabled ? "opacity-45" : ""}`}
+      >
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={`font-geist block text-[13px] leading-snug font-medium text-[#0A1F4D] dark:text-white ${disabled ? "opacity-55" : ""}`}
+        >
+          {category.name}
+        </span>
+        {disabled ? (
+          <span className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-medium tracking-wider text-slate-500 uppercase">
+            Coming soon
+          </span>
+        ) : (
+          <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
+            {category.isLoading
+              ? "Loading strategies…"
+              : `${count} ${count === 1 ? "strategy" : "strategies"}`}
+          </span>
+        )}
+      </span>
+    </>
+  );
+
+  if (disabled) {
+    return (
+      <div
+        aria-disabled="true"
+        className="glass-card rounded-card flex cursor-default items-center gap-3.5 p-4.5 shadow-none select-none"
+      >
+        {header}
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card rounded-card overflow-hidden">
@@ -63,19 +105,7 @@ export function IdeaCategoryCard({
         aria-expanded={isOpen}
         className={`flex w-full items-center gap-3.5 p-4.5 text-left transition-colors ${isOpen ? "border-b border-slate-100 dark:border-slate-800/40" : ""}`}
       >
-        <span
-          className={`rounded-tile flex h-10 w-10 shrink-0 items-center justify-center ${TONES[index % 3]}`}
-        >
-          <Icon size={18} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="font-geist block text-[13px] leading-snug font-medium text-[#0A1F4D] dark:text-white">
-            {category.name}
-          </span>
-          <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
-            {countLabel}
-          </span>
-        </span>
+        {header}
         <ChevronDown
           size={16}
           className={`shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}

@@ -5,6 +5,13 @@
 @import "tailwindcss";
 @import "material-symbols/rounded.css";
 @import "./design-system.css";
+@import "./styles/chat.css";
+@import "./styles/home.css";
+@import "./styles/discover.css";
+@import "./styles/import.css";
+@import "./styles/memory.css";
+@import "./styles/auth.css";
+@import "./styles/account.css";
 @source not "../../docs";
 
 @plugin "tailwindcss-animate";

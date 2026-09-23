@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useApiUrl, useAssistantId } from "@/hooks/useDefaultApiValues";
 import { getApiKey } from "@/lib/api-key";
-import { type Message } from "@langchain/langgraph-sdk";
+import { Client, type Message } from "@langchain/langgraph-sdk";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import {
   isRemoveUIMessage,
@@ -69,10 +69,14 @@ interface ChatConnection {
   reachable: boolean;
   /** Re-runs the health check and returns the result. */
   recheck: () => Promise<boolean>;
+  /** A saved chat was opened and its history has not arrived yet. Until it
+   *  does, `useStream` keeps rendering the previous chat's messages. */
+  threadLoading: boolean;
 }
 const ChatConnectionContext = createContext<ChatConnection>({
   reachable: true,
   recheck: async () => true,
+  threadLoading: false,
 });
 export const useChatConnection = () => useContext(ChatConnectionContext);
 
@@ -116,17 +120,47 @@ const StreamSession = ({
   const pathname = usePathname();
   const router = useRouter();
 
+  // The thread whose history last settled (loaded or failed). `useStream`
+  // says nothing while it fetches a chat's history, so the client's
+  // getHistory is wrapped to record when it lands. Its refetch after every
+  // run is for the same thread, so it never counts as switching chats.
+  const [settledThreadId, setSettledThreadId] = useState<string | null>(null);
+  const client = useMemo(() => {
+    const c = new Client({
+      apiUrl,
+      apiKey: apiKey ?? undefined,
+      // The SDK retries a failed request four times with exponential
+      // backoff, which leaves an unreachable server spinning "analyzing…"
+      // for the better part of a minute before anything is said. Two retries
+      // still ride out a blip or a cold start, and cost the user a handful of
+      // seconds before the thread tells them the truth and offers Retry.
+      callerOptions: { maxRetries: 2 },
+    });
+    const getHistory = c.threads.getHistory.bind(c.threads);
+    c.threads.getHistory = ((id, options) =>
+      getHistory(id, options).finally(() =>
+        setSettledThreadId(id),
+      )) as typeof c.threads.getHistory;
+    return c;
+  }, [apiKey, apiUrl]);
+  // A thread created by this tab's own send streams in live; there is no
+  // history to wait for.
+  const [createdThreadId, setCreatedThreadId] = useState<string | null>(null);
+  // Every switch waits afresh, including back to a chat loaded earlier: the
+  // SDK dropped its messages on the way out and fetches them again.
+  const [shownThreadId, setShownThreadId] = useState(threadId);
+  if (threadId !== shownThreadId) {
+    setShownThreadId(threadId);
+    setSettledThreadId(null);
+    if (threadId !== createdThreadId) setCreatedThreadId(null);
+  }
+  const threadLoading =
+    !!threadId && threadId !== settledThreadId && threadId !== createdThreadId;
+
   const streamValue = useTypedStream({
-    apiUrl,
-    apiKey: apiKey ?? undefined,
+    client,
     assistantId,
     threadId: threadId ?? null,
-    // The SDK retries a failed request four times with exponential backoff,
-    // which leaves an unreachable server spinning "analyzing…" for the better
-    // part of a minute before anything is said. Two retries still ride out a
-    // blip or a cold start, and cost the user a handful of seconds before the
-    // thread tells them the truth and offers Retry.
-    callerOptions: { maxRetries: 2 },
     onCustomEvent: (event, options) => {
       if (isUIMessage(event) || isRemoveUIMessage(event)) {
         options.mutate((prev) => {
@@ -146,6 +180,7 @@ const StreamSession = ({
       );
     },
     onThreadId: (id) => {
+      setCreatedThreadId(id);
       // If not on chat view, navigate there before setting threadId
       if (pathname !== "/") {
         router.push(`/?threadId=${id}`);
@@ -191,8 +226,8 @@ const StreamSession = ({
   }, [recheck]);
 
   const connection = useMemo(
-    () => ({ reachable, recheck }),
-    [reachable, recheck],
+    () => ({ reachable, recheck, threadLoading }),
+    [reachable, recheck, threadLoading],
   );
 
   return (

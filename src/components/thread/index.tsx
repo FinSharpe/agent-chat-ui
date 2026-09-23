@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { ArtifactPanel } from "./artifact-panel";
 import { MessageList } from "./message-list";
+import { ConversationSkeleton } from "./messages/conversation-skeleton";
 
 // The phone composer floats this far above the bottom of the page — clear of
 // the bottom nav, as in the reference — plus any home-indicator inset the nav
@@ -138,9 +139,13 @@ export function Thread() {
   // history fetch itself fails, so an unreachable server looks exactly like a
   // chat with no messages — ask the server which it is before letting the
   // blank thread stand.
-  const { reachable, recheck } = useChatConnection();
+  const { reachable, recheck, threadLoading } = useChatConnection();
   const looksBlank =
-    !!threadId && messages.length === 0 && !isLoading && !stream.error;
+    !!threadId &&
+    !threadLoading &&
+    messages.length === 0 &&
+    !isLoading &&
+    !stream.error;
   useEffect(() => {
     if (looksBlank) void recheck();
   }, [looksBlank, recheck]);
@@ -204,6 +209,8 @@ export function Thread() {
               onPrompt={sendPrompt}
               disabled={isLoading}
             />
+          ) : threadLoading ? (
+            <ConversationSkeleton />
           ) : (
             <MessageList
               onSuggestion={sendPrompt}

@@ -7,7 +7,8 @@ import { v4 as uuidv4 } from "uuid";
 import { useArtifactContext } from "@/components/thread/artifact";
 import { ensureToolCallsHaveResponses } from "@/lib/ensure-tool-responses";
 import { useStreamContext } from "@/providers/Stream";
-import { useChatPrefsStore } from "../store/useChatPrefsStore";
+import { runConfigurable } from "../store/useChatPrefsStore";
+import { usePinnedModel } from "./useChatModels";
 
 interface SubmitOptions {
   /**
@@ -26,7 +27,7 @@ interface SubmitOptions {
 export function useChatSubmit() {
   const stream = useStreamContext();
   const [artifactContext] = useArtifactContext();
-  const model = useChatPrefsStore((s) => s.model);
+  const model = usePinnedModel();
 
   const submitMessage = useCallback(
     (
@@ -58,7 +59,7 @@ export function useChatSubmit() {
         { messages: [...toolMessages, newHumanMessage], context },
         {
           streamMode: ["values"],
-          config: { configurable: { model } },
+          config: { configurable: runConfigurable(model) },
           optimisticValues: (prev) => ({
             ...prev,
             context,
@@ -83,7 +84,7 @@ export function useChatSubmit() {
       stream.submit(undefined, {
         checkpoint: parentCheckpoint,
         streamMode: ["values"],
-        config: { configurable: { model } },
+        config: { configurable: runConfigurable(model) },
       });
     },
     [stream, model],
@@ -124,7 +125,7 @@ export function useChatSubmit() {
       { messages: [humanMessage], context },
       {
         streamMode: ["values"],
-        config: { configurable: { model } },
+        config: { configurable: runConfigurable(model) },
         optimisticValues: (prev) => ({
           ...prev,
           context,

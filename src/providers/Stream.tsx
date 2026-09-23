@@ -28,7 +28,7 @@ import React, {
 } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlannerModels } from "@/configs/models";
+import { useChatPrefsStore } from "@/modules/chat/store/useChatPrefsStore";
 
 export type StateType = {
   messages: Message[];
@@ -46,7 +46,9 @@ const useTypedStream = useStream<
     };
     CustomEventType: UIMessage | RemoveUIMessage;
     ConfigurableType: {
-      model: PlannerModels;
+      /** A pinned model; absent on Auto (`runConfigurable`). */
+      model?: string;
+      model_switcher_enabled?: boolean;
     };
   }
 >;
@@ -181,6 +183,8 @@ const StreamSession = ({
     },
     onThreadId: (id) => {
       setCreatedThreadId(id);
+      // The new chat keeps the model it was started on.
+      useChatPrefsStore.getState().attachThread(id);
       // If not on chat view, navigate there before setting threadId
       if (pathname !== "/") {
         router.push(`/?threadId=${id}`);

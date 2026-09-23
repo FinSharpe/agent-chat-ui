@@ -8,6 +8,7 @@ import {
   ChatComposer,
   ChatEmptyState,
   ChatToolbar,
+  useChatModelSync,
   useChatSubmit,
   usePendingPromptHandoff,
 } from "@/modules/chat";
@@ -90,6 +91,7 @@ export function Thread() {
   const [threadId] = useQueryState("threadId");
   const stream = useStreamContext();
   const { submitMessage, regenerate, retryLastTurn } = useChatSubmit();
+  useChatModelSync();
 
   const [input, setInput] = useState("");
   const {

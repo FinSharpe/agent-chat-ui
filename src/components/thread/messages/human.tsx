@@ -3,7 +3,8 @@ import { MultimodalPreview } from "@/components/thread/MultimodalPreview";
 import { TodoList } from "@/components/thread/TodoList";
 import { getTodosForMessage } from "@/lib/extract-todos";
 import { isBase64ContentBlock } from "@/lib/multimodal-utils";
-import { useChatPrefsStore } from "@/modules/chat/store/useChatPrefsStore";
+import { usePinnedModel } from "@/modules/chat/hooks/useChatModels";
+import { runConfigurable } from "@/modules/chat/store/useChatPrefsStore";
 import { useStreamContext } from "@/providers/Stream";
 import type { Base64ContentBlock } from "@langchain/core/messages";
 import { Message } from "@langchain/langgraph-sdk";
@@ -51,7 +52,7 @@ export function HumanMessage({
   isLoading: boolean;
 }) {
   const thread = useStreamContext();
-  const model = useChatPrefsStore((s) => s.model);
+  const model = usePinnedModel();
   const meta = thread.getMessagesMetadata(message);
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
 
@@ -73,8 +74,8 @@ export function HumanMessage({
       {
         checkpoint: parentCheckpoint,
         streamMode: ["values"],
-        // An edited question runs on the tier picked now, like a new one.
-        config: { configurable: { model } },
+        // An edited question runs on the model picked now, like a new one.
+        config: { configurable: runConfigurable(model) },
         optimisticValues: (prev) => {
           const values = meta?.firstSeenState?.values;
           if (!values) return prev;

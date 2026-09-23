@@ -4,6 +4,11 @@ export { default as ChatToolbar } from "./components/ChatToolbar";
 export { default as DynamicSuggestions } from "./components/DynamicSuggestions";
 export { default as HearOutputCard } from "./components/HearOutputCard";
 export { default as ModelPicker } from "./components/ModelPicker";
+export {
+  useChatModels,
+  useChatModelSync,
+  usePinnedModel,
+} from "./hooks/useChatModels";
 export { useChatSubmit } from "./hooks/useChatSubmit";
 export { usePendingPromptHandoff } from "./hooks/usePendingPromptHandoff";
 export { useSpeechDictation } from "./hooks/useSpeechDictation";

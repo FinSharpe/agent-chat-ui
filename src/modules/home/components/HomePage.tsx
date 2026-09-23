@@ -10,8 +10,11 @@ import {
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { NEWS_BANNER_FALLBACK } from "@/modules/discover/utils/banner-titles";
 import { HOME_TAGLINE } from "../constants/features";
+import type { LearnVideo, ResearchArticle } from "../constants/learn";
 import { useHomeActions } from "../hooks/useHomeActions";
 import { GuideOverlay } from "./modals/GuideOverlay";
+import { PublicationReader } from "./modals/PublicationReader";
+import { VideoDetail } from "./modals/VideoDetail";
 import { FeaturesCarousel } from "./sections/FeaturesCarousel";
 import { MarketNewsRow } from "./sections/MarketNewsRow";
 import { PublicationsRow } from "./sections/PublicationsRow";
@@ -24,18 +27,20 @@ import { WhatYouCanDo } from "./sections/WhatYouCanDo";
  * market-news carousel, FinSharpe Publications and Watch & Learn, closed by
  * the wave footer. Mobile is a single padded
  * column; desktop centres an 844px column and runs the footer edge to edge.
- * The guide popup lives at the root, outside the scroller, so it covers the
- * screen wherever the user has scrolled to.
+ * The guide, publication reader and video detail live at the root, outside
+ * the scroller, so they cover the screen wherever the user has scrolled to.
  *
  * Everything on this page either seeds a real chat, routes to a real tab,
- * draws the real `/api/news/market` feed, or links out to a real FinSharpe
- * article or talk (finsharpe-mobile's curated lists, `constants/learn.ts`).
+ * draws the real `/api/news/market` feed, or opens a real FinSharpe article
+ * or talk (finsharpe-mobile's curated lists, `constants/learn.ts`).
  * The reference's invented publications and videos stay gone (T-03), as does
  * Personal Intelligence; linked accounts are managed on Import.
  */
 export function HomePage() {
   const isDesktopWeb = useIsDesktopWeb();
   const [showGuide, setShowGuide] = useState(false);
+  const [article, setArticle] = useState<ResearchArticle | null>(null);
+  const [video, setVideo] = useState<LearnVideo | null>(null);
 
   const openGuide = useCallback(() => setShowGuide(true), []);
   const { askAi, runAction } = useHomeActions(openGuide);
@@ -72,9 +77,9 @@ export function HomePage() {
 
           <MarketNewsRow onAsk={askAi} />
 
-          <PublicationsRow />
+          <PublicationsRow onOpen={setArticle} />
 
-          <WatchAndLearnRow />
+          <WatchAndLearnRow onOpen={setVideo} />
 
           {!isDesktopWeb && <ScreenFooter tagline={HOME_TAGLINE} />}
         </div>
@@ -88,6 +93,24 @@ export function HomePage() {
 
       <AnimatePresence>
         {showGuide && <GuideOverlay onClose={() => setShowGuide(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {article && (
+          <PublicationReader
+            key={article.url}
+            article={article}
+            onClose={() => setArticle(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {video && (
+          <VideoDetail
+            key={video.id}
+            video={video}
+            onClose={() => setVideo(null)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

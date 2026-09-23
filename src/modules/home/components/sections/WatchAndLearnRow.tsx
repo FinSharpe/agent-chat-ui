@@ -1,26 +1,24 @@
 "use client";
 
-import { useState } from "react";
 import { Clock, Play } from "lucide-react";
 import { SectionLabel } from "@/components/shared/SectionKit";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
-import {
-  LEARN_VIDEOS,
-  videoFallbackThumbnail,
-  videoThumbnail,
-  videoWatchUrl,
-  type LearnVideo,
-} from "../../constants/learn";
+import { LEARN_VIDEOS, type LearnVideo } from "../../constants/learn";
+import { VideoThumbnail } from "../shared/VideoThumbnail";
 
 /**
  * Watch & Learn — the reference's video card (duration chip on the
  * thumbnail, title with the kind pill beside it, the channel, a Watch Now
  * pill) over finsharpe-mobile's curated FinSharpe talks. As on the app, the
  * thumbnail keeps YouTube's 16:9 rather than the reference's fixed-height
- * crop, and a card opens the talk on YouTube: they are appearances on other
- * people's channels, not videos FinSharpe hosts.
+ * crop. A card opens the reference's video detail popup (`VideoDetail`),
+ * which plays the talk in YouTube's embed.
  */
-export function WatchAndLearnRow() {
+export function WatchAndLearnRow({
+  onOpen,
+}: {
+  onOpen: (video: LearnVideo) => void;
+}) {
   const isDesktopWeb = useIsDesktopWeb();
 
   return (
@@ -34,6 +32,7 @@ export function WatchAndLearnRow() {
             key={video.id}
             video={video}
             wide={isDesktopWeb}
+            onOpen={() => onOpen(video)}
           />
         ))}
       </div>
@@ -41,19 +40,26 @@ export function WatchAndLearnRow() {
   );
 }
 
-function VideoCard({ video, wide }: { video: LearnVideo; wide: boolean }) {
+function VideoCard({
+  video,
+  wide,
+  onOpen,
+}: {
+  video: LearnVideo;
+  wide: boolean;
+  onOpen: () => void;
+}) {
   return (
-    <a
-      href={videoWatchUrl(video.id)}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${video.title}. ${video.kind} on ${video.channel}. Plays on YouTube.`}
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${video.title}. ${video.kind} on ${video.channel}, ${video.duration}.`}
       className={`group/media rounded-card premium-shadow-sm flex shrink-0 snap-start flex-col overflow-hidden bg-[var(--card-bg)] text-left ${
         wide ? "w-[calc(50%-9px)]" : "w-[210px]"
       }`}
     >
       <div className="relative aspect-video shrink-0 overflow-hidden bg-[#0A1F4D]">
-        <Thumbnail id={video.id} />
+        <VideoThumbnail id={video.id} />
         <span className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-black/50 px-1.5 py-0.5 text-[9px] font-medium text-white">
           <Clock size={9} />
           {video.duration}
@@ -82,35 +88,6 @@ function VideoCard({ video, wide }: { video: LearnVideo; wide: boolean }) {
           />
         </span>
       </div>
-    </a>
-  );
-}
-
-/**
- * `maxresdefault` is already 16:9 but not every upload has one; `hqdefault`
- * exists for every video, and its letterbox bars are cropped by the 16:9
- * frame. A missing maxres can arrive as YouTube's 120×90 grey placeholder
- * rather than an error, so that counts as missing too. If both fail, the
- * navy fill behind stays.
- */
-function Thumbnail({ id }: { id: string }) {
-  const [stage, setStage] = useState<"max" | "hq" | "none">("max");
-  if (stage === "none") return null;
-
-  return (
-    <img
-      src={stage === "max" ? videoThumbnail(id) : videoFallbackThumbnail(id)}
-      alt=""
-      loading="lazy"
-      decoding="async"
-      referrerPolicy="no-referrer"
-      onError={() => setStage(stage === "max" ? "hq" : "none")}
-      onLoad={(e) => {
-        if (stage === "max" && e.currentTarget.naturalWidth <= 120) {
-          setStage("hq");
-        }
-      }}
-      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover/media:scale-[1.06] motion-reduce:transition-none motion-reduce:group-hover/media:scale-100"
-    />
+    </button>
   );
 }

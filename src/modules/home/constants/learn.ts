@@ -5,10 +5,11 @@
  *
  * Both lists are static by design. The articles live on third-party outlets
  * (Moneycontrol, Medium, LinkedIn) with no index API, and the talks are
- * appearances on other people's YouTube channels, so a card opens the real
- * thing in a new tab rather than faking an in-app reader or player over
- * content FinSharpe does not host. Every entry is real; nothing here is
- * illustrative.
+ * appearances on other people's YouTube channels. A card opens a detail
+ * popup (the reference's Reader / VideoDetail) that shows only what is here:
+ * the article itself where the publisher allows framing, otherwise its
+ * cover and a link to the original, since FinSharpe does not host the text; a talk plays in YouTube's own privacy-enhanced embed. Every
+ * entry is real; nothing here is illustrative.
  */
 
 export interface ResearchArticle {
@@ -21,6 +22,12 @@ export interface ResearchArticle {
   cover: string;
   /** Brand fill behind the cover while it loads, or if it fails. */
   fill: string;
+  /**
+   * The publisher lets the page be framed, so the popup shows the article
+   * itself. Medium and LinkedIn send `X-Frame-Options: sameorigin` /
+   * `frame-ancestors 'self'`, so theirs link out instead.
+   */
+  embeddable?: boolean;
 }
 
 const NAVY = "#0A1F4D";
@@ -40,6 +47,7 @@ export const RESEARCH_ARTICLES: ResearchArticle[] = [
     url: "https://www.moneycontrol.com/news/opinion/timing-the-markets-is-futile-but-sips-mitigate-that-problem-11884941.html",
     cover: "/graphics/publications/sips.webp",
     fill: gradient(NAVY, BLUE),
+    embeddable: true,
   },
   {
     title: "Markets & Mind Games",
@@ -135,3 +143,10 @@ export const videoFallbackThumbnail = (id: string) =>
 
 export const videoWatchUrl = (id: string) =>
   `https://www.youtube.com/watch?v=${id}`;
+
+/**
+ * YouTube's privacy-enhanced player (no cookies until playback). Only built
+ * after the user presses Play, so autoplay starts it straight away.
+ */
+export const videoEmbedUrl = (id: string) =>
+  `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0&modestbranding=1`;

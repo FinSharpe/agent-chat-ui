@@ -10,11 +10,14 @@ import { RESEARCH_ARTICLES, type ResearchArticle } from "../../constants/learn";
  * finsharpe-mobile's curated list of real articles. One card per swipe on
  * mobile, two per view on desktop.
  *
- * The reference opened an in-app Reader; these pieces are hosted by
- * Moneycontrol, Medium and LinkedIn, so a card opens the original in a new
- * tab instead, as the app does.
+ * A card opens the reference's Reader popup (`PublicationReader`), which
+ * links out to the original on Moneycontrol, Medium or LinkedIn.
  */
-export function PublicationsRow() {
+export function PublicationsRow({
+  onOpen,
+}: {
+  onOpen: (article: ResearchArticle) => void;
+}) {
   const isDesktopWeb = useIsDesktopWeb();
 
   return (
@@ -28,6 +31,7 @@ export function PublicationsRow() {
             key={article.url}
             article={article}
             wide={isDesktopWeb}
+            onOpen={() => onOpen(article)}
           />
         ))}
       </div>
@@ -38,17 +42,18 @@ export function PublicationsRow() {
 function PublicationCard({
   article,
   wide,
+  onOpen,
 }: {
   article: ResearchArticle;
   wide: boolean;
+  onOpen: () => void;
 }) {
   return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${article.title}. ${article.category}, ${article.source}. Opens in a new tab.`}
-      className={`group/media relative flex shrink-0 snap-start items-end overflow-hidden rounded-[20px] ${
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${article.title}. ${article.category}, ${article.source}.`}
+      className={`group/media relative flex shrink-0 snap-start items-end overflow-hidden rounded-[20px] text-left ${
         wide
           ? "aspect-[0.8988] w-[calc(50%-9px)]"
           : "aspect-[4/5] max-h-[430px] w-full"
@@ -77,6 +82,6 @@ function PublicationCard({
           Read · {article.source}
         </p>
       </div>
-    </a>
+    </button>
   );
 }

@@ -17,7 +17,8 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:citations": "node scripts/citations/run.mjs",
+    "check": "node scripts/run-checks.mjs",
+    "check:citations": "node scripts/run-checks.mjs citations",
     "generate:api": "node scripts/filter-openapi-spec.mjs && orval --config ./orval.config.ts"
   },
   "dependencies": {

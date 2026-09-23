@@ -4,7 +4,6 @@
 
 import {
   SIPDisplayData,
-  SIPMarkdownFormat,
   SIPFiDataResponse,
 } from "@/modules/import-data/types/sip";
 
@@ -33,26 +32,6 @@ export function transformSipAccountsToDisplayData(
       maskedAccountNumber: account.maskedAccountNumber,
       registrar: account.bank || "-",
       holderName: holder?.name || "-",
-    };
-  });
-}
-
-/**
- * Transform SIP accounts to markdown format for chat import
- */
-export function transformSipAccountsToMarkdownFormat(
-  accounts: SIPFiDataResponse | undefined | null,
-): SIPMarkdownFormat[] {
-  if (!accounts) return [];
-
-  return accounts.map((account) => {
-    const holder = account.Profile?.Holders?.Holder?.[0];
-
-    return {
-      "Fund House": extractFundHouseName(account.maskedAccountNumber),
-      "Account Number": account.maskedAccountNumber,
-      Registrar: account.bank || "-",
-      "Holder Name": holder?.name || "-",
     };
   });
 }

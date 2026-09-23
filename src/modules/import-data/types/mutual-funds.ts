@@ -49,15 +49,6 @@ export interface MutualFundsFormData {
 }
 
 /**
- * Mutual Fund markdown format for chat import
- */
-export interface MutualFundMarkdownFormat {
-  "Description": string;
-  "ISIN": string;
-  "Closing Units": string;
-}
-
-/**
  * Quantity field name for mutual funds
  */
 export const MUTUAL_FUND_QUANTITY_FIELD = "closingUnits" as const;

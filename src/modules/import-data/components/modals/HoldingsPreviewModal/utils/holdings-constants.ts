@@ -60,17 +60,6 @@ export const QUANTITY_FIELD_MAP = {
 } as const;
 
 /**
- * Mapping of consent types to asset type display names
- */
-export const ASSET_TYPE_MAP = {
-  [ConsentType.EQUITIES]: "Equity",
-  [ConsentType.MUTUAL_FUNDS]: "Mutual Fund",
-  [ConsentType.ETF]: "ETF",
-  [ConsentType.BANK_ACCOUNTS]: "Bank Account",
-  [ConsentType.SIP]: "SIP",
-} as const;
-
-/**
  * Search API configuration
  */
 export const SEARCH_CONFIG = {

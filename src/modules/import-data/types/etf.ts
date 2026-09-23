@@ -41,16 +41,6 @@ export interface ETFFormData {
 }
 
 /**
- * ETF markdown format for chat import
- */
-export interface ETFMarkdownFormat {
-  "ETF Name": string;
-  "ISIN": string;
-  "Units": string;
-  "NAV": string;
-}
-
-/**
  * Quantity field name for ETFs
  */
 export const ETF_QUANTITY_FIELD = "units" as const;

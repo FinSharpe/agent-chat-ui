@@ -7,6 +7,7 @@
  * under node. A check prints its cases and exits non-zero on any failure.
  *
  *   pnpm check                      every suite
+ *   pnpm check:chat-handoffs        Import hand-offs send the request (#85)
  *   pnpm check:citations            filings citations (finsharpe-agents#66)
  *   pnpm check:portfolio-connect    the chat's connect card (#79)
  *   pnpm check:smart-alerts         Import Smart Alerts by class (#86)
@@ -18,7 +19,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const SUITES = ["citations", "portfolio-connect", "smart-alerts"];
+const SUITES = ["chat-handoffs", "citations", "portfolio-connect", "smart-alerts"];
 
 const requested = process.argv.slice(2);
 const unknown = requested.filter((suite) => !SUITES.includes(suite));

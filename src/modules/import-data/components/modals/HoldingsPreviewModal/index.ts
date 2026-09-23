@@ -8,8 +8,4 @@
 export { HoldingsPreviewModal } from "./HoldingsPreviewModal";
 
 // Export utilities for use in other modules (e.g., useImportHoldingsMutation)
-export {
-  transformHoldingsToMarkdownFormat,
-  extractHoldingsFromFiData,
-  getAssetTypeName,
-} from "./utils/holdings-transformer";
+export { extractHoldingsFromFiData } from "./utils/holdings-transformer";

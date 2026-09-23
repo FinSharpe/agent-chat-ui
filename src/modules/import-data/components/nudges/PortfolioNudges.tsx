@@ -1,120 +1,158 @@
 "use client";
 
 import {
-  finsharpeScoreNudgeApiNudgesFinsharpeScorePost,
   fundamentalNudgeApiNudgesFundamentalPost,
   newsNudgeApiNudgesNewsPost,
+  smartAlertsApiNudgesAlertsPost,
   technicalNudgeApiNudgesTechnicalPost,
-  useFinsharpeScoreNudgeApiNudgesFinsharpeScorePost,
   useFundamentalNudgeApiNudgesFundamentalPost,
   useNewsNudgeApiNudgesNewsPost,
+  useSmartAlertsApiNudgesAlertsPost,
   useTechnicalNudgeApiNudgesTechnicalPost,
 } from "@/api/generated/nudge-apis/nudge-apis/nudge-apis";
 import type {
-  FinSharpeScoreNudgeResponse,
   FundamentalNudgeResponse,
   NewsNudgeResponse,
+  SmartAlertsResponse,
   TechnicalNudgeResponse,
 } from "@/api/generated/nudge-apis/models";
 import { SectionBanner } from "@/components/shared/SectionKit";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { Bell, RefreshCw } from "lucide-react";
-import type { ReactNode, Ref } from "react";
+import { useMemo, type ReactNode, type Ref } from "react";
 import { useInView } from "../../hooks/useInView";
+import {
+  fromServed,
+  groupSmartAlerts,
+  sipAlerts,
+  type SmartAlertItem,
+} from "../../utils/smart-alerts";
 import { RowLabel, SectionTitle } from "../page/SectionTitle";
 import {
   AlertCardSkeleton,
   FundamentalAlertCard,
-  InsightCard,
-  InsightSkeletonRow,
   NewsCard,
   RowMessage,
   TechnicalAlertCard,
 } from "./nudge-cards";
 import { rowCardWidth } from "./layout";
+import {
+  SmartAlertsCard,
+  SmartAlertSkeleton,
+  SmartAlertsFrame,
+} from "./SmartAlertsCard";
 import { useNudge } from "./useNudge";
 import { usePortfolioHoldings } from "./usePortfolioHoldings";
 
 /**
- * Smart Alerts — the reference Import screen's alerts, filled from the
- * holding-scoped nudge APIs: FinSharpe Insights (FinSharpe Score), then a
- * "Deep Dive" banner over the News, Technical and Fundamental rows (equity
- * only). Each row fetches once it nears the viewport.
+ * Smart Alerts — the reference Import screen's alerts: one card grouped by
+ * asset class (#86, from `POST /nudges/alerts` plus the SIP rules worked out
+ * here), then a "Deep Dive" banner over the News, Technical and Fundamental
+ * rows (equity only). Each fetches once it nears the viewport.
  */
 export function PortfolioNudges() {
-  const { holdings, hasHoldings, hasEquity, isLoading } = usePortfolioHoldings();
+  const portfolio = usePortfolioHoldings();
 
+  if (portfolio.isLoading || !portfolio.hasHoldings) {
+    return (
+      <section className="space-y-6">
+        <SmartAlertsTitle />
+        {portfolio.isLoading ? (
+          <SmartAlertsFrame>
+            <SmartAlertSkeleton />
+          </SmartAlertsFrame>
+        ) : (
+          <NoHoldingsCard />
+        )}
+      </section>
+    );
+  }
+  return <NudgeRows portfolio={portfolio} />;
+}
+
+function SmartAlertsTitle({ action }: { action?: ReactNode }) {
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-1.5 px-1">
+    <div className="flex items-center justify-between px-1">
+      <div className="flex items-center gap-1.5">
         <Bell
           size={13}
           className="text-[#063BAA]"
         />
         <SectionTitle>Smart Alerts</SectionTitle>
       </div>
-
-      {isLoading ? (
-        <InsightsFrame>
-          <InsightSkeletonRow />
-        </InsightsFrame>
-      ) : !hasHoldings ? (
-        <NoHoldingsCard />
-      ) : (
-        <NudgeRows
-          holdings={holdings}
-          hasEquity={hasEquity}
-        />
-      )}
-    </section>
+      {action}
+    </div>
   );
 }
 
 function NudgeRows({
-  holdings,
-  hasEquity,
+  portfolio,
 }: {
-  holdings: ReturnType<typeof usePortfolioHoldings>["holdings"];
-  hasEquity: boolean;
+  portfolio: ReturnType<typeof usePortfolioHoldings>;
 }) {
+  const { holdings, hasEquity, alertClasses, sipBook } = portfolio;
   const isDesktopWeb = useIsDesktopWeb();
   const { createNewChat } = useAppNavigation();
   const width = rowCardWidth(isDesktopWeb);
 
-  const insightsView = useInView<HTMLDivElement>();
+  const alertsView = useInView<HTMLDivElement>();
   const newsView = useInView<HTMLElement>();
   const technicalView = useInView<HTMLElement>();
   const fundamentalView = useInView<HTMLElement>();
 
-  const finsharpe = useNudge<FinSharpeScoreNudgeResponse>(
-    useFinsharpeScoreNudgeApiNudgesFinsharpeScorePost,
-    finsharpeScoreNudgeApiNudgesFinsharpeScorePost,
+  // The Deep Dive feeds keep the equity + MF holdings they always had; only
+  // the alerts endpoint takes `etf` (finsharpe-agents#241).
+  const deepDiveHoldings = useMemo(
+    () => holdings.filter((h) => h.type !== "etf"),
+    [holdings],
+  );
+
+  const alerts = useNudge<SmartAlertsResponse>(
+    useSmartAlertsApiNudgesAlertsPost,
+    smartAlertsApiNudgesAlertsPost,
     holdings,
-    insightsView.inView,
+    alertsView.inView,
   );
   const news = useNudge<NewsNudgeResponse>(
     useNewsNudgeApiNudgesNewsPost,
     newsNudgeApiNudgesNewsPost,
-    holdings,
+    deepDiveHoldings,
     newsView.inView && hasEquity,
   );
   const technical = useNudge<TechnicalNudgeResponse>(
     useTechnicalNudgeApiNudgesTechnicalPost,
     technicalNudgeApiNudgesTechnicalPost,
-    holdings,
+    deepDiveHoldings,
     technicalView.inView && hasEquity,
   );
   const fundamental = useNudge<FundamentalNudgeResponse>(
     useFundamentalNudgeApiNudgesFundamentalPost,
     fundamentalNudgeApiNudgesFundamentalPost,
-    holdings,
+    deepDiveHoldings,
     fundamentalView.inView && hasEquity,
   );
 
-  const insightCards = (finsharpe.data?.cards ?? []).filter(
-    (c) => c.coverage !== "not_covered",
-  );
+  const served = alerts.data?.alerts;
+  const groups = useMemo(() => {
+    const servedAlerts = (served ?? [])
+      .map(fromServed)
+      .filter((a): a is SmartAlertItem => a !== null);
+    return groupSmartAlerts({
+      held: alertClasses,
+      alerts: [
+        ...servedAlerts,
+        ...sipAlerts(sipBook.sips, {
+          transactionsEnd: sipBook.transactionsEnd,
+          today: new Date(),
+        }),
+      ],
+      // SIPs are worked out here, so they are always checked; the served
+      // classes only once the alerts feed answered.
+      checked: (type) => type === "SIP" || served != null,
+    });
+  }, [served, alertClasses, sipBook]);
+
   const technicalCards = (technical.data?.cards ?? []).filter(
     (c) => c.coverage !== "not_covered",
   );
@@ -123,59 +161,45 @@ function NudgeRows({
   );
 
   return (
-    <>
-      {/* FinSharpe Insights — desktop: two-up slider; mobile: one card
-          listing each insight, scrolling inside itself past the first two. */}
+    <section className="space-y-6">
+      <SmartAlertsTitle
+        action={
+          <RefreshButton
+            label="Smart Alerts"
+            isFetching={alerts.isFetching}
+            onRefresh={alerts.triggerRefresh}
+          />
+        }
+      />
+
+      {/* One card grouped by class, scrolling inside itself past about two
+          alerts — on desktop too, where the old insights slider sat. */}
       <div
-        ref={insightsView.ref}
+        ref={alertsView.ref}
         className="space-y-3"
       >
-        <RowHeader
-          label="FinSharpe Insights"
-          isFetching={finsharpe.isFetching}
-          onRefresh={finsharpe.triggerRefresh}
-        />
-        {isRowLoading(finsharpe, insightsView.inView) ? (
-          isDesktopWeb ? (
-            <Slider>
-              <AlertCardSkeleton width={width} />
-              <AlertCardSkeleton width={width} />
-            </Slider>
-          ) : (
-            <InsightsFrame>
-              <InsightSkeletonRow />
-              <InsightSkeletonRow />
-            </InsightsFrame>
-          )
-        ) : finsharpe.isError ? (
-          <ErrorMessage
-            what="FinSharpe insights"
-            onRetry={finsharpe.retry}
-          />
-        ) : insightCards.length === 0 ? (
-          <RowMessage>No FinSharpe scores for your holdings yet.</RowMessage>
-        ) : isDesktopWeb ? (
-          <Slider>
-            {insightCards.map((card) => (
-              <InsightCard
-                key={card.holding.isin}
-                card={card}
-                variant="slide"
-                onAsk={createNewChat}
-              />
-            ))}
-          </Slider>
+        {isRowLoading(alerts, alertsView.inView) ? (
+          <SmartAlertsFrame>
+            <SmartAlertSkeleton />
+            <SmartAlertSkeleton />
+          </SmartAlertsFrame>
         ) : (
-          <InsightsFrame>
-            {insightCards.map((card) => (
-              <InsightCard
-                key={card.holding.isin}
-                card={card}
-                variant="row"
-                onAsk={createNewChat}
+          <>
+            {/* A failed feed hides the served classes rather than calling
+                them clear; the SIPs worked out here still show. */}
+            {alerts.isError && (
+              <ErrorMessage
+                what="smart alerts"
+                onRetry={alerts.retry}
               />
-            ))}
-          </InsightsFrame>
+            )}
+            {groups.length > 0 && (
+              <SmartAlertsCard
+                groups={groups}
+                onAsk={(alert) => createNewChat(alert.question)}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -247,7 +271,7 @@ function NudgeRows({
           </AlertRow>
         </>
       )}
-    </>
+    </section>
   );
 }
 
@@ -319,14 +343,6 @@ function Slider({ children }: { children: ReactNode }) {
   );
 }
 
-function InsightsFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className="glass-card scrollbar-none max-h-[406px] divide-y divide-slate-100 overflow-y-auto rounded-card dark:divide-slate-800/60">
-      {children}
-    </div>
-  );
-}
-
 /** Row label with the regenerate control the old nudge accordions had. */
 function RowHeader({
   label,
@@ -340,23 +356,47 @@ function RowHeader({
   return (
     <div className="flex items-center justify-between">
       <RowLabel>{label}</RowLabel>
-      <button
-        onClick={onRefresh}
-        disabled={isFetching}
-        aria-label={`Refresh ${label}`}
-        title={`Refresh ${label}`}
-        className="hover-tint -my-1.5 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:text-[#063BAA] disabled:opacity-60"
-      >
-        <RefreshCw
-          size={12}
-          className={isFetching ? "animate-spin motion-reduce:animate-none" : ""}
-        />
-      </button>
+      <RefreshButton
+        label={label}
+        isFetching={isFetching}
+        onRefresh={onRefresh}
+      />
     </div>
   );
 }
 
-function ErrorMessage({ what, onRetry }: { what: string; onRetry: () => void }) {
+function RefreshButton({
+  label,
+  isFetching,
+  onRefresh,
+}: {
+  label: string;
+  isFetching: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <button
+      onClick={onRefresh}
+      disabled={isFetching}
+      aria-label={`Refresh ${label}`}
+      title={`Refresh ${label}`}
+      className="hover-tint -my-1.5 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:text-[#063BAA] disabled:opacity-60"
+    >
+      <RefreshCw
+        size={12}
+        className={isFetching ? "animate-spin motion-reduce:animate-none" : ""}
+      />
+    </button>
+  );
+}
+
+function ErrorMessage({
+  what,
+  onRetry,
+}: {
+  what: string;
+  onRetry: () => void;
+}) {
   return (
     <RowMessage
       action={
@@ -376,7 +416,7 @@ function ErrorMessage({ what, onRetry }: { what: string; onRetry: () => void }) 
 /** Shown instead of the alerts until an equity or MF account is connected. */
 function NoHoldingsCard() {
   return (
-    <div className="glass-card premium-shadow-sm flex items-start gap-3.5 rounded-card p-5">
+    <div className="glass-card premium-shadow-sm rounded-card flex items-start gap-3.5 p-5">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
         <Bell size={18} />
       </div>

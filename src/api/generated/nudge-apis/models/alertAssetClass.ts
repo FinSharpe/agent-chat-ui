@@ -7,13 +7,14 @@
  */
 
 /**
- * Asset class of a holding.
+ * The asset class an alert is grouped under — the mobile ``AssetClass.wire``.
  */
-export type HoldingType = (typeof HoldingType)[keyof typeof HoldingType];
+export type AlertAssetClass =
+  (typeof AlertAssetClass)[keyof typeof AlertAssetClass];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const HoldingType = {
-  equity: "equity",
-  mf: "mf",
-  etf: "etf",
+export const AlertAssetClass = {
+  EQUITIES: "EQUITIES",
+  MUTUAL_FUNDS: "MUTUAL_FUNDS",
+  ETF: "ETF",
 } as const;

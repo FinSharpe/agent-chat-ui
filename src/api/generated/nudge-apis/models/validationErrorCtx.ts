@@ -6,4 +6,4 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type FinSharpeEquityScoresOverall = number | null;
+export type ValidationErrorCtx = { [key: string]: unknown };

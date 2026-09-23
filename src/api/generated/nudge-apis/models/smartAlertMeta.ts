@@ -6,4 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type FinSharpeEquityScoresOverall = number | null;
+/**
+ * The figure after the verdict, e.g. 'Score 78 / 100'.
+ */
+export type SmartAlertMeta = string | null;

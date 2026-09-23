@@ -1,29 +1,26 @@
 "use client";
 
-import Link from "next/link";
-import { Link2, Loader2, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import FeatureHeader from "@/components/discover/FeatureHeader";
+import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
-import {
-  formatTimestamp,
-  RUN_STATUS_LABEL,
-  stanceTone,
-} from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
+import { useOwnedReports } from "../../hooks/usePipelineQueries";
 import {
-  useOwnedReports,
-  useShareActions,
-} from "../../hooks/usePipelineQueries";
-import type { OwnedPurchase } from "../../types/pipelines.types";
-import { targetLabel } from "../../utils/target";
-import { ResearchShell } from "../shared/ResearchShell";
+  HEADER_PILL,
+  PRIMARY_BUTTON,
+  Placeholder,
+  SCROLL_BODY,
+  StatStrip,
+} from "../shared/kit";
+import { ResearchPage } from "../shared/ResearchPage";
+import { PurchaseRow } from "./PurchaseRow";
 
 /**
- * The reports a user owns.
+ * The reports a user owns, as one divided card of rows — the same list
+ * treatment as the workflow catalog.
  *
  * The row unit is the **Purchase**, because that is the only user-scoped
  * record — two purchases can attach to one content-keyed Run, and a Run has no
@@ -32,177 +29,98 @@ import { ResearchShell } from "../shared/ResearchShell";
  * refunded row stays as history rather than vanishing along with the evidence
  * of what happened.
  */
-
-function rowHref(row: OwnedPurchase): string {
-  return row.run_status === "published"
-    ? researchRoutes.report(row.run_id)
-    : // The run status carries no target, so the row hands the label over —
-      // otherwise a run reached from this list loses the name of what it is
-      // about.
-      researchRoutes.run(row.run_id, targetLabel(row.target));
-}
-
-function StateChip({ row }: { row: OwnedPurchase }) {
-  if (row.refunded) {
-    return (
-      <span className="border-border-default bg-bg-subtle text-text-secondary rounded-full border px-2.5 py-1 text-xs">
-        Refunded
-      </span>
-    );
-  }
-  if (row.run_status === "published" && row.stance) {
-    const tone = stanceTone(row.stance.value);
-    return (
-      <span
-        className={cn(
-          "rounded-full border px-2.5 py-1 text-xs font-medium",
-          tone.chip,
-        )}
-      >
-        {row.stance.label}
-      </span>
-    );
-  }
-  return (
-    <span className="border-border-default bg-bg-subtle text-text-secondary rounded-full border px-2.5 py-1 text-xs">
-      {RUN_STATUS_LABEL[row.run_status] ?? row.run_status}
-    </span>
-  );
-}
-
-function PurchaseRow({ row }: { row: OwnedPurchase }) {
-  const { remove } = useShareActions();
-  // A market Run has no ticker, so the row names the market. Falling all the
-  // way through to the Pipeline is for a target this build cannot read at all.
-  const about =
-    targetLabel(row.target) || row.pipeline_name || "Unknown target";
-
-  return (
-    <li className="border-border-default bg-bg-card flex flex-wrap items-center gap-3 rounded-xl border px-5 py-4">
-      <Link
-        href={rowHref(row)}
-        className="group min-w-0 flex-1"
-      >
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-text-primary font-medium group-hover:underline">
-            {about}
-          </span>
-          <span className="text-text-secondary text-sm">
-            {row.pipeline_name || row.pipeline_id}
-          </span>
-        </div>
-        <p className="text-text-tertiary mt-1 text-xs">
-          {row.published_at
-            ? `Published ${formatTimestamp(row.published_at)}`
-            : `Bought ${formatTimestamp(row.created_at)}`}
-          {row.degraded && " · incomplete"}
-        </p>
-      </Link>
-
-      <div className="flex shrink-0 items-center gap-2">
-        {row.shared && (
-          <span
-            className="text-text-tertiary flex items-center gap-1 text-xs"
-            title="A public share link is live for this report"
-          >
-            <Link2 className="size-3.5" />
-            Shared
-          </span>
-        )}
-        <StateChip row={row} />
-        <ConfirmDialog
-          title="Remove from your reports?"
-          description={
-            row.shared
-              ? "This hides the report from this list. Its public share link will stop working — there is no other place to revoke it from. No credits are returned."
-              : "This hides the report from this list. No credits are returned."
-          }
-          confirmLabel="Remove"
-          destructive
-          onConfirm={async () => {
-            try {
-              await remove.mutateAsync(row.purchase_id);
-            } catch {
-              toast.error("The report could not be removed.");
-              throw new Error("remove failed");
-            }
-          }}
-        >
-          {(_, setOpen) => (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Remove ${about} report`}
-              onClick={() => setOpen(true)}
-            >
-              {remove.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Trash2 className="size-4" />
-              )}
-            </Button>
-          )}
-        </ConfirmDialog>
-      </div>
-    </li>
-  );
-}
-
 export function LibraryScreen() {
-  const { data, isLoading, error } = useOwnedReports();
+  const router = useRouter();
+  const { data, isLoading, isError, isFetching, refetch } = useOwnedReports();
+
+  const inFlight =
+    data?.filter(
+      (row) => row.run_status === "queued" || row.run_status === "running",
+    ).length ?? 0;
+  const ready =
+    data?.filter((row) => row.run_status === "published").length ?? 0;
 
   return (
-    <ResearchShell
-      title="Your reports"
-      subtitle="Everything you have commissioned, including runs still in progress."
-      backHref={researchRoutes.catalog}
-      backLabel="Research Reports"
-      actions={
-        <Button
-          asChild
-          size="sm"
-        >
-          <Link href={researchRoutes.catalog}>New report</Link>
-        </Button>
-      }
-    >
-      {isLoading && (
-        <div className="space-y-3">
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-20 w-full rounded-xl" />
-        </div>
-      )}
+    <ResearchPage>
+      <div className="relative flex h-full flex-1 flex-col overflow-hidden bg-transparent">
+        <FeatureHeader
+          title="Your Reports"
+          subtitle="Everything you have commissioned, runs in progress included"
+          onBack={() => router.push(researchRoutes.catalog)}
+          right={
+            <button
+              type="button"
+              onClick={() => router.push(researchRoutes.catalog)}
+              className={HEADER_PILL}
+            >
+              <Plus size={14} />
+              New Report
+            </button>
+          }
+        />
 
-      {error && (
-        <p className="border-error-border bg-error-bg text-error-fg rounded-lg border px-4 py-3 text-sm">
-          Your reports could not be loaded.
-        </p>
-      )}
+        <div className={`${SCROLL_BODY} space-y-6`}>
+          {isLoading && (
+            <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
+              {[0, 1, 2].map((key) => (
+                <div
+                  key={key}
+                  className="space-y-2.5 p-4.5"
+                >
+                  <Placeholder className="h-3 w-40" />
+                  <Placeholder className="h-4 w-24" />
+                  <Placeholder className="h-3 w-52" />
+                </div>
+              ))}
+            </div>
+          )}
 
-      {data && data.length === 0 && (
-        <div className="border-border-default bg-bg-card rounded-xl border px-6 py-12 text-center">
-          <p className="text-text-secondary text-sm">
-            You have not commissioned a report yet.
-          </p>
-          <Button
-            asChild
-            className="mt-4"
-          >
-            <Link href={researchRoutes.catalog}>Browse research reports</Link>
-          </Button>
-        </div>
-      )}
-
-      {data && data.length > 0 && (
-        <ul className="space-y-3">
-          {data.map((row) => (
-            <PurchaseRow
-              key={row.purchase_id}
-              row={row}
+          {/* "You have not commissioned a report yet" is a claim about the
+              account, and a failed list cannot make it. */}
+          {isError && (
+            <SectionErrorState
+              label="your reports"
+              onRetry={() => refetch()}
+              retrying={isFetching}
             />
-          ))}
-        </ul>
-      )}
-    </ResearchShell>
+          )}
+
+          {data && data.length === 0 && (
+            <div className="space-y-4 py-12 text-center">
+              <p className="text-[11px] text-slate-400">
+                You have not commissioned a report yet.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push(researchRoutes.catalog)}
+                className={cn(PRIMARY_BUTTON, "mx-auto w-fit px-6")}
+              >
+                Browse Agent Workflows
+              </button>
+            </div>
+          )}
+
+          {data && data.length > 0 && (
+            <>
+              <StatStrip
+                stats={[
+                  { label: "Reports", value: `${data.length}` },
+                  { label: "Ready", value: `${ready}`, accent: ready > 0 },
+                  { label: "In Progress", value: `${inFlight}` },
+                ]}
+              />
+              <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
+                {data.map((row) => (
+                  <PurchaseRow
+                    key={row.purchase_id}
+                    row={row}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </ResearchPage>
   );
 }

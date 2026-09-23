@@ -16,6 +16,10 @@ export function safeReturnPath(
   fallback = "/",
 ): string {
   if (!next || !next.startsWith("/")) return fallback;
-  if (next.startsWith("//") || next.startsWith("/\\")) return fallback;
+  // Browsers drop tabs and newlines before parsing a URL ("/<TAB>/evil.com"
+  // becomes "//evil.com") and read a backslash as "/", so refuse both outright.
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001F\u007F\\]/.test(next)) return fallback;
+  if (next.startsWith("//")) return fallback;
   return next;
 }

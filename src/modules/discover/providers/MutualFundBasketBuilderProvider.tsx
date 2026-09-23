@@ -35,7 +35,11 @@ export interface MutualFundBasketBuilderContextValue {
   setShowResults: (show: boolean) => void;
   handleComplete: () => void;
   handleModify: () => void;
+  /** Leave the results for the first step of this flow, answers kept. */
+  restart: () => void;
   isCreatingPortfolio: boolean;
+  /** Why the last attempt to create the basket failed, until the next one. */
+  generationError: string | null;
   portfolioResponse: CreateMFPortfolioResponse | null;
 }
 
@@ -59,6 +63,7 @@ export function MutualFundBasketBuilderProvider({
   const [showResults, setShowResults] = useState(false);
   const [portfolioResponse, setPortfolioResponse] =
     useState<CreateMFPortfolioResponse | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [basketConfig, setBasketConfig] = useState<MutualFundBasketConfig>({
     type: "mutualFunds",
     planType: "",
@@ -272,39 +277,29 @@ export function MutualFundBasketBuilderProvider({
       planType: basketConfig.planType as PlanType,
       fundCategories: basketConfig.fundCategories,
     };
+    setGenerationError(null);
 
-    // Call the API
     createPortfolio(
       { data: request },
       {
         onSuccess: (response) => {
-          // Check if response status is 200 (success)
           if (response.status === 200) {
-            // Store the API response
             setPortfolioResponse(response.data);
-
-            // Show results page
             setShowResults(true);
-          } else {
-            // Handle non-200 responses (400, 422, etc.)
-            // Use console.warn instead of console.error to avoid Next.js error interception
-            console.warn("Failed to create portfolio:", {
-              status: response.status,
-              data: response.data,
-            });
-
-            const errorMessage =
-              (response.data as { detail?: string })?.detail ||
-              "Failed to create portfolio. Please check your criteria and try again.";
-
-            // TODO: Show error toast/message to user with errorMessage
-            alert(errorMessage);
+            return;
           }
+          // The generated fetcher resolves on every status, so a 400/422
+          // arrives here as data. Its `detail` is the server's reason (a
+          // category with too few schemes, say), which is worth showing as is.
+          const detail = (response.data as { detail?: unknown } | null)?.detail;
+          setGenerationError(
+            typeof detail === "string" && detail
+              ? detail
+              : "The basket could not be created. Please check your categories and try again.",
+          );
         },
-        onError: (error) => {
-          console.error("Failed to create portfolio:", error);
-          // TODO: Show error toast/message to user
-          alert("An unexpected error occurred. Please try again.");
+        onError: () => {
+          setGenerationError("An unexpected error occurred. Please try again.");
         },
       },
     );
@@ -315,6 +310,11 @@ export function MutualFundBasketBuilderProvider({
    */
   const handleModify = () => {
     setShowResults(false);
+  };
+
+  const restart = () => {
+    setShowResults(false);
+    setCurrentStep(1);
   };
 
   const value: MutualFundBasketBuilderContextValue = {
@@ -335,7 +335,9 @@ export function MutualFundBasketBuilderProvider({
     setShowResults,
     handleComplete,
     handleModify,
+    restart,
     isCreatingPortfolio,
+    generationError,
     portfolioResponse,
   };
 

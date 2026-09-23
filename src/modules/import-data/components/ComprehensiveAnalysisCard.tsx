@@ -1,26 +1,30 @@
-import { Activity } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { ComprehensiveAnalysisModal } from "./modals/ComprehensiveAnalysisModal";
 
+/**
+ * Comprehensive Portfolio Analysis — the reference's CTA card around the
+ * real analysis modal. The modal renders its own "Run Comprehensive
+ * Analysis" trigger; import.css gives it the reference's full-width pill.
+ */
 export function ComprehensiveAnalysisCard() {
   return (
-    <div className="rounded-xl bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700 p-1">
-      <div className="rounded-lg bg-white p-6">
-        <div className="mb-4 text-center">
-          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-slate-900 via-blue-900 to-blue-700">
-            <Activity className="h-7 w-7 text-white" />
-          </div>
-          <h3 className="mb-2 text-xl font-semibold text-gray-900">
-            Comprehensive Portfolio Analysis
-          </h3>
-          <p className="mb-4 text-sm text-gray-600">
-            Get a complete overview of your financial health across all
-            connected accounts with AI-powered insights and personalized
-            recommendations.
-          </p>
-        </div>
-
+    <section className="glass-card space-y-3 rounded-card p-6">
+      <div className="flex items-center gap-2">
+        <Sparkles
+          size={16}
+          className="text-[#063BAA] dark:text-[#8FB4FF]"
+        />
+        <h3 className="font-geist text-forest-deep text-sm font-medium dark:text-white">
+          Comprehensive Portfolio Analysis
+        </h3>
+      </div>
+      <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+        Get a complete overview of your financial health across all connected
+        accounts with AI-powered insights and personalized recommendations.
+      </p>
+      <div className="import-slot-cta">
         <ComprehensiveAnalysisModal />
       </div>
-    </div>
+    </section>
   );
 }

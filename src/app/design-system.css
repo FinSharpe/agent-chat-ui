@@ -1,0 +1,676 @@
+/* ==========================================================================
+   FINSHARPE DESIGN SYSTEM
+   Ported from the finsharpegpt-desktop-web reference build: the tokens,
+   surfaces and type scale the app shell and every screen inside it are drawn
+   with. Rules that would otherwise leak into PDF templates or standalone
+   pages are scoped to [data-app-mode], which only the app/auth shells set.
+   ========================================================================== */
+
+:root {
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-color: #0a1f4d;
+  --tile-bg: #eefdf8;
+  --nav-bg: #ffffff;
+
+  /* Tone containers, Material-3 style: a "container" (bg) + "on-container"
+     (fg) pair per brand hue, for icon tiles / chips / soft badges. Light mode
+     is an rgba tint over white; dark mode switches to solid opaque tones so
+     nothing goes muddy on a dark canvas. */
+  --tone-blue-weak: rgba(6, 59, 170, 0.06);
+  --tone-blue: rgba(6, 59, 170, 0.08);
+  --tone-blue-strong: rgba(6, 59, 170, 0.14);
+  --tone-blue-fg: #063baa;
+  --tone-mint: rgba(151, 237, 204, 0.28);
+  --tone-mint-strong: rgba(151, 237, 204, 0.4);
+  --tone-mint-fg: #0a9e6e;
+  --tone-navy: rgba(10, 31, 77, 0.08);
+  --tone-navy-fg: #0a1f4d;
+
+  /* Footer wave swell colours, back layer (--ow-0) to front (--ow-8).
+     Light: pale-to-blue, emerging from the near-white page. */
+  --ow-0: #fbffff;
+  --ow-1: #e9fcfd;
+  --ow-2: #d2f9fc;
+  --ow-3: #b4f1fa;
+  --ow-4: #8fe5f7;
+  --ow-5: #6bd3f2;
+  --ow-6: #4fbcf0;
+  --ow-7: #3fa0ea;
+  --ow-8: #2e6fe3;
+
+  /* Login media card wave (--mw-*): dark navy to royal blue, both themes. */
+  --mw-0: #0a2359;
+  --mw-1: #0b2a66;
+  --mw-2: #0d3273;
+  --mw-3: #0f3a81;
+  --mw-4: #12438f;
+  --mw-5: #154d9d;
+  --mw-6: #1957ab;
+  --mw-7: #1e62b9;
+  --mw-8: #2a6fd0;
+}
+
+.dark {
+  --card-bg: #0c1524;
+  --card-border: rgba(6, 59, 170, 0.25);
+  --text-color: #f8fafc;
+  --tile-bg: rgba(6, 59, 170, 0.12);
+  --nav-bg: #070d18;
+
+  --tone-blue-weak: #1b2745;
+  --tone-blue: #22335c;
+  --tone-blue-strong: #2c4074;
+  --tone-blue-fg: #8fb4ff;
+  --tone-mint: #1b3a2e;
+  --tone-mint-strong: #204636;
+  --tone-mint-fg: #6ee7b7;
+  --tone-navy: #223049;
+  --tone-navy-fg: #c7d2e8;
+
+  /* The back swells start at the page background and only gradually gain
+     blue toward the front, so the wave melts into the dark canvas. */
+  --ow-0: #050b14;
+  --ow-1: #081524;
+  --ow-2: #0b1f38;
+  --ow-3: #0f2c50;
+  --ow-4: #143a68;
+  --ow-5: #1a4a80;
+  --ow-6: #205a98;
+  --ow-7: #2769b4;
+  --ow-8: #2e6fe3;
+}
+
+@theme inline {
+  /* Official Finsharpe brand palette */
+  --color-forest: #063baa; /* Primary blue — buttons, primary actions */
+  --color-forest-deep: #0a1f4d; /* Deep navy — headings, primary text */
+  --color-lime: #97edcc; /* Primary mint — returns, verification */
+  --color-lime-soft: #eefdf8; /* Pale mint fill for tiles */
+  --color-blue: #063baa;
+  --color-canvas: #ffffff;
+  --color-brand-blue: #063baa;
+  --color-brand-mint: #97edcc;
+  --color-brand-mint-light: #96e7cd;
+  --color-brand-navy: #0a1f4d;
+
+  /* One family drives headings, numbers and body; hierarchy comes from size
+     and weight. */
+  --font-geist: var(--font-body-sans), system-ui, sans-serif;
+  --font-funnel: var(--font-body-sans), system-ui, sans-serif;
+  --font-sans: var(--font-body-sans), system-ui, sans-serif;
+
+  /* rounded-tile → icon tiles / small controls
+     rounded-nested → list rows, chat bubbles, alerts
+     rounded-card → standard cards / primary surfaces */
+  --radius-tile: 0.625rem;
+  --radius-nested: 0.875rem;
+  --radius-card: 1.25rem;
+
+  /* Neutral scale remapped to navy tints, so every slate-* utility carries a
+     cool navy undertone. 400–600 are the text tints and stay close to the
+     navy ink, so secondary text reads as navy, not grey. */
+  --color-slate-50: color-mix(in srgb, var(--color-forest-deep) 4%, white);
+  --color-slate-100: color-mix(in srgb, var(--color-forest-deep) 8%, white);
+  --color-slate-200: color-mix(in srgb, var(--color-forest-deep) 14%, white);
+  --color-slate-300: color-mix(in srgb, var(--color-forest-deep) 24%, white);
+  --color-slate-400: color-mix(in srgb, var(--color-forest-deep) 76%, white);
+  --color-slate-500: color-mix(in srgb, var(--color-forest-deep) 84%, white);
+  --color-slate-600: color-mix(in srgb, var(--color-forest-deep) 90%, white);
+  --color-slate-700: color-mix(in srgb, var(--color-forest-deep) 80%, white);
+}
+
+body {
+  background: #ffffff;
+  color: var(--foreground);
+  font-family: var(--font-body-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+html {
+  font-synthesis-weight: none;
+  overscroll-behavior: none;
+}
+
+/* Reusable tone-container utilities — bg + fg together, theme-aware. */
+.tone-blue {
+  background: var(--tone-blue);
+  color: var(--tone-blue-fg);
+}
+.tone-mint {
+  background: var(--tone-mint);
+  color: var(--tone-mint-fg);
+}
+.tone-navy {
+  background: var(--tone-navy);
+  color: var(--tone-navy-fg);
+}
+
+/* --- Global dark-mode overrides ------------------------------------------
+   Remap the literal light classes the screens are written with, so they
+   adapt without per-component dark styling. Only exact class names match:
+   use tokens (bg-background, var(--card-bg)) for any surface, never
+   from-white / bg-white/80 / ring-white. */
+.dark .text-\[\#0A1F4D\] { color: var(--text-color) !important; }
+.dark .text-slate-500 { color: var(--text-muted) !important; }
+.dark .text-slate-400 { color: var(--text-muted) !important; }
+.dark .text-black { color: var(--text-color) !important; }
+.dark .bg-white { background-color: var(--card-bg) !important; color: var(--foreground) !important; }
+.dark .border-slate-50 { border-color: var(--card-border) !important; }
+.dark .border-slate-100 { border-color: var(--card-border) !important; }
+.dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]) { border-color: var(--card-border) !important; }
+
+.dark .bg-slate-50 { background-color: rgba(255, 255, 255, 0.04) !important; }
+.dark .bg-slate-100 { background-color: rgba(255, 255, 255, 0.07) !important; }
+.dark .bg-slate-200 { background-color: rgba(255, 255, 255, 0.1) !important; }
+.dark .bg-slate-50\/60 { background-color: rgba(255, 255, 255, 0.04) !important; }
+.dark .bg-slate-200\/50 { background-color: rgba(255, 255, 255, 0.08) !important; }
+
+.dark .bg-\[\#063BAA\]\/6 { background-color: var(--tone-blue-weak) !important; }
+.dark .bg-\[\#063BAA\]\/8 { background-color: var(--tone-blue) !important; }
+.dark .bg-\[\#063BAA\]\/10 { background-color: var(--tone-blue) !important; }
+.dark .hover\:bg-\[\#063BAA\]\/14:hover { background-color: var(--tone-blue-strong) !important; }
+.dark .bg-\[\#97edcc\]\/20 { background-color: var(--tone-mint) !important; }
+.dark .bg-\[\#97edcc\]\/25 { background-color: var(--tone-mint) !important; }
+.dark .bg-\[\#97edcc\]\/30 { background-color: var(--tone-mint-strong) !important; }
+.dark .bg-\[\#0A1F4D\]\/8 { background-color: var(--tone-navy) !important; }
+.dark .bg-\[\#0A1F4D\]\/10 { background-color: var(--tone-navy) !important; }
+.dark .bg-\[\#0A1F4D\]\/30 { background-color: var(--tone-navy) !important; }
+.dark .text-\[\#063BAA\] { color: var(--tone-blue-fg) !important; }
+.dark .text-\[\#0A9E6E\] { color: var(--tone-mint-fg) !important; }
+.dark .text-\[\#97edcc\] { color: var(--tone-mint-fg) !important; }
+
+.dark .glass-card {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+  color: var(--foreground) !important;
+}
+.dark .glass-nav {
+  background: var(--nav-bg) !important;
+  border-color: var(--card-border) !important;
+  color: var(--foreground) !important;
+}
+.dark .glass-tile {
+  background: var(--tile-bg) !important;
+  border-color: var(--card-border) !important;
+  color: var(--foreground) !important;
+}
+.dark header.bg-white { background: var(--nav-bg) !important; }
+.dark header { color: var(--foreground) !important; }
+
+.dark [data-app-mode] input {
+  background: var(--tile-bg) !important;
+  color: var(--foreground) !important;
+  border-color: var(--card-border) !important;
+}
+.dark [data-app-mode] label { color: var(--text-color) !important; }
+.dark button.hover-tint:hover { background-color: rgba(255, 255, 255, 0.05) !important; }
+
+/* Light buttons on white use the brand mint #DFF9EF; dark maps it to the
+   mint tone container like the other brand tints. */
+.dark .bg-\[\#DFF9EF\] { background-color: var(--tone-mint) !important; }
+
+/* Web build: a softer corner scale than the phone card shapes, which read as
+   too rounded once cards are this much bigger on a desktop screen. */
+[data-app-mode="web"] .rounded-tile { border-radius: 0.625rem; }
+[data-app-mode="web"] .rounded-nested { border-radius: 0.75rem; }
+[data-app-mode="web"] .rounded-card { border-radius: 1.125rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-app-mode] *,
+  [data-app-mode] *::before,
+  [data-app-mode] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* --- Flat "bento" surfaces — solid fills, soft shadows, no blur ---------- */
+
+/* Flat light-green hero-card fill — legible in dark mode too. */
+.bg-hero-mint { background: var(--tone-mint); }
+.dark .bg-hero-mint { background: var(--tone-mint-strong); }
+
+/* Standard content card — solid white, hairline border, soft navy shadow. */
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 1px 2px rgba(10, 31, 77, 0.02),
+    0 8px 24px -12px rgba(10, 31, 77, 0.08);
+}
+
+/* Floating chrome (header / nav / composer / popovers) — a touch more
+   elevation so it always reads above scrolling content. */
+.glass-nav {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow:
+    0 8px 24px -8px rgba(10, 31, 77, 0.12),
+    0 2px 6px -2px rgba(10, 31, 77, 0.06);
+}
+
+/* Nested rows / inputs inside a card — pale mint fill. */
+.glass-tile {
+  background: var(--color-lime-soft);
+  border: 1px solid #e2e8f0;
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Dark feature card + primary filled button. */
+.bg-brand-gradient {
+  background: linear-gradient(330deg, #0a1f4d 0%, #063baa 100%);
+  background-size: 200% 200%;
+  animation: gradientMove 12s ease infinite;
+}
+
+/* Animated wave artwork (WavePattern.tsx): each layer is a curve drawn at
+   2x width (two copies back to back), so scrolling by -50% loops seamlessly;
+   each layer's .ow-bob wrapper heaves it on its own cycle. */
+@keyframes owScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes owBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(var(--bobAmp, 0)); }
+}
+.ow-scroll {
+  animation-name: owScroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.ow-bob {
+  animation-name: owBob;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.card-dark {
+  background-color: var(--color-forest);
+  color: #ffffff;
+}
+.card-lime {
+  background-color: var(--color-lime);
+  color: var(--color-forest-deep);
+}
+
+.btn-gradient {
+  background: linear-gradient(330deg, #063baa 0%, #053394 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px -6px rgba(6, 59, 170, 0.4);
+  transition:
+    filter 0.2s ease,
+    transform 0.1s ease;
+}
+.btn-gradient:hover { filter: brightness(1.12); }
+.btn-gradient:active { transform: scale(0.98); }
+
+/* Light-blue hover wash — replaces flat grey hovers everywhere. */
+.hover-tint { transition: background-color 0.2s ease; }
+@media (hover: hover) {
+  .hover-tint:hover { background-color: rgba(6, 59, 170, 0.08); }
+}
+
+/* Hero stat numeral — the one dominant figure per card. */
+.stat-hero {
+  font-family: var(--font-geist), sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  line-height: 1.05;
+}
+
+.premium-shadow-sm {
+  box-shadow:
+    0 1px 2px rgba(10, 31, 77, 0.02),
+    0 4px 12px -3px rgba(10, 31, 77, 0.04);
+}
+.premium-shadow-md {
+  box-shadow:
+    0 2px 4px rgba(10, 31, 77, 0.02),
+    0 12px 24px -6px rgba(10, 31, 77, 0.06);
+}
+.premium-shadow-lg {
+  box-shadow:
+    0 4px 8px rgba(10, 31, 77, 0.03),
+    0 20px 40px -8px rgba(10, 31, 77, 0.1);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+[data-app-mode] :is(button, input, select, textarea) {
+  touch-action: manipulation;
+}
+
+/* No bold inside the app — heavier weights are never synthesized, and
+   browser-default bold elements are pinned to 500. */
+[data-app-mode] :is(strong, b, th) {
+  font-weight: 500;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+
+/* Carousel pagination dots. */
+.carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-forest-deep) 22%, white);
+  transition: all 0.25s ease;
+}
+.carousel-dot[data-active="true"] {
+  width: 16px;
+  background: var(--color-forest);
+}
+
+/* --- Editorial layer: serif display type, eyebrows, hairline rows -------- */
+[data-design="v3"] {
+  --v3-ink: #0a1f4d;
+  --v3-ink-soft: #5a6b8c;
+  --v3-ink-faint: #94a3b8;
+  --v3-line: rgba(10, 31, 77, 0.1);
+  --v3-blue: #063baa;
+  --v3-mint: #97edcc;
+  font-family: var(--font-body-sans), system-ui, sans-serif;
+  color: var(--v3-ink);
+}
+
+.v3-display {
+  font-family: var(--font-display-serif), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
+}
+
+.v3-sans {
+  font-family: var(--font-body-sans), system-ui, sans-serif;
+  font-weight: 400;
+}
+
+/* Section eyebrow. */
+.v3-eyebrow {
+  font-family: var(--font-body-sans), system-ui, sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--v3-ink-soft, #5a6b8c);
+}
+
+.v3-row {
+  border-bottom: 1px solid var(--v3-line, rgba(10, 31, 77, 0.1));
+  transition: background-color 0.18s ease;
+}
+.v3-row:last-child { border-bottom: 0; }
+.v3-row:active { background-color: rgba(6, 59, 170, 0.035); }
+.v3-rule {
+  height: 1px;
+  background: var(--v3-line, rgba(10, 31, 77, 0.1));
+}
+.v3-row-onTint { border-bottom-color: rgba(10, 31, 77, 0.09); }
+
+/* Film-grain overlay: an inline SVG turbulence tile at low opacity. */
+.v3-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
+}
+
+@keyframes v3-wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  70% { transform: rotate(16deg); }
+  80% { transform: rotate(-8deg); }
+  90% { transform: rotate(12deg); }
+}
+.v3-anim-wave {
+  animation: v3-wave 3.2s ease-in-out infinite;
+  transform-origin: 70% 80%;
+}
+@keyframes v3-rise {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
+}
+.v3-anim-rise { animation: v3-rise 2.6s ease-in-out infinite; }
+@keyframes v3-pulse-ring {
+  0% { transform: scale(0.75); opacity: 0.55; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.v3-anim-ring { animation: v3-pulse-ring 2.4s ease-out infinite; }
+@keyframes v3-twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.9); }
+}
+.v3-anim-twinkle { animation: v3-twinkle 2.8s ease-in-out infinite; }
+
+.v3-panel {
+  background: linear-gradient(
+    180deg,
+    rgba(10, 31, 77, 0.055) 0%,
+    rgba(10, 31, 77, 0.03) 45%,
+    rgba(10, 31, 77, 0) 100%
+  );
+}
+
+/* Material Symbols defaults — weight 300 keeps the stroke in step with the
+   Regular-only type rule. */
+.v3-icon {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 300,
+    "GRAD" 0,
+    "opsz" 24;
+  user-select: none;
+}
+
+/* --- Desktop popups (components/shared/Popup.tsx) ------------------------
+   The screens inside were sized for a phone: 20px gutters and bottom
+   padding that clears the mobile bottom nav. A popup has no bottom nav, so
+   drop those offsets and give the content room. Unlayered on purpose, so it
+   wins over the utility classes the screens are written with. */
+[data-app-mode] [role="dialog"] div.px-5 { padding-inline: 2rem; }
+[data-app-mode] [role="dialog"] div.p-5.overflow-y-auto { padding: 2rem; }
+[data-app-mode] [role="dialog"] div.overflow-y-auto.py-5 { padding-top: 1.75rem; }
+[data-app-mode] [role="dialog"] div.pb-\[130px\] { padding-bottom: 2.5rem; }
+[data-app-mode] [role="dialog"] div.pb-24 { padding-bottom: 2rem; }
+[data-app-mode] [role="dialog"] div.pb-\[120px\] { padding-bottom: 2rem; }
+[data-app-mode] [role="dialog"] div.px-6 { padding-inline: 2rem; }
+[data-app-mode] [role="dialog"] div.overflow-y-auto.py-4 { padding-top: 1.75rem; }
+[data-app-mode] [role="dialog"] div.overflow-y-auto.pb-16 { padding-bottom: 2.5rem; }
+[data-app-mode] [role="dialog"] .mb-\[76px\] { margin-bottom: 0; }
+[data-app-mode] [role="dialog"] div.h-\[56px\],
+[data-app-mode] [role="dialog"] div.h-\[52px\] { height: 4rem; }
+[data-app-mode] [role="dialog"] div.shrink-0.border-t { padding-block: 1rem; }
+[data-app-mode] [role="dialog"] div.overflow-y-auto.space-y-4 > * + *,
+[data-app-mode] [role="dialog"] div.overflow-y-auto.space-y-5 > * + * { margin-top: 1.5rem; }
+[data-app-mode] [role="dialog"] div.overflow-y-auto.space-y-6 > * + * { margin-top: 2rem; }
+
+/* Popup type scale — the phone screens' 8–13px text, one step up. */
+[data-app-mode] [role="dialog"] .text-\[8px\] { font-size: 10px; }
+[data-app-mode] [role="dialog"] .text-\[8\.5px\] { font-size: 10.5px; }
+[data-app-mode] [role="dialog"] .text-\[9px\] { font-size: 11px; }
+[data-app-mode] [role="dialog"] .text-\[9\.5px\] { font-size: 11.5px; }
+[data-app-mode] [role="dialog"] .text-\[10px\] { font-size: 12px; }
+[data-app-mode] [role="dialog"] .text-\[10\.5px\] { font-size: 12.5px; }
+[data-app-mode] [role="dialog"] .text-\[11px\] { font-size: 13px; }
+[data-app-mode] [role="dialog"] .text-\[11\.5px\] { font-size: 13.5px; }
+[data-app-mode] [role="dialog"] .text-\[12px\] { font-size: 14px; }
+[data-app-mode] [role="dialog"] .text-\[12\.5px\] { font-size: 14.5px; }
+[data-app-mode] [role="dialog"] .text-\[13px\] { font-size: 15px; }
+[data-app-mode] [role="dialog"] .text-xs { font-size: 13.5px; line-height: 1.45; }
+[data-app-mode] [role="dialog"] .text-sm { font-size: 15px; line-height: 1.5; }
+
+/* Login media card: each letter types in out of a blur (WebAuthShell). */
+@keyframes type-focus {
+  from { opacity: 0; filter: blur(8px); }
+  to { opacity: 1; filter: blur(0); }
+}
+.type-focus-char {
+  display: inline-block;
+  opacity: 0;
+  animation: type-focus 0.7s ease-out forwards;
+}
+
+/* Login media card icon: the mark filled with a drifting brand gradient and
+   a soft breathing glow. */
+@keyframes icon-drift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes icon-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(120, 190, 255, 0.35)) drop-shadow(0 0 26px rgba(151, 237, 204, 0.18));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(120, 190, 255, 0.6)) drop-shadow(0 0 40px rgba(151, 237, 204, 0.35));
+  }
+}
+.brand-icon-glow {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(
+    120deg,
+    #4f8dff 0%,
+    #8fc2ff 25%,
+    var(--color-brand-mint-light) 50%,
+    #8fc2ff 75%,
+    #4f8dff 100%
+  );
+  background-size: 300% 100%;
+  -webkit-mask: url("/logo/Finsharpe%20Logo%20-%20Icon%20-%20White.svg") center / contain no-repeat;
+  mask: url("/logo/Finsharpe%20Logo%20-%20Icon%20-%20White.svg") center / contain no-repeat;
+  animation: icon-drift 7s ease-in-out infinite;
+}
+.brand-icon-glow-wrap { animation: icon-glow 4.5s ease-in-out infinite; }
+
+/* Buttons and clickable cards with a trailing arrow: no background change on
+   hover — the arrow nudges a few pixels right instead. */
+[data-app-mode] button svg.lucide-arrow-right,
+[data-app-mode] .cursor-pointer svg.lucide-arrow-right {
+  transition: transform 0.18s ease;
+}
+@media (hover: hover) {
+  [data-app-mode] button:hover svg.lucide-arrow-right,
+  [data-app-mode] .cursor-pointer:hover svg.lucide-arrow-right {
+    transform: translateX(3px);
+  }
+}
+
+/* Content-width pill buttons grow slightly on hover (full-width, flex-1 and
+   icon-only buttons are left alone). */
+button.rounded-full.bg-brand-gradient:not(.w-full):not(.flex-1):not(.w-7):not(.w-8):not(.w-9),
+button.rounded-full[class*="bg-[#DFF9EF]"]:not(.w-full):not(.flex-1):not(.w-7):not(.w-8):not(.w-9),
+button.rounded-full.bg-white.w-fit {
+  transition: scale 0.18s ease;
+}
+@media (hover: hover) {
+  button.rounded-full.bg-brand-gradient:not(.w-full):not(.flex-1):not(.w-7):not(.w-8):not(.w-9):hover,
+  button.rounded-full[class*="bg-[#DFF9EF]"]:not(.w-full):not(.flex-1):not(.w-7):not(.w-8):not(.w-9):hover,
+  button.rounded-full.bg-white.w-fit:hover {
+    scale: 1.04;
+  }
+}
+button.rounded-full.bg-brand-gradient:not(.w-full):not(.flex-1):not(.w-7):not(.w-8):not(.w-9):active,
+button.rounded-full[class*="bg-[#DFF9EF]"]:not(.w-full):not(.flex-1):not(.w-7):not(.w-8):not(.w-9):active,
+button.rounded-full.bg-white.w-fit:active {
+  scale: 0.97;
+}
+
+/* Type scale, one step up across the app. The screens are written with small
+   arbitrary sizes (8–14px); this maps each to the next size up. Popups have
+   their own, larger mapping above (more specific, so it wins there). */
+[data-app-mode] .text-\[8px\] { font-size: 9.5px; }
+[data-app-mode] .text-\[9px\] { font-size: 10.5px; }
+[data-app-mode] .text-\[10px\] { font-size: 11.5px; }
+[data-app-mode] .text-\[11px\] { font-size: 12.5px; }
+[data-app-mode] .text-\[12px\] { font-size: 13.5px; }
+[data-app-mode] .text-\[13px\] { font-size: 14.5px; }
+[data-app-mode] .text-\[14px\] { font-size: 15px; }
+[data-app-mode] .text-\[8\.5px\] { font-size: 10px; }
+[data-app-mode] .text-\[9\.5px\] { font-size: 11px; }
+[data-app-mode] .text-\[10\.5px\] { font-size: 12px; }
+[data-app-mode] .text-\[11\.5px\] { font-size: 13px; }
+[data-app-mode] .text-\[12\.5px\] { font-size: 14px; }
+[data-app-mode] .text-\[13\.5px\] { font-size: 14.5px; }
+[data-app-mode] .text-\[14\.5px\] { font-size: 15.5px; }
+[data-app-mode] .text-xs { font-size: 13px; line-height: 1.45; }
+[data-app-mode] .text-sm { font-size: 15px; line-height: 1.5; }
+
+/* Desktop cards: light hover tint and a slight grow, no shadow. Scrolling
+   card rows get 8px of room on every side (cancelled with negative margins,
+   so the layout does not move) so a grown card is never clipped. */
+@media (min-width: 1024px) {
+  [data-app-mode="web"] .snap-x {
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
+    margin-top: -0.5rem;
+    margin-bottom: -0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.75rem;
+    scroll-padding-inline: 0.5rem;
+  }
+  [data-app-mode="web"] .snap-x.carousel-mt3 { margin-top: 0.25rem; }
+}
+@media (hover: hover) and (min-width: 1024px) {
+  [data-app-mode="web"] .card-hover,
+  [data-app-mode="web"] .snap-start.glass-card,
+  [data-app-mode="web"] [class*="group/media"] {
+    transition:
+      scale 0.25s ease,
+      background-color 0.2s ease;
+  }
+  [data-app-mode="web"] .card-hover:hover,
+  [data-app-mode="web"] .snap-start.glass-card:hover,
+  [data-app-mode="web"] [class*="group/media"]:hover {
+    scale: 1.02;
+  }
+  [data-app-mode="web"] .glass-card.card-hover:hover,
+  [data-app-mode="web"] .snap-start.glass-card:hover {
+    background-color: #f4f8ff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .type-focus-char { animation: none; opacity: 1; }
+  .brand-icon-glow,
+  .brand-icon-glow-wrap { animation: none; }
+  button.rounded-full { transition: none; }
+  [data-app-mode] button svg.lucide-arrow-right,
+  [data-app-mode] .cursor-pointer svg.lucide-arrow-right {
+    transition: none;
+    transform: none;
+  }
+  [data-app-mode="web"] .card-hover,
+  [data-app-mode="web"] .snap-start.glass-card,
+  [data-app-mode="web"] [class*="group/media"] { transition: none; }
+}

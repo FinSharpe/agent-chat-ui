@@ -1,19 +1,29 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import type { AuthTokenResponse, GracePeriodTokenResponse } from "@/api/generated/auth-apis/models";
+import type {
+  AuthTokenResponse,
+  GracePeriodTokenResponse,
+} from "@/api/generated/auth-apis/models";
+import {
+  DEFAULT_REFRESH_TOKEN_MAX_AGE,
+  USER_INFO_COOKIE,
+  serializeUserInfo,
+} from "@/lib/auth/user-info";
 
-const REFRESH_TOKEN_MAX_AGE = Number(process.env.REFRESH_TOKEN_MAX_AGE) || 604800;
+const REFRESH_TOKEN_MAX_AGE =
+  Number(process.env.REFRESH_TOKEN_MAX_AGE) || DEFAULT_REFRESH_TOKEN_MAX_AGE;
 
 // __Secure- prefix requires HTTPS. Derive from the actual app URL, not NODE_ENV,
 // because production builds can run on localhost (HTTP) during development.
-const IS_HTTPS = process.env.NEXT_PUBLIC_API_URL?.startsWith("https://") ?? false;
+const IS_HTTPS =
+  process.env.NEXT_PUBLIC_API_URL?.startsWith("https://") ?? false;
 const FGP_COOKIE_NAME = IS_HTTPS ? "__Secure-Fgp" : "fgp";
 
 export { FGP_COOKIE_NAME };
 
 export function setAuthCookies(
   response: NextResponse,
-  tokens: AuthTokenResponse | GracePeriodTokenResponse
+  tokens: AuthTokenResponse | GracePeriodTokenResponse,
 ): void {
   response.cookies.set("access_token", tokens.access_token, {
     httpOnly: true,
@@ -41,20 +51,27 @@ export function setAuthCookies(
     maxAge: REFRESH_TOKEN_MAX_AGE,
   });
 
-  // Non-httpOnly cookie for frontend hydration — strip PII (email, institutionId)
-  const userInfo = { id: tokens.user.id, name: tokens.user.name, roles: tokens.user.roles };
-  response.cookies.set("user_info", JSON.stringify(userInfo), {
+  // Non-httpOnly cookie for frontend hydration — strip PII (email, institutionId).
+  // Lives as long as the refresh token, not the access token: it is the shell's
+  // first-paint identity for the whole session (see lib/auth/user-info.ts).
+  response.cookies.set(USER_INFO_COOKIE, serializeUserInfo(tokens.user), {
     httpOnly: false,
     secure: IS_HTTPS,
     sameSite: "lax",
     path: "/",
-    maxAge: 900,
+    maxAge: REFRESH_TOKEN_MAX_AGE,
   });
 }
 
 export function clearAuthCookies(response: NextResponse): void {
-  for (const name of ["access_token", "refresh_token", FGP_COOKIE_NAME, "user_info"]) {
-    response.cookies.set(name, "", { maxAge: 0, path: "/" });
+  for (const name of [
+    "access_token",
+    "refresh_token",
+    FGP_COOKIE_NAME,
+    USER_INFO_COOKIE,
+  ]) {
+    // A `__Secure-` cookie is only accepted, and so only cleared, with Secure.
+    response.cookies.set(name, "", { maxAge: 0, path: "/", secure: IS_HTTPS });
   }
 }
 
@@ -65,7 +82,9 @@ export async function getAccessToken(): Promise<string | undefined> {
 
 export async function getFingerprint(): Promise<string | undefined> {
   const cookieStore = await cookies();
-  return cookieStore.get(FGP_COOKIE_NAME)?.value ?? cookieStore.get("fgp")?.value;
+  return (
+    cookieStore.get(FGP_COOKIE_NAME)?.value ?? cookieStore.get("fgp")?.value
+  );
 }
 
 export async function getRefreshToken(): Promise<string | undefined> {

@@ -1,87 +1,57 @@
-import { Check } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useMutualFundBasketBuilderContext } from "../../../../hooks/useMutualFundBasketBuilderContext";
+"use client";
+
+import { cn } from "@/lib/utils";
 import { categoryPreferenceOptions } from "../../../../constants/mutual-fund-basket-data";
+import { useMutualFundBasketBuilderContext } from "../../../../hooks/useMutualFundBasketBuilderContext";
+import { OptionCard } from "../../shared/OptionCard";
+import { OPTION_LIST, StepHeading } from "../../shared/StepHeading";
 
 /**
- * Step 2: Category preference selection for mutual fund baskets
- * Allows user to choose between preset allocations or custom build
+ * Fund flow, category preference: a preset allocation to start from, or an
+ * empty one to build. Each preset lists the split it applies, so the next
+ * step holds no surprises.
  */
 export function CategoryPreferenceStep() {
-  const { basketConfig, setCategoryPreference, nextStep } =
+  const { basketConfig, setCategoryPreference } =
     useMutualFundBasketBuilderContext();
 
-  /**
-   * Handle preference selection
-   */
-  const handleSelectPreference = (
-    preferenceId: string,
-    categories: typeof categoryPreferenceOptions[0]["categories"]
-  ) => {
-    setCategoryPreference(preferenceId, categories);
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-4">
-        <p className="text-sm text-text-secondary">
-          Choose allocation style
-        </p>
-      </div>
-
-      <div className="space-y-3">
-        {categoryPreferenceOptions.map((option) => (
-          <Card
-            key={option.id}
-            className={`p-4 cursor-pointer transition-all ${
-              basketConfig.categoryPreference === option.id
-                ? "border-accent-blue bg-info-bg"
-                : "hover:border-border-hover"
-            }`}
-            onClick={() =>
-              handleSelectPreference(option.id, option.categories)
-            }
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium text-text-primary">
-                  {option.name}
-                </h4>
-                <p className="text-sm text-text-secondary">
-                  {option.description}
-                </p>
-                {option.categories.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {option.categories.map((cat) => (
-                      <span
-                        key={cat.name}
-                        className="text-xs bg-bg-subtle text-text-tertiary px-2 py-1 rounded"
-                      >
-                        {cat.name}: {cat.percentage}%
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {basketConfig.categoryPreference === option.id && (
-                <Check className="w-5 h-5 text-accent-blue flex-shrink-0" />
+    <>
+      <StepHeading title="Category Preference" />
+      <div className={OPTION_LIST}>
+        {categoryPreferenceOptions.map((option) => {
+          const selected = basketConfig.categoryPreference === option.id;
+          return (
+            <OptionCard
+              key={option.id}
+              title={option.name}
+              description={option.description}
+              selected={selected}
+              onClick={() =>
+                setCategoryPreference(option.id, option.categories)
+              }
+            >
+              {option.categories.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1.5">
+                  {option.categories.map((category) => (
+                    <span
+                      key={category.name}
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        selected
+                          ? "bg-white/15 text-white"
+                          : "bg-[#063BAA]/8 text-[#063BAA]",
+                      )}
+                    >
+                      {category.name} · {category.percentage}%
+                    </span>
+                  ))}
+                </div>
               )}
-            </div>
-          </Card>
-        ))}
+            </OptionCard>
+          );
+        })}
       </div>
-
-      {basketConfig.categoryPreference && (
-        <div className="pt-4">
-          <Button
-            onClick={nextStep}
-            className="w-full h-12 bg-accent-blue hover:bg-[#2563eb] text-white"
-          >
-            Continue
-          </Button>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

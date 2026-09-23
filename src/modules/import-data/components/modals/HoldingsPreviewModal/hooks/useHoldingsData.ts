@@ -1,6 +1,6 @@
 "use client";
 import { useMemo } from "react";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import { useFiData } from "@/modules/import-data/hooks/useFiData";
 import {
   extractCurrentValueFromFiData,

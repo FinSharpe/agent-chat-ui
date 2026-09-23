@@ -5,20 +5,20 @@ interface ThreadTitleInputProps {
   initialValue: string;
   /** The first message's title, shown when the field is emptied. */
   placeholder: string;
-  dark?: boolean;
+  className?: string;
   onCommit: (value: string) => void;
   onCancel: () => void;
 }
 
 /**
- * Inline rename field: Enter or leaving the field saves, Escape cancels. Sized
- * to the card title (an `h3`, `text-lg` at line-height 1.5) so the row keeps
- * its height.
+ * Inline rename field: Enter or leaving the field saves, Escape cancels. It
+ * takes the row title's own type and height, so a row does not jump when it
+ * switches into editing; only a brand-blue underline marks it as a field.
  */
 export default function ThreadTitleInput({
   initialValue,
   placeholder,
-  dark = false,
+  className,
   onCommit,
   onCancel,
 }: ThreadTitleInputProps) {
@@ -53,10 +53,8 @@ export default function ThreadTitleInput({
         else if (e.key === "Escape") finish(false);
       }}
       className={cn(
-        "-mx-1.5 h-[1.5em] w-[calc(100%+0.75rem)] min-w-0 rounded-md border px-1.5 py-0 text-lg font-medium outline-none",
-        dark
-          ? "border-white/15 bg-white/[0.06] text-white/90 placeholder:text-white/35 focus:border-blue-400/60"
-          : "border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-blue-500",
+        "font-geist h-[1.5em] min-w-0 flex-1 border-0 border-b border-[#063BAA]/40 bg-transparent p-0 text-[13px] leading-[1.5] font-medium text-[#0A1F4D] placeholder-[#0A1F4D]/40 outline-none focus:border-[#063BAA] dark:placeholder-white/40",
+        className,
       )}
     />
   );

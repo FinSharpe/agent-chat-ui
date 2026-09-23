@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { useApiUrl } from "@/hooks/useDefaultApiValues";
 import { cn } from "@/lib/utils";
 import { HumanInterrupt } from "@langchain/langgraph/prebuilt";
+import { ClipboardCheck } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
 import useInterruptedActions from "../hooks/use-interrupted-actions";
@@ -27,30 +27,29 @@ function ButtonGroup({
   showingState: boolean;
   showingDescription: boolean;
 }) {
+  const tab = (active: boolean) =>
+    cn(
+      "h-8 rounded-full px-3.5 text-[11px] font-medium transition-colors",
+      active
+        ? "bg-[#063BAA] text-white"
+        : "bg-[#063BAA]/6 text-slate-500 hover:text-[#063BAA]",
+    );
   return (
-    <div className="flex flex-row items-center justify-center gap-0">
-      <Button
-        variant="outline"
-        className={cn(
-          "rounded-l-md rounded-r-none border-r-[0px]",
-          showingState ? "text-black" : "bg-white",
-        )}
-        size="sm"
+    <div className="flex flex-row items-center gap-1.5">
+      <button
+        type="button"
+        className={tab(showingState)}
         onClick={handleShowState}
       >
         State
-      </Button>
-      <Button
-        variant="outline"
-        className={cn(
-          "rounded-l-none rounded-r-md border-l-[0px]",
-          showingDescription ? "text-black" : "bg-white",
-        )}
-        size="sm"
+      </button>
+      <button
+        type="button"
+        className={tab(showingDescription)}
         onClick={handleShowDescription}
       >
         Description
-      </Button>
+      </button>
     </div>
   );
 }
@@ -104,23 +103,34 @@ export function ThreadActionsView({
   const ignoreAllowed = interrupt.config.allow_ignore;
 
   return (
-    <div className="flex min-h-full w-full flex-col gap-9">
+    <div className="flex min-h-full w-full flex-col gap-5">
       {/* Header */}
-      <div className="flex w-full flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center justify-start gap-3">
-          <p className="text-2xl tracking-tighter text-pretty">{threadTitle}</p>
-          {threadId && <ThreadIdCopyable threadId={threadId} />}
+      <div className="flex w-full flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
+            <ClipboardCheck size={16} />
+          </div>
+          <div className="min-w-0">
+            <span className="block text-[9px] font-medium tracking-wider text-slate-400 uppercase">
+              Needs your review
+            </span>
+            <div className="flex items-center gap-2">
+              <p className="font-geist truncate text-sm font-medium text-[#0A1F4D]">
+                {threadTitle}
+              </p>
+              {threadId && <ThreadIdCopyable threadId={threadId} />}
+            </div>
+          </div>
         </div>
-        <div className="flex flex-row items-center justify-start gap-2">
+        <div className="flex flex-row items-center gap-1.5">
           {apiUrl && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-1 bg-white"
+            <button
+              type="button"
+              className="glass-card hover-tint flex h-8 items-center gap-1 rounded-full px-3.5 text-[11px] font-medium text-[#0A1F4D] transition-colors"
               onClick={handleOpenInStudio}
             >
               Studio
-            </Button>
+            </button>
           )}
           <ButtonGroup
             handleShowState={() => handleShowSidePanel(true, false)}
@@ -132,23 +142,23 @@ export function ThreadActionsView({
       </div>
 
       <div className="flex w-full flex-row items-center justify-start gap-2">
-        <Button
-          variant="outline"
-          className="border-gray-500 bg-white font-normal text-gray-800"
+        <button
+          type="button"
+          className="glass-card hover-tint h-8 rounded-full px-3.5 text-[11px] font-medium text-[#0A1F4D] transition-colors disabled:pointer-events-none disabled:opacity-50"
           onClick={handleResolve}
           disabled={actionsDisabled}
         >
           Mark as Resolved
-        </Button>
+        </button>
         {ignoreAllowed && (
-          <Button
-            variant="outline"
-            className="border-gray-500 bg-white font-normal text-gray-800"
+          <button
+            type="button"
+            className="glass-card hover-tint h-8 rounded-full px-3.5 text-[11px] font-medium text-[#0A1F4D] transition-colors disabled:pointer-events-none disabled:opacity-50"
             onClick={handleIgnore}
             disabled={actionsDisabled}
           >
             Ignore
-          </Button>
+          </button>
         )}
       </div>
 

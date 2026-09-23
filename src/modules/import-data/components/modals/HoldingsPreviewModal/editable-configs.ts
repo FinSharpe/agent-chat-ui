@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { BarChart3, PieChart, TrendingUp } from "lucide-react";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import { EquitiesAnalyticsPanel } from "./components/EquitiesAnalyticsPanel";
 import { MfAnalyticsPanel } from "./components/MfAnalyticsPanel";
 import type { AnalyticsPanelComponent } from "./components/analytics-panel.types";

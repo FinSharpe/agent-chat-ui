@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Copy, Link2, Loader2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,9 +12,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { researchRoutes } from "../../constants/routes";
 import { useShareActions } from "../../hooks/usePipelineQueries";
+import { CIRCLE_BUTTON, PRIMARY_BUTTON, QUIET_BUTTON } from "../shared/kit";
 
 /**
  * Minting and revoking a public link.
@@ -24,6 +24,9 @@ import { useShareActions } from "../../hooks/usePipelineQueries";
  * account — so the dialog says that plainly rather than calling it "sharing".
  * Revoking is the only kill switch, which is why it is a peer of the copy
  * button and not hidden behind a menu.
+ *
+ * The trigger is the report header's share button; it reads as "on" (brand
+ * tint) while a link is live, the way the reference marks a tracked basket.
  */
 export function ShareDialog({
   purchaseId,
@@ -79,18 +82,24 @@ export function ShareDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
+        <button
+          type="button"
+          className={cn(
+            CIRCLE_BUTTON,
+            isShared && "bg-[#063BAA]/8 text-[#063BAA]",
+          )}
+          title={isShared ? "Shared — manage the link" : "Share"}
+          aria-label={isShared ? "Manage the share link" : "Share this report"}
         >
-          <Share2 className="size-4" />
-          {isShared ? "Shared" : "Share"}
-        </Button>
+          <Share2 size={14} />
+        </button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Share this report</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="rounded-card font-funnel gap-5 border-slate-100 p-6 sm:max-w-md">
+        <DialogHeader className="gap-1.5">
+          <DialogTitle className="font-geist text-sm font-medium text-[#0A1F4D] dark:text-white">
+            Share this report
+          </DialogTitle>
+          <DialogDescription className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
             A share link opens the full report for anyone who has it — no
             account, no sign-in. Revoke it and the link stops working
             immediately.
@@ -99,45 +108,56 @@ export function ShareDialog({
 
         {url ? (
           <div className="flex items-center gap-2">
-            <Input
+            <input
               readOnly
               value={url}
               onFocus={(event) => event.currentTarget.select()}
               aria-label="Public share link"
+              className="glass-tile min-w-0 flex-1 rounded-full px-4 py-2.5 text-[11px] text-[#0A1F4D] focus:outline-none"
             />
-            <Button
-              variant="outline"
-              size="icon"
+            <button
+              type="button"
               onClick={onCopy}
               aria-label="Copy link"
+              className="bg-brand-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-all hover:brightness-110"
             >
-              <Copy className="size-4" />
-            </Button>
+              <Copy size={14} />
+            </button>
           </div>
         ) : (
-          <Button
+          <button
+            type="button"
             onClick={onMint}
             disabled={mint.isPending}
+            className={cn(PRIMARY_BUTTON, "py-3 text-[11px]")}
           >
             {mint.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2
+                size={14}
+                className="animate-spin"
+              />
             ) : (
-              <Link2 className="size-4" />
+              <Link2 size={14} />
             )}
             {isShared ? "Show the existing link" : "Create a share link"}
-          </Button>
+          </button>
         )}
 
         {(isShared || url) && (
-          <Button
-            variant="ghost"
+          <button
+            type="button"
             onClick={onRevoke}
             disabled={revoke.isPending}
-            className="text-error-fg hover:text-error-fg"
+            className={cn(QUIET_BUTTON, "text-rose-500 hover:text-rose-600")}
           >
-            {revoke.isPending && <Loader2 className="size-4 animate-spin" />}
+            {revoke.isPending && (
+              <Loader2
+                size={12}
+                className="animate-spin"
+              />
+            )}
             Revoke the link
-          </Button>
+          </button>
         )}
       </DialogContent>
     </Dialog>

@@ -86,16 +86,19 @@ export function CitationProvider({ children }: { children: ReactNode }) {
           onOpenChange={setOpen}
         >
           <DialogContent
-            className="flex h-[90vh] max-w-[95vw] flex-col overflow-hidden p-0"
+            className="glass-card rounded-card font-funnel flex h-[90vh] max-w-[95vw] flex-col gap-0 overflow-hidden p-0"
             showCloseButton={false}
           >
-            <DialogHeader className="grid grid-cols-[1fr_auto] items-center border-b p-4 text-left">
-              <DialogTitle className="truncate text-base">{title}</DialogTitle>
+            {/* Reference popup header: title left, round close right. */}
+            <DialogHeader className="grid h-[56px] shrink-0 grid-cols-[1fr_auto] items-center gap-3 border-b border-slate-50 px-5 text-left">
+              <DialogTitle className="font-geist truncate text-sm font-medium text-[#0A1F4D]">
+                {title}
+              </DialogTitle>
               <button
                 onClick={() => setOpen(false)}
-                className="opacity-70 transition-opacity hover:opacity-100"
+                className="hover-tint flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 text-[#0A1F4D] transition-colors"
               >
-                <XIcon className="size-5" />
+                <XIcon size={15} />
                 <span className="sr-only">Close</span>
               </button>
             </DialogHeader>
@@ -114,8 +117,10 @@ export function CitationProvider({ children }: { children: ReactNode }) {
         <ArtifactContent
           title={
             <div className="min-w-0">
-              <p className="truncate font-medium">{title}</p>
-              <p className="text-muted-foreground truncate text-xs">
+              <p className="font-geist truncate text-sm font-medium text-[#0A1F4D]">
+                {title}
+              </p>
+              <p className="truncate text-[11px] text-slate-400">
                 {citationMeta(filing, {
                   withPage: state.passages.length === 1,
                 })}

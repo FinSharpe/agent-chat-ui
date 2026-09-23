@@ -1,11 +1,11 @@
 import { MarkdownText } from "@/components/thread/markdown-text";
 import { MultimodalPreview } from "@/components/thread/MultimodalPreview";
 import { TodoList } from "@/components/thread/TodoList";
-import { Textarea } from "@/components/ui/textarea";
 import { getTodosForMessage } from "@/lib/extract-todos";
 import { isBase64ContentBlock } from "@/lib/multimodal-utils";
-import { cn } from "@/lib/utils";
+import { useChatPrefsStore } from "@/modules/chat/store/useChatPrefsStore";
 import { useStreamContext } from "@/providers/Stream";
+import type { Base64ContentBlock } from "@langchain/core/messages";
 import { Message } from "@langchain/langgraph-sdk";
 import { useState } from "react";
 import { getContentString } from "../utils";
@@ -28,15 +28,21 @@ function EditableContent({
   };
 
   return (
-    <Textarea
+    <textarea
+      autoFocus
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={handleKeyDown}
-      className="focus-visible:ring-0"
+      aria-label="Edit message"
+      className="glass-card field-sizing-content min-h-[76px] w-full resize-none rounded-nested rounded-tr-xs p-3.5 text-[13px] leading-relaxed text-[#0A1F4D] focus:border-[#063BAA]/40 focus:outline-none"
     />
   );
 }
 
+/**
+ * The user's turn: attachments, then a blue bubble (the reference's user
+ * message), with copy / edit / version controls under it on hover.
+ */
 export function HumanMessage({
   message,
   isLoading,
@@ -45,6 +51,7 @@ export function HumanMessage({
   isLoading: boolean;
 }) {
   const thread = useStreamContext();
+  const model = useChatPrefsStore((s) => s.model);
   const meta = thread.getMessagesMetadata(message);
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
 
@@ -53,7 +60,9 @@ export function HumanMessage({
   const contentString = getContentString(message.content);
 
   // Extract todos associated with this human message
-  const todos = message.id ? getTodosForMessage(thread.messages, message.id) : undefined;
+  const todos = message.id
+    ? getTodosForMessage(thread.messages, message.id)
+    : undefined;
 
   const handleSubmitEdit = () => {
     setIsEditing(false);
@@ -64,6 +73,8 @@ export function HumanMessage({
       {
         checkpoint: parentCheckpoint,
         streamMode: ["values"],
+        // An edited question runs on the tier picked now, like a new one.
+        config: { configurable: { model } },
         optimisticValues: (prev) => {
           const values = meta?.firstSeenState?.values;
           if (!values) return prev;
@@ -77,87 +88,85 @@ export function HumanMessage({
     );
   };
 
+  const attachments = Array.isArray(message.content)
+    ? (message.content.filter((block) =>
+        isBase64ContentBlock(block),
+      ) as unknown as Base64ContentBlock[])
+    : [];
+
+  const actions = (
+    <>
+      <BranchSwitcher
+        branch={meta?.branch}
+        branchOptions={meta?.branchOptions}
+        onSelect={(branch) => thread.setBranch(branch)}
+        isLoading={isLoading}
+      />
+      <CommandBar
+        isLoading={isLoading}
+        content={contentString}
+        isEditing={isEditing}
+        setIsEditing={(c) => {
+          if (c) {
+            setValue(contentString);
+          }
+          setIsEditing(c);
+        }}
+        handleSubmitEdit={handleSubmitEdit}
+        isHumanMessage={true}
+      />
+    </>
+  );
+
   return (
-    <div className="chat-message-table flex flex-col gap-2 w-full">
-      {/* Message content, right-aligned */}
-      <div
-        className={cn(
-          "group ml-auto flex items-center gap-2",
-          isEditing && "w-full max-w-xl",
-        )}
-      >
-        <div className={cn("flex flex-col gap-2", isEditing && "w-full")}>
-          {isEditing ? (
+    <div className="animate-fade-in flex w-full flex-col gap-2">
+      <div className="flex w-full flex-col items-end gap-1">
+        {isEditing ? (
+          <div className="flex w-full max-w-[85%] flex-col items-end gap-1.5">
             <EditableContent
               value={value}
               setValue={setValue}
               onSubmit={handleSubmitEdit}
             />
-          ) : (
-            <div className="flex flex-col gap-2">
-              {/* Render images and files if no text */}
-              {Array.isArray(message.content) && message.content.length > 0 && (
-                <div className="flex flex-wrap items-end justify-end gap-2">
-                  {message.content.reduce<React.ReactNode[]>(
-                    (acc, block, idx) => {
-                      if (isBase64ContentBlock(block)) {
-                        acc.push(
-                          <MultimodalPreview
-                            key={idx}
-                            block={block}
-                            size="md"
-                          />,
-                        );
-                      }
-                      return acc;
-                    },
-                    [],
-                  )}
-                </div>
-              )}
-              {/* Render text if present, otherwise fallback to file/image name */}
-              {contentString ? (
-                <div className="bg-muted ml-auto w-fit rounded-3xl px-4 py-2">
-                  <MarkdownText>{contentString}</MarkdownText>
-                </div>
-              ) : null}
-            </div>
-          )}
-
-          <div
-            className={cn(
-              "ml-auto flex items-center gap-2 transition-opacity",
-              "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
-              isEditing && "opacity-100",
-            )}
-          >
-            <BranchSwitcher
-              branch={meta?.branch}
-              branchOptions={meta?.branchOptions}
-              onSelect={(branch) => thread.setBranch(branch)}
-              isLoading={isLoading}
-            />
-            <CommandBar
-              isLoading={isLoading}
-              content={contentString}
-              isEditing={isEditing}
-              setIsEditing={(c) => {
-                if (c) {
-                  setValue(contentString);
-                }
-                setIsEditing(c);
-              }}
-              handleSubmitEdit={handleSubmitEdit}
-              isHumanMessage={true}
-            />
+            <div className="flex items-center gap-1">{actions}</div>
           </div>
-        </div>
+        ) : (
+          <>
+            {attachments.length > 0 && (
+              <div className="flex max-w-[85%] flex-wrap items-end justify-end gap-2">
+                {attachments.map((block, idx) => (
+                  <MultimodalPreview
+                    key={idx}
+                    block={block}
+                    size="md"
+                  />
+                ))}
+              </div>
+            )}
+            {contentString ? (
+              // Copy / edit / versions float on the bubble's top edge on
+              // hover; touch screens show them under the text once the
+              // bubble is tapped — chat.css.
+              <div
+                tabIndex={-1}
+                className="chat-msg relative max-w-[85%] rounded-nested rounded-tr-xs bg-[#063BAA]/8 p-3.5 text-[13px] leading-relaxed font-medium text-[#063BAA] outline-none"
+              >
+                <MarkdownText variant="chat">{contentString}</MarkdownText>
+                <div className="chat-msg-actions chat-msg-actions--start">
+                  {actions}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 opacity-60 transition-opacity hover:opacity-100">
+                {actions}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {/* Render todos below message, left-aligned */}
-      {todos && todos.length > 0 && !isEditing && (
-        <TodoList todos={todos} />
-      )}
+      {/* The agent's plan for this question, under it, left-aligned. */}
+      {todos && todos.length > 0 && !isEditing && <TodoList todos={todos} />}
     </div>
   );
 }

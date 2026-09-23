@@ -4,51 +4,48 @@ import { BasketBuilderProvider } from "../../providers/BasketBuilderProvider";
 import { StockBasketBuilderProvider } from "../../providers/StockBasketBuilderProvider";
 import { MutualFundBasketBuilderProvider } from "../../providers/MutualFundBasketBuilderProvider";
 import { useBasketBuilderContext } from "../../hooks/useBasketBuilderContext";
-import { InvestmentTypeSelector } from "./InvestmentTypeSelector";
-import { StockBasketFlow } from "./stock/StockBasketFlow";
-import { MutualFundBasketFlow } from "./mutual-fund/MutualFundBasketFlow";
+import { useStockBasketBuilderContext } from "../../hooks/useStockBasketBuilderContext";
+import { useMutualFundBasketBuilderContext } from "../../hooks/useMutualFundBasketBuilderContext";
+import { BasketBuilderWizard } from "./BasketBuilderWizard";
+import { MutualFundBasketResults } from "./mutual-fund/MutualFundBasketResults";
+import { StockBasketResults } from "./stock/StockBasketResults";
+import { FeatureFrame } from "./shared/FeatureFrame";
 
 /**
- * Main orchestrator component for basket builder
- * Routes to correct flow based on investment type selection
+ * The wizard, or the basket it generated — swapped in place, as the reference
+ * builder does once "Create My Basket" succeeds.
  */
 function BasketBuilderContent() {
   const { investmentType } = useBasketBuilderContext();
+  const stock = useStockBasketBuilderContext();
+  const fund = useMutualFundBasketBuilderContext();
 
-  // Step 0: Investment type selection
-  if (!investmentType) {
-    return <InvestmentTypeSelector />;
+  if (investmentType === "stocks" && stock.showResults) {
+    return <StockBasketResults />;
   }
-
-  // Stock flow
-  if (investmentType === "stocks") {
-    return (
-      <StockBasketBuilderProvider>
-        <StockBasketFlow />
-      </StockBasketBuilderProvider>
-    );
+  if (investmentType === "mutualFunds" && fund.showResults) {
+    return <MutualFundBasketResults />;
   }
-
-  // Mutual fund flow
-  if (investmentType === "mutualFunds") {
-    return (
-      <MutualFundBasketBuilderProvider>
-        <MutualFundBasketFlow />
-      </MutualFundBasketBuilderProvider>
-    );
-  }
-
-  return null;
+  return <BasketBuilderWizard />;
 }
 
 /**
- * Custom basket builder page with provider wrapper
- * Entry point for the basket builder feature
+ * Build Your Own Portfolios (`/discover/create-basket`).
+ *
+ * Both flows' providers are mounted for the whole page rather than only once
+ * their flow is chosen, so stepping back to the first question — or across to
+ * the other flow and back — keeps every answer already given.
  */
 export function CustomBasketBuilderPage() {
   return (
     <BasketBuilderProvider>
-      <BasketBuilderContent />
+      <StockBasketBuilderProvider>
+        <MutualFundBasketBuilderProvider>
+          <FeatureFrame>
+            <BasketBuilderContent />
+          </FeatureFrame>
+        </MutualFundBasketBuilderProvider>
+      </StockBasketBuilderProvider>
     </BasketBuilderProvider>
   );
 }

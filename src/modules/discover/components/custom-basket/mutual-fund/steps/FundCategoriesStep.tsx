@@ -1,13 +1,18 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Minus, Plus, X, Loader2 } from "lucide-react";
+"use client";
+
 import { useState } from "react";
-import { useMutualFundBasketBuilderContext } from "../../../../hooks/useMutualFundBasketBuilderContext";
+import { Loader2, Plus, X } from "lucide-react";
+
 import { useGetSebiCategoriesApiMfPortfoliosSebiCategoriesGet } from "@/api/generated/mf-portfolio-apis/mf-portfolio-apis/mf-portfolio-apis";
+import { useMutualFundBasketBuilderContext } from "../../../../hooks/useMutualFundBasketBuilderContext";
+import { StepHeading } from "../../shared/StepHeading";
+import { Stepper } from "../../shared/Stepper";
 
 /**
- * Step 3: Fund category allocation for mutual fund baskets
- * Allows user to adjust category percentages and add/remove categories
+ * Fund flow, category allocation: the chosen SEBI categories with a weight
+ * each, in 5% steps. The provider rebalances the others on every change, so
+ * the total is always 100% — the step never has to ask the reader to fix a
+ * sum.
  */
 export function FundCategoriesStep() {
   const {
@@ -15,184 +20,130 @@ export function FundCategoriesStep() {
     addFundCategory,
     updateFundCategoryPercentage,
     removeFundCategory,
-    nextStep,
   } = useMutualFundBasketBuilderContext();
+  const [adding, setAdding] = useState(false);
 
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-
-  // Fetch SEBI categories from API
-  const { data, isLoading, isError, error } =
+  // The category list is the screener's own, so the builder can only ever
+  // ask for a category the backend can fill.
+  const { data, isLoading, isError } =
     useGetSebiCategoriesApiMfPortfoliosSebiCategoriesGet();
-
-  /**
-   * Get available categories (not yet selected)
-   */
-  const availableCategories = (data?.data.categories || []).filter(
-    (categoryName) =>
-      !basketConfig.fundCategories.find((fc) => fc.name === categoryName)
+  const categories = basketConfig.fundCategories;
+  const available = (data?.data.categories ?? []).filter(
+    (name) => !categories.some((category) => category.name === name),
   );
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-4">
-        <p className="text-sm text-text-secondary">
-          Select categories and allocate weightage
-        </p>
-      </div>
+    <>
+      <StepHeading
+        title="Category Allocation"
+        status={
+          categories.length > 0
+            ? `100% across ${categories.length} ${categories.length === 1 ? "category" : "categories"}`
+            : undefined
+        }
+        hint="Adjust each category in 5% steps — the others rebalance so the basket always adds up to 100%."
+      />
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-accent-blue" />
-          <span className="ml-2 text-sm text-text-secondary">
-            Loading categories...
-          </span>
-        </div>
-      )}
-
-      {/* Error State */}
-      {isError && (
-        <div className="bg-error-bg border border-error-border rounded-lg p-4">
-          <p className="text-sm text-error-fg">
-            Failed to load categories. {typeof error === "string" ? error : "Please try again."}
-          </p>
-        </div>
-      )}
-
-      {/* Add Category Dropdown */}
-      {!isLoading && !isError && availableCategories.length > 0 && (
-        <div className="space-y-2 relative">
-          <label className="text-sm font-medium text-text-primary">
-            Add Category
-          </label>
-          <button
-            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-            className="w-full h-12 px-4 text-base border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue focus:border-transparent bg-bg-base text-left flex items-center justify-between"
-          >
-            <span className="text-text-secondary">
-              Select a category to add...
-            </span>
-            <Plus className="w-4 h-4 text-text-secondary" />
-          </button>
-
-          {showCategoryDropdown && (
-            <>
-              {/* Backdrop to close dropdown */}
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowCategoryDropdown(false)}
-              ></div>
-
-              {/* Dropdown options */}
-              <div className="absolute z-20 w-full mt-1 bg-background border border-border-default rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {availableCategories.map((categoryName) => (
-                  <button
-                    key={categoryName}
-                    onClick={() => {
-                      addFundCategory(categoryName);
-                      setShowCategoryDropdown(false);
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-bg-hover transition-colors border-b border-border-subtle last:border-b-0"
-                  >
-                    <span className="text-sm text-text-primary">
-                      {categoryName}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Selected Categories */}
-      {!isLoading && basketConfig.fundCategories.length > 0 && (
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-text-primary">
-            Selected Categories
-          </label>
-          {basketConfig.fundCategories.map((category) => (
-            <Card
+      {categories.length > 0 && (
+        <div className="glass-card rounded-nested mt-3 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
+          {categories.map((category) => (
+            <div
               key={category.name}
-              className="p-4 border-border-default bg-bg-base"
+              className="flex items-center gap-3 px-4.5 py-3.5"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h4 className="font-medium text-text-primary">
-                    {category.name}
-                  </h4>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* Percentage Adjuster */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        updateFundCategoryPercentage(category.name, -5)
-                      }
-                      className="w-8 h-8 rounded-full bg-bg-base border border-border-default flex items-center justify-center hover:bg-bg-hover transition-colors"
-                    >
-                      <Minus className="w-4 h-4 text-text-primary" />
-                    </button>
-                    <span className="text-sm font-semibold text-text-primary w-12 text-center">
-                      {category.percentage}%
-                    </span>
-                    <button
-                      onClick={() =>
-                        updateFundCategoryPercentage(category.name, 5)
-                      }
-                      className="w-8 h-8 rounded-full bg-bg-base border border-border-default flex items-center justify-center hover:bg-bg-hover transition-colors"
-                    >
-                      <Plus className="w-4 h-4 text-text-primary" />
-                    </button>
-                  </div>
-
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => removeFundCategory(category.name)}
-                    className="w-8 h-8 rounded-full bg-error-bg border border-error-border flex items-center justify-center hover:bg-error-fg hover:border-error-fg transition-colors"
-                  >
-                    <X className="w-4 h-4 text-error-fg hover:text-white" />
-                  </button>
-                </div>
-              </div>
-            </Card>
+              <p className="font-geist min-w-0 flex-1 truncate text-[13px] font-medium text-[#0A1F4D] dark:text-white">
+                {category.name}
+              </p>
+              <Stepper
+                value={`${category.percentage}%`}
+                label={`${category.name} weight`}
+                onDecrement={() =>
+                  updateFundCategoryPercentage(category.name, -5)
+                }
+                onIncrement={() =>
+                  updateFundCategoryPercentage(category.name, 5)
+                }
+                // A lone category holds the whole basket, so there is
+                // nothing to move its weight to.
+                canDecrement={categories.length > 1 && category.percentage > 5}
+                canIncrement={categories.length > 1 && category.percentage < 95}
+              />
+              <button
+                type="button"
+                onClick={() => removeFundCategory(category.name)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                aria-label={`Remove ${category.name}`}
+              >
+                <X size={14} />
+              </button>
+            </div>
           ))}
         </div>
       )}
 
-      {/* Empty State */}
-      {!isLoading && basketConfig.fundCategories.length === 0 && (
-        <div className="bg-warning-bg border border-warning-border rounded-lg p-4">
-          <p className="text-sm text-warning-fg">
-            Please add at least one fund category to continue
-          </p>
-        </div>
+      {categories.length === 0 && !isLoading && (
+        <p className="mt-3 text-[11px] text-amber-600">
+          Add at least one fund category to continue.
+        </p>
       )}
 
-      {/* Success Indicator */}
-      {!isLoading && basketConfig.fundCategories.length > 0 && (
-        <div className="bg-info-bg border border-info-border rounded-lg p-3">
-          <p className="text-xs text-info-foreground font-medium text-center">
-            ✓ 100% weightage allocated across{" "}
-            {basketConfig.fundCategories.length}{" "}
-            {basketConfig.fundCategories.length === 1
-              ? "category"
-              : "categories"}
+      <div className="relative mt-3">
+        {isLoading ? (
+          <p className="flex items-center gap-2 px-1 text-[11px] text-slate-400">
+            <Loader2
+              size={13}
+              className="animate-spin"
+            />
+            Loading categories…
           </p>
-        </div>
-      )}
-
-      {/* Continue Button */}
-      {!isLoading && basketConfig.fundCategories.length > 0 && (
-        <div className="pt-4">
-          <Button
-            onClick={nextStep}
-            className="w-full h-12 bg-accent-blue hover:bg-[#2563eb] text-white"
-          >
-            Continue
-          </Button>
-        </div>
-      )}
-    </div>
+        ) : isError ? (
+          <p className="px-1 text-[11px] text-rose-500">
+            The fund categories could not be loaded. Please try again.
+          </p>
+        ) : (
+          available.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setAdding((open) => !open)}
+                aria-expanded={adding}
+                className="glass-tile flex w-full items-center justify-between rounded-full px-4 py-3 text-sm text-[#0A1F4D]/60"
+              >
+                Add a category
+                <Plus
+                  size={15}
+                  className="text-[#063BAA]"
+                />
+              </button>
+              {adding && (
+                <>
+                  {/* Closes the list on an outside click. */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setAdding(false)}
+                  />
+                  <ul className="glass-card rounded-nested absolute top-full right-0 left-0 z-20 mt-2 max-h-60 divide-y divide-slate-100 overflow-y-auto shadow-[0_18px_40px_-18px_rgba(10,31,77,0.35)] dark:divide-slate-800/60">
+                    {available.map((name) => (
+                      <li key={name}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addFundCategory(name);
+                            setAdding(false);
+                          }}
+                          className="w-full px-4 py-3 text-left text-[12px] text-[#0A1F4D] transition-colors hover:bg-[#063BAA]/[0.04] dark:text-white"
+                        >
+                          {name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )
+        )}
+      </div>
+    </>
   );
 }

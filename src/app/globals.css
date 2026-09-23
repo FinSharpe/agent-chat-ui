@@ -3,6 +3,15 @@
    ========================================================================== */
 
 @import "tailwindcss";
+@import "material-symbols/rounded.css";
+@import "./design-system.css";
+@import "./styles/chat.css";
+@import "./styles/home.css";
+@import "./styles/discover.css";
+@import "./styles/import.css";
+@import "./styles/memory.css";
+@import "./styles/auth.css";
+@import "./styles/account.css";
 @source not "../../docs";
 
 @plugin "tailwindcss-animate";
@@ -25,11 +34,11 @@
 
   /* Core palette */
   --background: #ffffff;
-  --foreground: #262626;
+  --foreground: #0a1f4d;
   --card: #ffffff;
-  --card-foreground: #262626;
+  --card-foreground: #0a1f4d;
   --popover: #ffffff;
-  --popover-foreground: #262626;
+  --popover-foreground: #0a1f4d;
   --primary: #2563eb;
   --primary-foreground: #ffffff;
   --secondary: #f0fdfa;
@@ -54,7 +63,7 @@
   --text-primary: #111827;
   --text-secondary: #4b5563;
   --text-tertiary: #6b7280;
-  --text-muted: #9ca3af;
+  --text-muted: #64748b;
 
   /* Surfaces */
   --bg-subtle: #f9fafb;
@@ -136,12 +145,12 @@
    ========================================================================== */
 
 .dark {
-  --background: #262626;
-  --foreground: #fafafa;
-  --card: #262626;
-  --card-foreground: #fafafa;
-  --popover: #262626;
-  --popover-foreground: #fafafa;
+  --background: #050b14;
+  --foreground: #f8fafc;
+  --card: #0c1524;
+  --card-foreground: #f8fafc;
+  --popover: #0c1524;
+  --popover-foreground: #f8fafc;
   --primary: #3b82f6;
   --primary-foreground: #ffffff;
   --secondary: #1a3a3a;
@@ -174,7 +183,7 @@
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
   --text-tertiary: #9ca3af;
-  --text-muted: #6b7280;
+  --text-muted: #94a3b8;
 
   --bg-subtle: #1f2937;
   --bg-hover: #374151;
@@ -335,49 +344,49 @@
     @apply bg-background text-foreground;
   }
 
-  h1 {
+  h1:not([data-app-mode] *) {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }
 
-  h2 {
+  h2:not([data-app-mode] *) {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }
 
-  h3 {
+  h3:not([data-app-mode] *) {
     font-size: var(--text-lg);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }
 
-  h4 {
+  h4:not([data-app-mode] *) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }
 
-  p {
+  p:not([data-app-mode] *) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
 
-  label {
+  label:not([data-app-mode] *) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }
 
-  button {
+  button:not([data-app-mode] *) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
     line-height: 1.5;
   }
 
-  input {
+  input:not([data-app-mode] *) {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
@@ -386,6 +395,13 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* The app shell and auth screens are drawn on a 16px root, like the reference
+   design. PDF templates, shared reports and other standalone pages keep the
+   legacy 14px root so their rem-based layouts don't move. */
+html:has([data-app-mode]) {
+  font-size: 16px;
 }
 
 /* ==========================================================================

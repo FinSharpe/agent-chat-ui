@@ -12,11 +12,10 @@
  */
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { revokeConsent } from "@/lib/moneyone/moneyone.actions";
-import { ConsentData, deleteConsent } from "@/lib/moneyone/moneyone.storage";
-import { FiDataErrorKind } from "@/lib/moneyone/moneyone.utils";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { AaErrorKind } from "../../api/aa-client";
+import { useRevokeConsent } from "../../hooks/useAaMutations";
+import type { ConsentRecord } from "../../types/aa";
 import {
   AlertTriangle,
   CircleSlash,
@@ -25,22 +24,30 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { FI_DATA_QUERY_KEY, useRefreshFiData } from "../../hooks/useFiData";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { EmptyState, PreviewFooter } from "./ui";
+import { useRefreshFiData } from "../../hooks/useFiData";
 
 type FiDataErrorStateProps = {
   /** Human-readable asset label, e.g. "equity holdings". */
   assetLabel: string;
   /** Why the fetch failed (drives the offered action). */
-  errorKind: FiDataErrorKind | null;
-  /** Raw error message from MoneyOne (shown for transient errors). */
+  errorKind: AaErrorKind | null;
+  /** The backend's reason (shown for transient errors). */
   message?: string;
   /** The consent this modal is for (needed for refresh/delete actions). */
-  consent?: ConsentData | null;
+  consent?: ConsentRecord | null;
   /** Close the modal. */
   onClose: () => void;
 };
+
+/** Icon-tile colours per failure, in the Import page's tone language. */
+const TILE = {
+  negative: "bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-400",
+  info: "bg-[#063BAA]/8 text-[#063BAA] dark:text-[#8FB4FF]",
+  warning: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+} as const;
+
+const PILL =
+  "inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2.5 text-[11px] font-medium transition-all active:scale-98 disabled:pointer-events-none disabled:opacity-50";
 
 export function FiDataErrorState({
   assetLabel,
@@ -49,28 +56,12 @@ export function FiDataErrorState({
   consent,
   onClose,
 }: FiDataErrorStateProps) {
-  const queryClient = useQueryClient();
   const { mutate: refresh, isPending: isRefreshing } = useRefreshFiData();
   const consentID = consent?.consentID;
 
-  // Revoke on MoneyOne first; on failure (and not already gone) still remove
-  // locally but warn it may still be live on MoneyOne's side. On success the
-  // modal closes (onClose) so the card falls back to Connect for re-consent.
-  const { mutateAsync: deleteConnection, isPending: isDeleting } = useMutation({
-    mutationFn: (id: string) => revokeConsent(id),
-    onSuccess: (result, id) => {
-      if ("error" in result && !result.alreadyGone) {
-        toast.warning(
-          `Removed here, but couldn't be revoked on MoneyOne: ${result.error}`,
-        );
-      } else {
-        toast.success("Connection removed");
-      }
-      deleteConsent(id);
-      queryClient.removeQueries({ queryKey: [FI_DATA_QUERY_KEY, id] });
-      onClose();
-    },
-  });
+  // The backend withdraws the consent at the Account Aggregator and drops the
+  // row. On success the modal closes so the account row falls back to Connect.
+  const { mutateAsync: revoke, isPending: isDeleting } = useRevokeConsent();
 
   const handleRefresh = () => {
     if (!consentID) {
@@ -89,13 +80,15 @@ export function FiDataErrorState({
   };
 
   const handleDelete = async () => {
-    if (consentID) await deleteConnection(consentID);
+    if (!consent) return;
+    await revoke(consent);
+    onClose();
   };
 
   const isConsentDead = errorKind === "consent-dead";
   const isDataMissing = errorKind === "data-missing";
 
-  const { icon, intent, title, description } = isConsentDead
+  const { icon: Icon, intent, title, description } = isConsentDead
     ? {
         icon: CircleSlash,
         intent: "negative" as const,
@@ -119,23 +112,35 @@ export function FiDataErrorState({
         };
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <EmptyState
-        icon={icon}
-        intent={intent}
-        title={title}
-        description={description}
-        className="flex-1"
-      />
+    <div className="font-funnel flex flex-1 flex-col overflow-hidden">
+      <div
+        role="alert"
+        className="flex flex-1 flex-col items-center justify-center gap-3.5 px-6 py-10 text-center"
+      >
+        <div
+          className={`rounded-nested flex h-12 w-12 items-center justify-center ${TILE[intent]}`}
+        >
+          <Icon size={22} />
+        </div>
+        <div className="max-w-[360px] space-y-1">
+          <p className="text-forest-deep font-geist text-[13px] font-medium dark:text-white">
+            {title}
+          </p>
+          <p className="text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+            {description}
+          </p>
+        </div>
+      </div>
 
-      <PreviewFooter>
-        <Button
-          variant="outline"
+      <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-50 px-5 py-4 dark:border-slate-800/40">
+        <button
+          type="button"
           onClick={onClose}
           disabled={isRefreshing || isDeleting}
+          className={`${PILL} hover-tint text-forest-deep border border-slate-100 dark:border-slate-800 dark:text-white`}
         >
           Close
-        </Button>
+        </button>
 
         {isConsentDead ? (
           <ConfirmDialog
@@ -146,44 +151,53 @@ export function FiDataErrorState({
             onConfirm={handleDelete}
           >
             {(_, setOpen) => (
-              <Button
-                variant="destructive"
+              <button
+                type="button"
                 onClick={() => setOpen(true)}
                 disabled={isRefreshing || isDeleting}
+                className={`${PILL} bg-rose-500 text-white hover:brightness-110`}
               >
                 {isDeleting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2
+                      size={13}
+                      className="animate-spin motion-reduce:animate-none"
+                    />
                     Removing…
                   </>
                 ) : (
                   <>
-                    <Trash2 className="mr-2 h-4 w-4" />
+                    <Trash2 size={13} />
                     Remove connection
                   </>
                 )}
-              </Button>
+              </button>
             )}
           </ConfirmDialog>
         ) : (
-          <Button
+          <button
+            type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
+            className={`${PILL} bg-brand-gradient text-white hover:brightness-110`}
           >
             {isRefreshing ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2
+                  size={13}
+                  className="animate-spin motion-reduce:animate-none"
+                />
                 Fetching…
               </>
             ) : (
               <>
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw size={13} />
                 {isDataMissing ? "Fetch latest data" : "Try again"}
               </>
             )}
-          </Button>
+          </button>
         )}
-      </PreviewFooter>
+      </div>
     </div>
   );
 }

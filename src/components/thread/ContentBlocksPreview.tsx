@@ -10,10 +10,7 @@ interface ContentBlocksPreviewProps {
   className?: string;
 }
 
-/**
- * Renders a preview of content blocks with optional remove functionality.
- * Uses cn utility for robust class merging.
- */
+/** The files waiting to go with the next message, each removable. */
 export const ContentBlocksPreview: React.FC<ContentBlocksPreviewProps> = ({
   blocks,
   onRemove,

@@ -1,296 +1,78 @@
 "use client";
-import { getAllFiData, requestFiData } from "@/lib/moneyone/moneyone.actions";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AaError, refreshConsent } from "../api/aa-client";
+import { useAaTroubleStore } from "../store/useAaTroubleStore";
+import type { FiDataResponse } from "@/modules/import-data/types/moneyone-raw";
 import {
-  completePendingConsent,
-  updateConsent,
-} from "@/lib/moneyone/moneyone.storage";
-import {
-  classifyFiDataError,
-  isConsentInvalidError,
-} from "@/lib/moneyone/moneyone.utils";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-
-// Shared constants for FI data queries
-export const FI_DATA_QUERY_KEY = "fi-data";
-
-/** Error thrown by FI-data queries, carrying the MoneyOne error code. */
-export type FiDataError = Error & { errorCode?: string };
-// Cache settings (gcTime: 7 days, staleTime: Infinity) are configured in QueryProvider via setQueryDefaults
+  POLL,
+  aaFiDataKey,
+  fetchWithRetry,
+  useFiDataQuery,
+} from "./useAaPortfolio";
 
 /**
- * Hook for completing consent flow and fetching FI data
- * Handles the full consent completion workflow including:
- * - Completing pending consent with real consentID
- * - Fetching FI data from MoneyOne API
- * - Marking consent as ready
- * - Cleaning up URL parameters
- * - Managing modal state for fetch status display
+ * The analysis modals' view of one consent's FI data.
  *
- * @returns Object with fetchStatus, modal state (modalOpen, handleClose, handleOpen), and query data
+ * Since T-11 this goes through the backend's `/api/aa/consents/{id}/fi-data`
+ * rather than MoneyOne directly. The backend normalizes every figure the page
+ * itself needs (values, counts, balances) — see `useAaPortfolio` — but it also
+ * returns MoneyOne's per-account payloads under `?includeRaw=true`, and the
+ * preview modals keep reading those because they show column-level detail the
+ * normalized shapes don't carry (UCC, registrar, FATCA status, MICR, holder
+ * profile). That raw block now arrives from our own backend, under the session
+ * JWT; nothing in this app talks to MoneyOne any more.
  */
-export function useFiDataConsentFlow() {
-  const searchParams = useSearchParams();
-  const [modalOpen, setModalOpen] = useState(false);
-  const consentCompletedRef = useRef<string | null>(null);
+export type FiDataError = AaError;
 
-  const consentID = searchParams.get("consentID");
-  const consentType = searchParams.get("consentType");
+/** Kept for call sites that only need the shape of a failure. */
+export type FiDataErrorKind = AaError["kind"];
 
-  const isEnabled =
-    !!consentID &&
-    !!consentType &&
-    Object.values(ConsentType).includes(consentType as ConsentType);
-
-  // Complete pending consent once before the query runs (not inside queryFn)
-  useEffect(() => {
-    if (
-      isEnabled &&
-      consentID &&
-      consentType &&
-      consentCompletedRef.current !== consentID
-    ) {
-      consentCompletedRef.current = consentID;
-      const mobileNo = searchParams.get("mobileNo");
-      const consentCreationData = searchParams.get("consentCreationData");
-      completePendingConsent(
-        consentID,
-        consentType as ConsentType,
-        mobileNo,
-        consentCreationData,
-      );
-    }
-  }, [isEnabled, consentID, consentType, searchParams]);
-
-  const query = useQuery({
-    queryKey: consentID ? [FI_DATA_QUERY_KEY, consentID] : ["fi-data-disabled"],
-    // Pure fetch only — no setState/URL/timer side effects here, so React Query
-    // retries can't fire them more than once. Post-success work happens in the
-    // effect below.
-    queryFn: async () => {
-      if (!consentID || !consentType) {
-        throw new Error("Invalid consent ID or consent type");
-      }
-
-      const data = await getAllFiData(consentID, 3000);
-
-      if ("error" in data) {
-        const err = new Error(data.error) as FiDataError;
-        err.errorCode = data.errorCode;
-        throw err;
-      }
-
-      return data;
-    },
-    enabled: isEnabled,
-    // Poll while the AA finishes preparing data ("data not ready yet" keeps
-    // failing), but cancel the poll on a dead/invalid consent (it'll never
-    // resolve) and cap it at ~120s so it can't retry forever.
-    retry: (failureCount, error) => {
-      const e = error as FiDataError;
-      if (classifyFiDataError(e.errorCode, e.message) === "consent-dead") {
-        return false;
-      }
-      return failureCount < 40;
-    },
-    retryDelay: 3000,
-    // gcTime (7 days), staleTime (Infinity), and refetchOnWindowFocus inherited from QueryProvider setQueryDefaults
-  });
-
-  const successHandledRef = useRef<string | null>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Open the fetching modal once a consent return is detected. It closes after
-  // success (below) or when the user dismisses it — we never force it shut here,
-  // so stripping the URL params later (which flips `isEnabled` false) can't
-  // re-trigger and reopen it.
-  useEffect(() => {
-    if (isEnabled) setModalOpen(true);
-  }, [isEnabled]);
-
-  // Run the post-success side effects exactly once per consent: mark it ready,
-  // strip the AA return params from the URL, then auto-close the modal.
-  //
-  // The close timer is held in a ref (NOT returned as effect cleanup) on
-  // purpose: stripping the params via history.pushState makes useSearchParams
-  // re-render with consentID=null, which would otherwise trip this effect's
-  // cleanup and cancel the timer before it fires — leaving the modal stuck open.
-  // It's cleared only on unmount.
-  useEffect(() => {
-    if (!query.isSuccess || !consentID) return;
-    if (successHandledRef.current === consentID) return;
-    successHandledRef.current = consentID;
-
-    updateConsent(consentID, { isDataReady: true, isExpired: false });
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("consentID");
-    url.searchParams.delete("consentType");
-    url.searchParams.delete("mobileNo");
-    url.searchParams.delete("consentCreationData");
-    history.pushState(null, "", url.toString());
-
-    closeTimerRef.current = setTimeout(() => setModalOpen(false), 1500);
-  }, [query.isSuccess, consentID]);
-
-  // Cancel a pending close timer only when the hook unmounts.
-  useEffect(
-    () => () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    },
-    [],
-  );
-
-  // Derive fetch status from query state
-  const fetchStatus: "fetching" | "success" | "error" = query.isError
-    ? "error"
-    : query.isLoading || !query.data
-      ? "fetching"
-      : "success";
-
-  return {
-    ...query,
-    fetchStatus,
-    modalOpen,
-    handleClose: () => setModalOpen(false),
-    handleOpen: () => setModalOpen(true),
-  };
-}
-
-/**
- * Hook for accessing FI data from cache or API
- * Simple data fetching hook that shares cache with useFiDataConsentFlow.
- * Use this when you just need to access FI data without consent flow logic.
- *
- * @param consentID - The consent ID to fetch FI data for
- * @param enabled - Whether the query should run
- * @returns Query result with FI data
- */
 export function useFiData(
   consentID: string | null | undefined,
   enabled: boolean = true,
 ) {
-  const query = useQuery({
-    queryKey: consentID ? [FI_DATA_QUERY_KEY, consentID] : ["fi-data-disabled"],
-    queryFn: async () => {
-      if (!consentID) {
-        throw new Error("Invalid consent ID");
-      }
+  const query = useFiDataQuery(enabled ? consentID : null);
+  const error = (query.error as AaError | null) ?? null;
+  const errorKind = query.isError ? (error?.kind ?? "transient") : null;
 
-      const data = await getAllFiData(consentID);
-
-      if ("error" in data) {
-        const err = new Error(data.error) as FiDataError;
-        err.errorCode = data.errorCode;
-        throw err;
-      }
-
-      return data;
-    },
-    enabled: enabled && !!consentID,
-    // gcTime and staleTime inherited from QueryProvider defaults for ['fi-data'] queries
-  });
-
-  // Classify any failure: dead consent vs. missing-data (re-fetchable) vs.
-  // transient. Only a dead consent flips the card into the "Expired" state.
-  const error = query.error as FiDataError | null;
-  const errorKind = query.isError
-    ? classifyFiDataError(error?.errorCode, error?.message)
-    : null;
-  const isConsentError = errorKind === "consent-dead";
-
-  // When the consent is dead, flip it to an "expired" state so the card can
-  // offer Refresh/Delete instead of leaving a broken "Connected" card and a
-  // silent empty preview modal. Missing-data does NOT expire the consent —
-  // it's recoverable with a fresh fetch.
-  useEffect(() => {
-    if (isConsentError && consentID) {
-      updateConsent(consentID, { isDataReady: false, isExpired: true });
-    }
-  }, [isConsentError, consentID]);
-
-  return { ...query, errorKind, isConsentError };
+  return {
+    ...query,
+    /** MoneyOne's per-account payloads, as the transformers have always seen them. */
+    data: (query.data?.raw as FiDataResponse | undefined) ?? undefined,
+    /** The server-normalized block, for anything that doesn't need raw detail. */
+    normalized: query.data?.normalized,
+    fetchedAt: query.data?.fetchedAt,
+    errorKind,
+    isConsentError: errorKind === "consent-dead",
+  };
 }
 
 /**
- * Hook for refreshing FI data for an existing consent
- * Handles the full refresh workflow including:
- * - Triggering FI data request via requestFiData API
- * - Polling getAllFiData until new data is available
- * - Updating React Query cache with fresh data
- * - All components using useFiData will automatically update
+ * Trigger a fresh AA pull for one consent, then poll until the data lands.
  *
- * @returns Mutation object with refresh functionality
+ * A transient failure on the trigger deliberately falls through to the poll —
+ * MoneyOne's pipeline often runs anyway. Only a dead consent aborts.
  */
 export function useRefreshFiData() {
   const queryClient = useQueryClient();
+  const markDead = useAaTroubleStore((s) => s.markDead);
+  const clearTrouble = useAaTroubleStore((s) => s.clearTrouble);
 
   return useMutation({
     mutationFn: async (consentID: string) => {
-      // Step 1: Trigger FI data request (non-async, just initiates fetch)
-      const requestResult = await requestFiData(consentID);
-
-      if ("error" in requestResult) {
-        // A dead consent (expired/revoked) can't be refreshed — flag it so the
-        // card surfaces Delete + re-consent rather than retrying in vain.
-        if (isConsentInvalidError(requestResult.errorCode, requestResult.error)) {
-          updateConsent(consentID, { isDataReady: false, isExpired: true });
-        }
-        throw new Error(requestResult.error);
+      try {
+        await refreshConsent(consentID);
+      } catch (error) {
+        if ((error as AaError)?.kind === "consent-dead") throw error;
       }
-
-      // Clear the cache for this consent to ensure fresh data is fetched
-      // This is critical because we have staleTime: Infinity (7-day cache)
-      // Without clearing, even if new data is available, we'd serve stale cache
-      queryClient.removeQueries({
-        queryKey: [FI_DATA_QUERY_KEY, consentID],
-      });
-
-      // Step 2: Poll for new data with retries
-      // Similar to useFiDataConsentFlow behavior
-      const pollData = async (retryCount = 0): Promise<any> => {
-        const maxRetries = 20; // ~60 seconds total with 3s delays
-
-        if (retryCount >= maxRetries) {
-          throw new Error(
-            "Request timeout. The refresh is taking longer than expected. Please try again later.",
-          );
-        }
-
-        // Wait before fetching (3 seconds like the consent flow)
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-
-        const data = await getAllFiData(consentID);
-
-        if ("error" in data) {
-          // Stop polling immediately if the consent itself is dead — retrying
-          // won't help. Flag it for the Expired card state.
-          if (isConsentInvalidError(data.errorCode, data.error)) {
-            updateConsent(consentID, { isDataReady: false, isExpired: true });
-            throw new Error(data.error);
-          }
-          // Otherwise it's just "data not ready yet" — keep polling.
-          return pollData(retryCount + 1);
-        }
-
-        return data;
-      };
-
-      return pollData();
+      return fetchWithRetry(consentID, POLL.manual);
     },
-    onSuccess: (data, consentID) => {
-      // Update cache with new data - this automatically updates all components
-      // using useFiData(consentID) across the app
-      queryClient.setQueryData([FI_DATA_QUERY_KEY, consentID], data);
-
-      // Update consent with fresh timestamp and ready state (clear expiry flag)
-      updateConsent(consentID, {
-        isDataReady: true,
-        isExpired: false,
-        consentCreationData: new Date().toISOString(),
-      });
+    onSuccess: (blob, consentID) => {
+      clearTrouble(consentID);
+      queryClient.setQueryData(aaFiDataKey(consentID), blob);
+    },
+    onError: (error, consentID) => {
+      if ((error as AaError)?.kind === "consent-dead") markDead(consentID);
     },
   });
 }

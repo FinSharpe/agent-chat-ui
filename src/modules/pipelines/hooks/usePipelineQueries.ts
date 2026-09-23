@@ -8,7 +8,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   deletePurchase,
@@ -24,6 +24,19 @@ import {
 } from "../api/pipelines-client";
 import { searchStocks } from "../api/stock-search";
 import { isRunTerminal } from "../types/pipelines.types";
+import { isAnswered } from "../utils/errors";
+
+/**
+ * Retry only what could plausibly come good on its own: a network error or a
+ * 5xx. A 4xx is the server answering — 402 short balance, 404 unknown stock,
+ * 409 not published — and replaying it only delays the state the screen has to
+ * show. Mirrors the app-wide default in `QueryProvider`, spelled out here
+ * because these queries opt out of it for their own reasons.
+ */
+function retryTransient(failureCount: number, error: unknown): boolean {
+  if (isAnswered(error)) return false;
+  return failureCount < 2;
+}
 
 export const pipelineKeys = {
   all: ["pipelines"] as const,
@@ -71,6 +84,8 @@ export function useStockSearch(query: string) {
     results: search.data ?? [],
     isSearching: search.isFetching,
     error: search.error,
+    /** Retries the same term — the picker's "Try again" after a failed search. */
+    retry: search.refetch,
     /** True while the user has typed but the debounce has not fired yet. */
     isPending: query.trim() !== debouncedQuery,
   };
@@ -103,8 +118,16 @@ export function usePipelineQuote(
     // one to the screen that takes the money.
     staleTime: 0,
     gcTime: 0,
-    retry: false,
+    // The quote is a POST that only reads, so replaying it is safe. A refusal
+    // (402, 404) is never replayed.
+    retry: retryTransient,
   });
+}
+
+interface PurchaseVars {
+  pipelineId: string;
+  symbol: string | null;
+  threadId?: string | null;
 }
 
 export function usePurchasePipeline() {
@@ -115,30 +138,34 @@ export function usePurchasePipeline() {
   const inFlight = useRef(false);
 
   const mutation = useMutation({
-    mutationFn: async (vars: {
-      pipelineId: string;
-      symbol: string | null;
-      threadId?: string | null;
-    }) => {
-      if (inFlight.current) throw new Error("Purchase already in progress");
-      inFlight.current = true;
-      try {
-        return await purchasePipeline(
-          vars.pipelineId,
-          vars.symbol,
-          vars.threadId,
-        );
-      } finally {
-        inFlight.current = false;
-      }
-    },
+    mutationFn: (vars: PurchaseVars) =>
+      purchasePipeline(vars.pipelineId, vars.symbol, vars.threadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pipelineKeys.purchases() });
     },
   });
 
+  // Guarded outside the mutation: a refused second call must not become the
+  // mutation's latest state, which would read as a failed purchase and
+  // re-enable the button while the first one is still being charged.
+  const { mutateAsync } = mutation;
+  const purchaseOnce = useCallback(
+    async (vars: PurchaseVars) => {
+      if (inFlight.current) return null;
+      inFlight.current = true;
+      try {
+        return await mutateAsync(vars);
+      } finally {
+        inFlight.current = false;
+      }
+    },
+    [mutateAsync],
+  );
+
   return {
     ...mutation,
+    /** Resolves to null, without a request, while a purchase is in flight. */
+    purchaseOnce,
     /** True from the click until the receipt lands — the button's disabled state. */
     isPurchasing: mutation.isPending,
   };
@@ -181,6 +208,10 @@ export function usePipelineRun(runId: string | null) {
     // Leaving the tab does not cancel the run; keep watching so the completion
     // notification can fire while the user is elsewhere.
     refetchIntervalInBackground: true,
+    // No retry here on purpose: the poll *is* the retry. A failed poll leaves
+    // the last known status in `data` alongside the error, which is how the
+    // run screen can say "we lost contact" while still showing where the run
+    // had got to — and the next tick reconnects on its own.
     retry: false,
   });
 }
@@ -196,7 +227,7 @@ export function usePipelineReport(runId: string | null) {
     enabled: !!runId,
     // The document is frozen (ADR-0010): fetched once, never refetched.
     staleTime: Infinity,
-    retry: false,
+    retry: retryTransient,
   });
 }
 
@@ -206,7 +237,11 @@ export function useSharedReport(token: string | null) {
     queryFn: ({ signal }) => fetchSharedReport(token as string, signal),
     enabled: !!token,
     staleTime: Infinity,
-    retry: false,
+    // This reader has no account, no shell banner and no second way in, so a
+    // blip on the one request they make is worth riding out before the page
+    // tells them anything went wrong. A revoked token (404) still answers at
+    // once.
+    retry: retryTransient,
   });
 }
 

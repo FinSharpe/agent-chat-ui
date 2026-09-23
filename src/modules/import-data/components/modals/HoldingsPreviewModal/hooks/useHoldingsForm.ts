@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   StockSearchResponse,
   MutualFundSearchResponse,

@@ -1,6 +1,7 @@
 /**
- * Presentation rules shared across the pipelines surfaces: badge tones,
- * Stance tone, vintage stamp copy, and run/step status wording.
+ * Presentation rules shared across the pipelines surfaces: vintage stamp
+ * copy, and run/step status wording. (Badge and Stance tones are chip tones
+ * now, chosen where each chip is drawn.)
  *
  * The copy here is the web half of decisions settled in the `finsharpe-mobile`
  * Phase 5/6 previews — `report_presentation.dart` is the other half. Where a
@@ -9,71 +10,6 @@
  */
 
 import { formatWireDate } from "./metric-dictionary";
-
-/* -------------------------------------------------------------------------- */
-/* Section Badges                                                             */
-/* -------------------------------------------------------------------------- */
-
-export interface Tone {
-  /** Tailwind classes for a chip: background, ink, border. */
-  chip: string;
-  /** Ink only — for a dot, an icon, a headline. */
-  ink: string;
-  /** Solid fill — for the dot on the Stance header, which sits on navy. */
-  dot: string;
-}
-
-const NEUTRAL_TONE: Tone = {
-  chip: "bg-muted text-text-secondary border-border-default",
-  ink: "text-text-secondary",
-  dot: "bg-text-muted",
-};
-
-const TONES: Record<string, Tone> = {
-  positive: {
-    chip: "bg-success-bg text-success-fg border-success-border",
-    ink: "text-success-fg",
-    dot: "bg-success-fg",
-  },
-  caution: {
-    chip: "bg-warning-bg text-warning-fg border-warning-border",
-    ink: "text-warning-fg",
-    dot: "bg-warning-fg",
-  },
-  neutral: NEUTRAL_TONE,
-};
-
-/** Badge value → chip tone. Unknown values read neutral, never crash. */
-export function badgeTone(value: string | undefined): Tone {
-  return (value && TONES[value]) || NEUTRAL_TONE;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Stance                                                                     */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The Stance is a verdict, not a recommendation — it never becomes a green
- * "buy" or a red "sell". Constructive gets the brand teal, cautious the
- * warning amber, balanced stays neutral.
- */
-const STANCE_TONES: Record<string, Tone> = {
-  constructive: {
-    chip: "bg-success-bg text-success-fg border-success-border",
-    ink: "text-success-fg",
-    dot: "bg-brand-teal",
-  },
-  cautious: {
-    chip: "bg-warning-bg text-warning-fg border-warning-border",
-    ink: "text-warning-fg",
-    dot: "bg-warning-fg",
-  },
-  balanced: NEUTRAL_TONE,
-};
-
-export function stanceTone(value: string | undefined): Tone {
-  return (value && STANCE_TONES[value]) || NEUTRAL_TONE;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Vintage                                                                    */
@@ -213,7 +149,17 @@ export const STEP_ABSENCE_LINE: Record<string, string> = {
   coverage_gap:
     "Declared out of coverage before you paid — this section was never run.",
   not_wired: "This section has not been built yet, so it did not run.",
+  failed:
+    "This section's data could not be fetched — nothing was estimated in its place.",
 };
+
+/**
+ * What a Pipeline is, in the two words its workflow card leads with — read
+ * off the declared target, never off the Pipeline's name.
+ */
+export function pipelineKindLabel(targetKind: string | undefined): string {
+  return targetKind === "market" ? "Market Research" : "Stock Research";
+}
 
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many;

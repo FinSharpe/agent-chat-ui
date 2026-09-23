@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useApiUrl, useAssistantId } from "@/hooks/useDefaultApiValues";
 import { getApiKey } from "@/lib/api-key";
-import { type Message } from "@langchain/langgraph-sdk";
+import { Client, type Message } from "@langchain/langgraph-sdk";
 import { useStream } from "@langchain/langgraph-sdk/react";
 import {
   isRemoveUIMessage,
@@ -20,12 +20,14 @@ import { useQueryState } from "nuqs";
 import React, {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { toast } from "sonner";
-import { useThreads } from "./Thread";
+import { useQueryClient } from "@tanstack/react-query";
 import { PlannerModels } from "@/configs/models";
 
 export type StateType = {
@@ -51,6 +53,32 @@ const useTypedStream = useStream<
 
 type StreamContextType = ReturnType<typeof useTypedStream>;
 const StreamContext = createContext<StreamContextType | undefined>(undefined);
+
+/**
+ * Whether the assistant answered its health check, and a way to ask again.
+ *
+ * Kept apart from the stream context because that value carries getters the
+ * SDK uses to track which stream modes a consumer reads; spreading it to add a
+ * field would fire them on every render.
+ *
+ * The thread uses this to tell a conversation that *could not load* apart from
+ * one that is genuinely empty: `useStream` reports a failed history fetch
+ * nowhere, so without it a saved chat renders blank while the server is down.
+ */
+interface ChatConnection {
+  reachable: boolean;
+  /** Re-runs the health check and returns the result. */
+  recheck: () => Promise<boolean>;
+  /** A saved chat was opened and its history has not arrived yet. Until it
+   *  does, `useStream` keeps rendering the previous chat's messages. */
+  threadLoading: boolean;
+}
+const ChatConnectionContext = createContext<ChatConnection>({
+  reachable: true,
+  recheck: async () => true,
+  threadLoading: false,
+});
+export const useChatConnection = () => useContext(ChatConnectionContext);
 
 async function sleep(ms = 4000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -88,13 +116,49 @@ const StreamSession = ({
   assistantId: string;
 }) => {
   const [threadId, setThreadId] = useQueryState("threadId");
-  const { getThreads, setThreads } = useThreads();
+  const queryClient = useQueryClient();
   const pathname = usePathname();
   const router = useRouter();
 
+  // The thread whose history last settled (loaded or failed). `useStream`
+  // says nothing while it fetches a chat's history, so the client's
+  // getHistory is wrapped to record when it lands. Its refetch after every
+  // run is for the same thread, so it never counts as switching chats.
+  const [settledThreadId, setSettledThreadId] = useState<string | null>(null);
+  const client = useMemo(() => {
+    const c = new Client({
+      apiUrl,
+      apiKey: apiKey ?? undefined,
+      // The SDK retries a failed request four times with exponential
+      // backoff, which leaves an unreachable server spinning "analyzing…"
+      // for the better part of a minute before anything is said. Two retries
+      // still ride out a blip or a cold start, and cost the user a handful of
+      // seconds before the thread tells them the truth and offers Retry.
+      callerOptions: { maxRetries: 2 },
+    });
+    const getHistory = c.threads.getHistory.bind(c.threads);
+    c.threads.getHistory = ((id, options) =>
+      getHistory(id, options).finally(() =>
+        setSettledThreadId(id),
+      )) as typeof c.threads.getHistory;
+    return c;
+  }, [apiKey, apiUrl]);
+  // A thread created by this tab's own send streams in live; there is no
+  // history to wait for.
+  const [createdThreadId, setCreatedThreadId] = useState<string | null>(null);
+  // Every switch waits afresh, including back to a chat loaded earlier: the
+  // SDK dropped its messages on the way out and fetches them again.
+  const [shownThreadId, setShownThreadId] = useState(threadId);
+  if (threadId !== shownThreadId) {
+    setShownThreadId(threadId);
+    setSettledThreadId(null);
+    if (threadId !== createdThreadId) setCreatedThreadId(null);
+  }
+  const threadLoading =
+    !!threadId && threadId !== settledThreadId && threadId !== createdThreadId;
+
   const streamValue = useTypedStream({
-    apiUrl,
-    apiKey: apiKey ?? undefined,
+    client,
     assistantId,
     threadId: threadId ?? null,
     onCustomEvent: (event, options) => {
@@ -105,7 +169,18 @@ const StreamSession = ({
         });
       }
     },
+    // The SDK's own error hook. Nothing user-visible happens here — the thread
+    // renders the failure and the toast (see `Thread`) says it in plain words.
+    // This is where the detail a developer needs survives, and the one place
+    // the deployment URL may appear, because it never leaves the console.
+    onError: (error) => {
+      console.error(
+        `[chat] run failed against ${apiUrl} (assistant ${assistantId}):`,
+        error,
+      );
+    },
     onThreadId: (id) => {
+      setCreatedThreadId(id);
       // If not on chat view, navigate there before setting threadId
       if (pathname !== "/") {
         router.push(`/?threadId=${id}`);
@@ -113,34 +188,54 @@ const StreamSession = ({
         setThreadId(id);
       }
 
-      // Refetch threads list when thread ID changes.
-      // Wait for some seconds before fetching so we're able to get the new thread that was created.
-      sleep().then(() => getThreads().then(setThreads).catch(console.error));
+      // The sidebar, drawer and Memory page read the ["threads"] query, so
+      // refetch it once the new thread has had time to be searchable.
+      sleep().then(() =>
+        queryClient.invalidateQueries({ queryKey: ["threads"] }),
+      );
     },
   });
 
+  const [reachable, setReachable] = useState(true);
+  const recheck = useCallback(async () => {
+    const ok = await checkGraphStatus(apiUrl, apiKey);
+    setReachable(ok);
+    // The deployment URL belongs here and nowhere else — the console is for
+    // developers, the screen is for the investor.
+    if (!ok) {
+      console.error(
+        `[chat] assistant unreachable at ${apiUrl} (assistant ${assistantId})`,
+      );
+    }
+    return ok;
+  }, [apiKey, apiUrl, assistantId]);
+
   useEffect(() => {
-    checkGraphStatus(apiUrl, apiKey).then((ok) => {
-      if (!ok) {
-        toast.error("Failed to connect to LangGraph server", {
-          description: () => (
-            <p>
-              Please ensure your graph is running at <code>{apiUrl}</code> and
-              your API key is correctly set (if connecting to a deployed graph).
-            </p>
-          ),
-          duration: 10000,
-          richColors: true,
-          closeButton: true,
-        });
-      }
+    recheck().then((ok) => {
+      if (ok) return;
+      // Written for an investor, not an operator: no deployment URL, no API
+      // key, no mention of the graph.
+      toast.error("Can't reach FinSharpe GPT", {
+        description:
+          "We couldn't connect to the assistant just now. Your chats are safe — please try again in a moment.",
+        duration: 10000,
+        richColors: true,
+        closeButton: true,
+      });
     });
-  }, [apiKey, apiUrl]);
+  }, [recheck]);
+
+  const connection = useMemo(
+    () => ({ reachable, recheck, threadLoading }),
+    [reachable, recheck, threadLoading],
+  );
 
   return (
-    <StreamContext.Provider value={streamValue}>
-      {children}
-    </StreamContext.Provider>
+    <ChatConnectionContext.Provider value={connection}>
+      <StreamContext.Provider value={streamValue}>
+        {children}
+      </StreamContext.Provider>
+    </ChatConnectionContext.Provider>
   );
 };
 

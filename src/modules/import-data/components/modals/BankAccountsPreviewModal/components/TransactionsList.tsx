@@ -1,142 +1,133 @@
 /**
- * Transactions List Component
- * Displays recent transactions in a scrollable list
+ * Transactions List — recent transactions as hairline-separated rows (the
+ * reference list style): a tinted in/out arrow, narration over date · mode,
+ * the signed amount and the running balance.
  */
 
 "use client";
-import { ArrowDownLeft, ArrowUpRight, Receipt } from "lucide-react";
+import { useState } from "react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
+  Receipt,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DataPanel,
   formatINR,
-  formatCount,
 } from "@/modules/import-data/components/shared/ui";
 import { ProcessedTransaction } from "../utils/transaction-analytics";
 
 interface TransactionsListProps {
   transactions: ProcessedTransaction[];
   className?: string;
-  maxHeight?: string;
+  /** Rows shown before "Show more". */
+  initialRows?: number;
 }
 
-/**
- * Transaction row component
- */
 function TransactionRow({
   transaction,
 }: {
   transaction: ProcessedTransaction;
 }) {
   const isCredit = transaction.type === "CREDIT";
-
   return (
-    <div className="hover:bg-bg-hover flex items-start gap-3 px-3 py-3 transition-colors">
-      {/* Icon */}
-      <div
+    <div className="flex items-center gap-3 py-2.5">
+      <span
         className={cn(
-          "mt-0.5 rounded-full p-2",
-          isCredit ? "bg-success-bg" : "bg-error-bg",
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          isCredit
+            ? "bg-[#97edcc]/30 text-[#0A9E6E]"
+            : "bg-rose-50 text-rose-500 dark:bg-rose-500/10",
         )}
       >
-        {isCredit ? (
-          <ArrowDownLeft className="text-success-fg h-4 w-4" />
-        ) : (
-          <ArrowUpRight className="text-error-fg h-4 w-4" />
-        )}
-      </div>
-
-      {/* Transaction details */}
+        {isCredit ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
+      </span>
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-text-primary truncate text-sm font-medium">
-              {transaction.narration || "No description"}
-            </p>
-            <p className="text-text-tertiary mt-0.5 text-xs">
-              {transaction.formattedDate} • {transaction.formattedTime}
-            </p>
-            {transaction.mode && (
-              <p className="text-text-muted mt-0.5 text-xs">
-                via {transaction.mode}
-              </p>
-            )}
-          </div>
-
-          {/* Amount */}
-          <div className="text-right">
-            <p
-              className={cn(
-                "text-sm font-semibold tabular-nums",
-                isCredit ? "text-success-fg" : "text-error-fg",
-              )}
-            >
-              {isCredit ? "+" : "-"}
-              {formatINR(transaction.parsedAmount, { maxDecimals: 2 })}
-            </p>
-            <p className="text-text-tertiary mt-0.5 text-xs tabular-nums">
-              Bal: {formatINR(transaction.parsedBalance, { maxDecimals: 2 })}
-            </p>
-          </div>
-        </div>
-
-        {/* Reference (if available) */}
-        {transaction.reference && (
-          <p className="text-text-muted mt-1 truncate text-xs">
-            Ref: {transaction.reference}
-          </p>
-        )}
+        <p
+          className="text-forest-deep truncate text-[11px] font-medium dark:text-white"
+          title={
+            transaction.reference ? `Ref: ${transaction.reference}` : undefined
+          }
+        >
+          {transaction.narration || "No description"}
+        </p>
+        <p className="truncate text-[9px] text-slate-400">
+          {transaction.formattedDate} · {transaction.formattedTime}
+          {transaction.mode ? ` · ${transaction.mode}` : ""}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p
+          className={cn(
+            "text-[11px] font-medium tabular-nums",
+            isCredit ? "text-[#0A9E6E]" : "text-rose-500",
+          )}
+        >
+          {isCredit ? "+" : "-"}
+          {formatINR(transaction.parsedAmount, { maxDecimals: 2 })}
+        </p>
+        <p className="text-[9px] text-slate-400 tabular-nums">
+          Bal {formatINR(transaction.parsedBalance)}
+        </p>
       </div>
     </div>
   );
 }
 
-/**
- * Transactions List Component
- */
 export function TransactionsList({
   transactions,
   className,
-  maxHeight = "400px",
+  initialRows = 6,
 }: TransactionsListProps) {
-  if (!transactions || transactions.length === 0) {
-    return (
-      <DataPanel
-        title="Recent Transactions"
-        icon={Receipt}
-        className={className}
-      >
-        <div className="text-text-tertiary flex h-[160px] items-center justify-center text-sm">
-          No transactions available
-        </div>
-      </DataPanel>
-    );
-  }
+  const [expanded, setExpanded] = useState(false);
+  const rows = expanded ? transactions : transactions.slice(0, initialRows);
 
   return (
     <DataPanel
       title="Recent Transactions"
       icon={Receipt}
+      iconClassName="text-slate-400"
+      addon={transactions.length ? `${transactions.length} latest` : undefined}
       className={className}
-      noPadding
-      addon={
-        <span className="text-text-tertiary text-xs">
-          {formatCount(transactions.length)} shown
-        </span>
-      }
     >
-      <div
-        style={{ maxHeight }}
-        className="scrollbar-thin overflow-y-auto"
-      >
-        <div className="divide-border-subtle divide-y">
-          {transactions.map((transaction, index) => (
-            <TransactionRow
-              key={`${transaction.txnId}-${index}`}
-              transaction={transaction}
-            />
-          ))}
+      {transactions.length === 0 ? (
+        <p className="py-8 text-center text-[11px] text-slate-400">
+          No transactions available
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <div className="divide-y divide-slate-50 dark:divide-slate-800/40">
+            {rows.map((t, i) => (
+              <TransactionRow
+                key={`${t.txnId}-${i}`}
+                transaction={t}
+              />
+            ))}
+          </div>
+          {transactions.length > initialRows && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="flex w-full items-center justify-center gap-1 text-[10px] font-medium text-[#063BAA] hover:underline dark:text-[#8FB4FF]"
+            >
+              {expanded ? (
+                <>
+                  <span>Show fewer</span>
+                  <ChevronUp size={11} />
+                </>
+              ) : (
+                <>
+                  <span>Show all {transactions.length}</span>
+                  <ChevronDown size={11} />
+                </>
+              )}
+            </button>
+          )}
         </div>
-      </div>
+      )}
     </DataPanel>
   );
 }

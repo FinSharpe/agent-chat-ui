@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageCircleQuestion } from "lucide-react";
 
 function isComplexValue(value: any): boolean {
   return Array.isArray(value) || (typeof value === "object" && value !== null);
@@ -19,7 +19,7 @@ function isUrl(value: any): boolean {
 function renderInterruptStateItem(value: any): React.ReactNode {
   if (isComplexValue(value)) {
     return (
-      <code className="rounded bg-gray-50 px-2 py-1 font-mono text-sm">
+      <code className="block rounded-tile bg-slate-50 px-2.5 py-1.5 font-mono text-[11px] break-words whitespace-pre-wrap text-[#0A1F4D]">
         {JSON.stringify(value, null, 2)}
       </code>
     );
@@ -29,7 +29,7 @@ function renderInterruptStateItem(value: any): React.ReactNode {
         href={value}
         target="_blank"
         rel="noopener noreferrer"
-        className="break-all text-blue-600 underline hover:text-blue-800"
+        className="break-all text-[#063BAA] underline-offset-2 hover:underline"
       >
         {value}
       </a>
@@ -92,66 +92,80 @@ export function GenericInterruptView({
   const displayEntries = processEntries();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
-      <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-medium text-gray-900">Human Interrupt</h3>
+    <div className="glass-card rounded-card font-funnel mt-3 w-full overflow-hidden p-5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]">
+          <MessageCircleQuestion size={16} />
+        </div>
+        <div className="min-w-0">
+          <span className="block text-[9px] font-medium tracking-wider text-slate-400 uppercase">
+            Human interrupt
+          </span>
+          <h3 className="font-geist text-sm font-medium text-[#0A1F4D]">
+            The assistant is waiting on you
+          </h3>
         </div>
       </div>
       <motion.div
-        className="min-w-full bg-gray-100"
+        className="mt-4 min-w-full"
         initial={false}
         animate={{ height: "auto" }}
         transition={{ duration: 0.3 }}
       >
-        <div className="p-3">
-          <AnimatePresence
-            mode="wait"
-            initial={false}
+        <AnimatePresence
+          mode="wait"
+          initial={false}
+        >
+          <motion.div
+            key={isExpanded ? "expanded" : "collapsed"}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-nested border border-slate-100 px-4"
+            style={{
+              maxHeight: isExpanded ? "none" : "500px",
+              overflow: "auto",
+            }}
           >
-            <motion.div
-              key={isExpanded ? "expanded" : "collapsed"}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                maxHeight: isExpanded ? "none" : "500px",
-                overflow: "auto",
-              }}
-            >
-              <table className="min-w-full divide-y divide-gray-200">
-                <tbody className="divide-y divide-gray-200">
-                  {displayEntries.map((item, argIdx) => {
-                    const [key, value] = Array.isArray(interrupt)
-                      ? [argIdx.toString(), item]
-                      : (item as [string, any]);
-                    return (
-                      <tr key={argIdx}>
-                        <td className="px-4 py-2 text-sm font-medium whitespace-nowrap text-gray-900">
-                          {key}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500">
-                          {renderInterruptStateItem(value)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+            <table className="min-w-full">
+              <tbody>
+                {displayEntries.map((item, argIdx) => {
+                  const [key, value] = Array.isArray(interrupt)
+                    ? [argIdx.toString(), item]
+                    : (item as [string, any]);
+                  return (
+                    <tr
+                      key={argIdx}
+                      className="border-b border-slate-50 last:border-0"
+                    >
+                      <td className="py-2.5 pr-4 align-top text-[11px] font-medium whitespace-nowrap text-slate-400">
+                        {key}
+                      </td>
+                      <td className="py-2.5 text-[12px] leading-relaxed break-words text-[#0A1F4D]">
+                        {renderInterruptStateItem(value)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </motion.div>
+        </AnimatePresence>
         {(shouldTruncate ||
           (Array.isArray(interrupt) && interrupt.length > 5)) && (
           <motion.button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex w-full cursor-pointer items-center justify-center border-t-[1px] border-gray-200 py-2 text-gray-500 transition-all duration-200 ease-in-out hover:bg-gray-50 hover:text-gray-600"
+            className="hover-tint mt-2 flex h-8 w-full cursor-pointer items-center justify-center gap-1 rounded-full text-[11px] font-medium text-slate-400 transition-colors hover:text-[#063BAA]"
             initial={{ scale: 1 }}
-            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            {isExpanded ? <ChevronUp /> : <ChevronDown />}
+            {isExpanded ? "Show less" : "Show more"}
+            {isExpanded ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
           </motion.button>
         )}
       </motion.div>

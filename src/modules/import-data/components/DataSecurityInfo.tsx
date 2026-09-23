@@ -1,52 +1,68 @@
-import { Card } from "@/components/ui/card";
-import { Shield, CheckCircle } from "lucide-react";
+import { ExternalLink, Lock } from "lucide-react";
+import { PRIVACY_URL } from "@/modules/account-deletion/constants/content";
+import { SectionTitle } from "./page/SectionTitle";
 
 /**
- * Information card explaining how user data is used and protected
- * Displays security guarantees and data handling policies
+ * "How we use your data" — ported from finsharpe-mobile's `_DataUsageSection`
+ * (`portfolio_tab.dart`), which is the reviewed wording (T-05).
+ *
+ * The old copy here claimed the data was processed locally under bank-level
+ * encryption and reached no third party. None of that is true: holdings go to
+ * FinSharpe's servers to be analysed, and holdings asked about in chat reach
+ * the model that answers. Each line below can be pointed at a clause of the
+ * privacy policy, exactly as the mobile card's comment records.
+ *
+ * Mobile's third line — a copy kept in the app's private storage on the phone
+ * — is left out: the web app holds no portfolio in browser storage, so it has
+ * nothing to disclose there. Change the two apps together otherwise.
  */
+const DATA_USAGE = [
+  "We use your holdings to show your portfolio and analyse allocation, returns and risk — nothing else.",
+  "Analysis runs on FinSharpe servers: holdings are sent there to be processed, not stored.",
+  "Ask about your portfolio in chat and those holdings go to the AI model that answers you.",
+  "You can disconnect any account at any time. We never sell your data.",
+];
+
 export function DataSecurityInfo() {
   return (
-    <Card className="border-green-200 bg-green-50 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 rounded-lg bg-green-100 p-2">
-          <Shield className="h-5 w-5 text-green-600" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="mb-2 font-medium text-green-900">
-            How We Use Your Data
-          </h3>
-          <div className="space-y-2 text-sm text-green-800">
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                Your data is processed locally and encrypted with bank-level
-                security
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                We analyze patterns to provide personalized investment
-                recommendations
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                No data is shared with third parties without your explicit
-                consent
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
-              <span>
-                You maintain full control and can disconnect accounts anytime
-              </span>
-            </p>
-          </div>
-        </div>
+    <section className="space-y-1">
+      <div className="flex items-center gap-1.5 px-1">
+        <Lock
+          size={12}
+          className="text-slate-400"
+        />
+        <SectionTitle>How We Use Your Data</SectionTitle>
       </div>
-    </Card>
+      <ul>
+        {DATA_USAGE.map((line) => (
+          <li
+            key={line}
+            className="flex gap-2.5 border-b border-slate-100 py-3 text-[11px] leading-snug text-slate-500 dark:border-slate-800/60 dark:text-slate-400"
+          >
+            {/* A mint check beside "go to the AI model" would read as a promise
+                about something that is simply a fact, so each line is marked
+                with a faint dot instead — as finsharpe-mobile's card does. */}
+            <span
+              aria-hidden
+              className="mt-[6px] size-1 shrink-0 rounded-full bg-slate-400"
+            />
+            {line}
+          </li>
+        ))}
+      </ul>
+      {/* The long version, one tap from the short one. */}
+      <a
+        href={PRIVACY_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 py-3 text-[11px] leading-snug font-medium text-[#063BAA] hover:underline dark:text-[#8FB4FF]"
+      >
+        Privacy Policy
+        <ExternalLink
+          size={11}
+          aria-hidden
+        />
+      </a>
+    </section>
   );
 }

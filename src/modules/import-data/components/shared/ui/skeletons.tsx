@@ -1,21 +1,29 @@
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 
-/** Single KPI-tile placeholder matching StatTile's footprint. */
+/** One pulsing placeholder bar in the reference neutral tint. */
+export function Bone({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "animate-pulse rounded-full bg-slate-100 dark:bg-slate-800",
+        className,
+      )}
+    />
+  );
+}
+
+/** Placeholder matching a StatTile's footprint. */
 export function StatTileSkeleton() {
   return (
-    <div className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-8 w-8 rounded-lg" />
-      </div>
-      <Skeleton className="h-7 w-28" />
+    <div className="glass-card rounded-nested flex flex-col items-center gap-1.5 p-3">
+      <Bone className="h-2.5 w-14" />
+      <Bone className="h-4 w-16" />
+      <Bone className="h-2 w-12" />
     </div>
   );
 }
 
-/** Row of KPI placeholders — mirrors the populated stat grid so the layout
- * doesn't jump when data lands. */
+/** A row of stat-tile placeholders, so the layout doesn't jump when data lands. */
 export function StatTileGridSkeleton({
   count = 3,
   className,
@@ -24,7 +32,13 @@ export function StatTileGridSkeleton({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-3", className)}>
+    <div
+      className={cn(
+        "grid gap-2",
+        count === 4 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3",
+        className,
+      )}
+    >
       {Array.from({ length: count }).map((_, i) => (
         <StatTileSkeleton key={i} />
       ))}
@@ -32,7 +46,7 @@ export function StatTileGridSkeleton({
   );
 }
 
-/** Bordered panel with placeholder rows — stands in for a loading data table. */
+/** Card with an eyebrow and placeholder rows — stands in for a table/list. */
 export function TableSkeleton({
   rows = 6,
   label,
@@ -41,21 +55,21 @@ export function TableSkeleton({
   label?: string;
 }) {
   return (
-    <div className="border-border bg-card overflow-hidden rounded-xl border shadow-sm">
-      <div className="border-border-subtle bg-bg-subtle/60 flex items-center border-b px-4 py-2.5">
-        <Skeleton className="h-3 w-32" />
-        {label && <span className="sr-only">{label}</span>}
-      </div>
-      <div className="divide-border-subtle divide-y">
+    <div className="glass-card rounded-card space-y-4 p-5">
+      <Bone className="h-2.5 w-24" />
+      {label && <span className="sr-only">{label}</span>}
+      <div className="divide-y divide-slate-50 dark:divide-slate-800/40">
         {Array.from({ length: rows }).map((_, r) => (
           <div
             key={r}
-            className="flex items-center gap-3 px-4 py-3"
+            className="flex items-center gap-3 py-2.5"
           >
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="hidden h-4 w-24 sm:block" />
-            <Skeleton className="h-7 w-20" />
-            <Skeleton className="h-6 w-6 rounded-md" />
+            <div className="flex-1 space-y-1.5">
+              <Bone className="h-3 w-2/5" />
+              <Bone className="h-2 w-1/4" />
+            </div>
+            <Bone className="h-3 w-12" />
+            <Bone className="h-3 w-10" />
           </div>
         ))}
       </div>
@@ -63,7 +77,7 @@ export function TableSkeleton({
   );
 }
 
-/** Generic stacked-card placeholder list (bank cards, SIP rows, etc.). */
+/** Stacked row placeholders inside one card (accounts, SIP folios…). */
 export function CardListSkeleton({
   count = 3,
   className,
@@ -72,26 +86,34 @@ export function CardListSkeleton({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-1 gap-4", className)}>
+    <div className={cn("glass-card rounded-card space-y-3 p-5", className)}>
+      <Bone className="h-2.5 w-20" />
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="border-border bg-card flex flex-col gap-4 rounded-xl border p-5 shadow-sm"
+          className="flex items-center gap-3 py-1"
         >
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-lg" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-20" />
-            </div>
+          <div className="rounded-tile h-10 w-10 shrink-0 animate-pulse bg-slate-100 dark:bg-slate-800" />
+          <div className="flex-1 space-y-1.5">
+            <Bone className="h-3 w-1/3" />
+            <Bone className="h-2 w-1/5" />
           </div>
-          <Skeleton className="h-px w-full" />
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-5 w-28" />
-          </div>
+          <Bone className="h-3 w-14" />
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Placeholder for a chart card. */
+export function ChartSkeleton({ height = 120 }: { height?: number }) {
+  return (
+    <div className="glass-card rounded-card space-y-3 p-5">
+      <Bone className="h-2.5 w-28" />
+      <div
+        className="rounded-nested w-full animate-pulse bg-slate-50 dark:bg-slate-800/40"
+        style={{ height }}
+      />
     </div>
   );
 }

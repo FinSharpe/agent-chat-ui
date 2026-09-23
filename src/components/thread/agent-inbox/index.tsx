@@ -36,7 +36,9 @@ export function ThreadView({ interrupt }: ThreadViewProps) {
   };
 
   return (
-    <div className="flex h-[80vh] w-full flex-col overflow-y-scroll rounded-2xl bg-gray-50/50 p-8 lg:flex-row [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent">
+    // Flows in the message column like any other card — the chat scroller
+    // owns scrolling, so the review card no longer nests its own.
+    <div className="glass-card rounded-card font-funnel mt-3 flex w-full flex-col p-5">
       {showSidePanel ? (
         <StateView
           handleShowSidePanel={handleShowSidePanel}

@@ -1,9 +1,9 @@
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   EquityHolding,
   MutualFundHolding,
   ETFHolding,
-} from "@/lib/moneyone/moneyone.types";
+} from "@/modules/import-data/types/moneyone-raw";
 import { BankAccountWithFormData } from "@/modules/import-data/types/bank-accounts";
 
 /**

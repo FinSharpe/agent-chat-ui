@@ -18,12 +18,20 @@ export interface Feature {
   iconColor: string; // Tailwind text class for the icon
 }
 
+/**
+ * The eight cards on the public marketing page.
+ *
+ * Every line is held to what the product actually ships (T-05): no "learns
+ * about you", no cross-chat recall, no promise that Discover is personalised,
+ * and no encryption figure — the app's own security posture is not something
+ * this page can state as a number.
+ */
 export const features: Feature[] = [
   {
     icon: Bot,
-    title: "AI Financial Advisor",
+    title: "Ask in Plain English",
     description:
-      "Get personalized financial guidance powered by advanced AI that understands your goals and risk profile.",
+      "Ask about a stock, a fund or your own holdings the way you would ask a person, and get a worked answer back.",
     color: "bg-blue-100",
     iconColor: "text-blue-600",
   },
@@ -31,7 +39,7 @@ export const features: Feature[] = [
     icon: Compass,
     title: "Investment Discovery",
     description:
-      "Discover stocks, mutual funds, and investment opportunities tailored to your portfolio and preferences.",
+      "Browse strategies from FinSharpe's research desk, the day's market news and the open and upcoming IPOs.",
     color: "bg-purple-100",
     iconColor: "text-purple-600",
   },
@@ -39,7 +47,7 @@ export const features: Feature[] = [
     icon: ShieldCheck,
     title: "Secure Data Import",
     description:
-      "Import your holdings securely via RBI-regulated Account Aggregator framework with read-only access.",
+      "Import your holdings through the RBI-regulated Account Aggregator framework, with read-only access.",
     color: "bg-green-100",
     iconColor: "text-green-600",
   },
@@ -47,39 +55,39 @@ export const features: Feature[] = [
     icon: BarChart3,
     title: "Portfolio Analytics",
     description:
-      "Deep-dive into your portfolio with comprehensive analytics, risk metrics, and performance tracking.",
+      "See allocation, concentration and risk across everything you hold, per account or all of it together.",
     color: "bg-teal-100",
     iconColor: "text-teal-600",
   },
   {
     icon: Brain,
-    title: "Chat Memory",
+    title: "Chat History",
     description:
-      "Your AI assistant remembers context across conversations for a seamless, continuous experience.",
+      "Every conversation is saved and searchable. Rename the ones worth keeping and bookmark them to the top.",
     color: "bg-indigo-100",
     iconColor: "text-indigo-600",
   },
   {
     icon: Lightbulb,
-    title: "Expert Strategies",
+    title: "Adviser Strategies",
     description:
-      "Access curated investment strategies and insights from financial experts and market research.",
+      "Investment strategies published by FinSharpe's advisers, with the holdings behind each one.",
     color: "bg-amber-100",
     iconColor: "text-amber-600",
   },
   {
     icon: FileText,
-    title: "Comprehensive Reports",
+    title: "Research Reports",
     description:
-      "Generate detailed portfolio reports with risk analysis, allocation insights, and actionable recommendations.",
+      "Run a multi-step agent workflow and get a written report at the end, saved to your library.",
     color: "bg-red-100",
     iconColor: "text-red-600",
   },
   {
     icon: Smartphone,
-    title: "Mobile-First Design",
+    title: "Works on Any Screen",
     description:
-      "Optimized for every screen size — manage your finances on the go with a seamless mobile experience.",
+      "The same app on desktop and phone — pick up a conversation wherever you left it.",
     color: "bg-sky-100",
     iconColor: "text-sky-600",
   },
@@ -94,16 +102,18 @@ export interface ShowcaseFeature {
   icon: LucideIcon;
 }
 
+/** The three long-form blocks. Same rule as `features`: each bullet names
+ *  something in the product, not a capability we would like it to have. */
 export const showcaseFeatures: ShowcaseFeature[] = [
   {
-    title: "Your Personal AI Financial Advisor",
+    title: "A Conversation About Your Money",
     description:
-      "Have natural conversations about your finances. Ask questions, get explanations, and receive personalized recommendations — all in plain language.",
+      "Ask questions about markets, funds and your own holdings, and get explanations in plain language — with the data the answer was built from shown alongside it.",
     bullets: [
-      "Natural language financial Q&A",
-      "Personalized to your risk profile",
-      "Actionable investment suggestions",
-      "Always available, always learning",
+      "Natural-language questions on stocks and funds",
+      "Answers grounded in live Indian market data",
+      "Sources shown with the answer",
+      "Follow-up suggestions that keep the thread's context",
     ],
     gradient: "from-blue-500 to-indigo-600",
     iconBg: "bg-blue-100",
@@ -112,12 +122,12 @@ export const showcaseFeatures: ShowcaseFeature[] = [
   {
     title: "Discover Your Next Investment",
     description:
-      "Explore a universe of investment opportunities filtered and ranked based on your goals, risk tolerance, and existing portfolio composition.",
+      "Screen the Indian market on the numbers that matter to you, follow the day's headlines and the IPO calendar, and read the strategies FinSharpe's advisers publish.",
     bullets: [
-      "Smart stock and MF screening",
-      "Risk-adjusted recommendations",
-      "Sector and theme-based discovery",
-      "Real-time market insights",
+      "Stock and mutual-fund screening",
+      "Strategies published by FinSharpe's advisers",
+      "Market news and the IPO calendar",
+      "Build a custom basket to your own rules",
     ],
     gradient: "from-purple-500 to-pink-600",
     iconBg: "bg-purple-100",
@@ -126,12 +136,12 @@ export const showcaseFeatures: ShowcaseFeature[] = [
   {
     title: "Secure & Effortless Data Import",
     description:
-      "Connect your financial accounts securely through India's RBI-regulated Account Aggregator framework. Your data stays yours — we only read, never transact.",
+      "Connect your accounts through India's RBI-regulated Account Aggregator framework. Access is read-only: FinSharpe can see your holdings, never move them.",
     bullets: [
-      "RBI-regulated AA framework",
-      "256-bit encrypted data transfer",
-      "Read-only access to holdings",
-      "Supports all major banks & brokers",
+      "RBI-regulated Account Aggregator framework",
+      "Read-only access to holdings — no transactions",
+      "Demat, mutual funds and bank accounts",
+      "Disconnect any account at any time",
     ],
     gradient: "from-green-500 to-emerald-600",
     iconBg: "bg-green-100",

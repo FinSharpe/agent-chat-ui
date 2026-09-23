@@ -1,14 +1,12 @@
 import { memo } from "react";
 import { Control, Controller } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
+import { X } from "lucide-react";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
+import { formatINRShort } from "@/modules/import-data/components/shared/ui";
 import { HoldingFormData } from "../hooks/useHoldingsForm";
 import { HoldingWithQuantity } from "../utils/holdings-transformer";
 import { getHoldingName } from "../utils/holdings-constants";
-import { BankAccountWithFormData } from "@/modules/import-data/types/bank-accounts";
+import { holdingSubtitle } from "../utils/holding-value";
 
 type HoldingTableRowProps = {
   /** Field data for this row */
@@ -19,109 +17,84 @@ type HoldingTableRowProps = {
   control: Control<HoldingFormData>;
   /** Consent type to determine which fields to display */
   consentType: ConsentType;
+  /** Live market value of this row (0 when no price is known). */
+  value: number;
+  /** Share of the ledger's total value, or null when values are unknown. */
+  weight: number | null;
   /** Callback to remove this holding */
   onRemove: (index: number) => void;
 };
 
-const cellClass = "border-b border-border-subtle px-3 py-2.5 align-middle";
-
-/** Subtle monospace chip used for ISIN / account-number identifiers. */
-function IdentifierChip({ value }: { value: string }) {
-  return (
-    <span className="bg-bg-subtle text-text-tertiary inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[11px]">
-      {value}
-    </span>
-  );
-}
-
-function RemoveButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      onClick={onClick}
-      aria-label="Remove holding"
-      className="text-text-tertiary hover:bg-error-bg hover:text-error-fg h-8 w-8"
-    >
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  );
-}
-
 /**
- * Single row in the holdings table. Memoized to keep quantity edits from
- * re-rendering the whole list.
+ * One ledger row in the reference holdings-table style: name over a small
+ * grey sub-line, an editable units field, value and weight, and a remove
+ * control. Memoized so a keystroke in one row doesn't redraw the others'
+ * inputs.
  */
 export const HoldingTableRow = memo(function HoldingTableRow({
   field,
   index,
   control,
   consentType,
+  value,
+  weight,
   onRemove,
 }: HoldingTableRowProps) {
-  // Bank accounts have a different column structure (read-only display fields).
-  if (consentType === ConsentType.BANK_ACCOUNTS) {
-    const bankAccount = field as unknown as BankAccountWithFormData;
-    return (
-      <tr className="hover:bg-bg-hover transition-colors">
-        <td className={cn(cellClass, "text-text-primary font-medium")}>
-          {bankAccount.displayBank || "—"}
-        </td>
-        <td className={cn(cellClass, "text-text-secondary")}>
-          {bankAccount.displayAccountType || "—"}
-        </td>
-        <td className={cellClass}>
-          {bankAccount.displayAccountNumber ? (
-            <IdentifierChip value={bankAccount.displayAccountNumber} />
-          ) : (
-            "—"
-          )}
-        </td>
-        <td
-          className={cn(
-            cellClass,
-            "text-text-primary text-right font-semibold tabular-nums",
-          )}
-        >
-          {bankAccount.displayBalance || "—"}
-        </td>
-        <td className={cn(cellClass, "text-center")}>
-          <RemoveButton onClick={() => onRemove(index)} />
-        </td>
-      </tr>
-    );
-  }
+  const name = getHoldingName(field, consentType);
+  const sub = holdingSubtitle(field, consentType);
 
-  // Default rendering for equity, mutual funds, ETF.
   return (
-    <tr className="hover:bg-bg-hover transition-colors">
-      <td className={cn(cellClass, "text-text-primary font-medium")}>
-        {getHoldingName(field, consentType)}
+    <tr className="hover:bg-slate-100/20 dark:hover:bg-slate-800/10">
+      <td className="py-2.5 pr-2">
+        <span
+          className="text-forest-deep block truncate font-medium dark:text-white"
+          title={name}
+        >
+          {name}
+        </span>
+        {sub && (
+          <span className="block truncate text-[9px] text-slate-400">
+            {sub}
+          </span>
+        )}
       </td>
-      <td className={cn(cellClass, "px-2 text-center")}>
+      <td className="py-2.5 text-right">
         <Controller
           control={control}
           name={`holdings.${index}.quantity`}
           rules={{ required: true, min: 0 }}
           render={({ field: inputField }) => (
-            <Input
+            <input
               {...inputField}
               type="number"
               min="0"
               step="any"
-              aria-label="Quantity"
-              className="mx-auto h-9 w-20 px-2 text-center tabular-nums"
+              aria-label={`Units of ${name}`}
+              className="rounded-nested text-forest-deep ml-auto block w-[4.25rem] bg-[#EDF3FF]/45 px-1.5 py-1.5 text-right text-[11px] tabular-nums outline-none focus:ring-2 focus:ring-[#063BAA]/20 sm:w-[5.25rem] dark:bg-slate-800/40 dark:text-white"
               onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                inputField.onChange(isNaN(value) ? 0 : value);
+                const next = parseFloat(e.target.value);
+                inputField.onChange(isNaN(next) ? 0 : next);
               }}
             />
           )}
         />
       </td>
-      <td className={cn(cellClass, "px-2 text-center")}>
-        <RemoveButton onClick={() => onRemove(index)} />
+      <td className="text-forest-deep py-2.5 text-right font-medium tabular-nums dark:text-white">
+        {value > 0 ? formatINRShort(value) : "—"}
+      </td>
+      <td className="hidden py-2.5 text-right text-slate-500 tabular-nums sm:table-cell">
+        {weight === null ? "—" : `${weight.toFixed(1)}%`}
+      </td>
+      <td className="py-2.5 pl-1 text-right">
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          aria-label={`Remove ${name}`}
+          title="Remove"
+          className="ml-auto flex h-7 w-7 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
+        >
+          <X size={14} />
+        </button>
       </td>
     </tr>
   );

@@ -1,19 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
-import { getAllFiData } from "@/lib/moneyone/moneyone.actions";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import {
-  getAllUserConsents,
-  type ConsentData,
-} from "@/lib/moneyone/moneyone.storage";
-import type { FiDataResponse } from "@/lib/moneyone/moneyone.types";
-import {
-  extractCurrentValueFromFiData,
-  extractHoldingsFromFiData,
-} from "@/modules/import-data/components/modals/HoldingsPreviewModal/utils/holdings-transformer";
-import { extractBankBalanceFromFiData } from "@/modules/import-data/components/modals/BankAccountsPreviewModal/utils/bank-accounts-transformer";
-import { FI_DATA_QUERY_KEY } from "./useFiData";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
+import { isInvestments } from "../types/aa";
+import { useAaPortfolio } from "./useAaPortfolio";
 
 /** Asset classes that carry a rupee value toward net worth (SIP is excluded). */
 export type NetworthClassKey =
@@ -73,152 +61,72 @@ export interface NetworthClass {
 }
 
 export interface NetworthData {
-  /** Sum of all ready class values (Equities + MF + ETF + Cash). */
   total: number;
-  /** Only connected classes, in CLASS_ORDER. */
   classes: NetworthClass[];
-  /** SIP registrations across connected SIP consents (never summed into total). */
   sipCount: number;
   connectedCount: number;
   readyCount: number;
   syncingCount: number;
-  /** Most recent consent timestamp, for the "Updated …" pill. */
   latestUpdate?: string;
-  /** No value-bearing consent is connected (covers SIP-only and nothing). */
+  /**
+   * Cost basis of the ready investment accounts that report one, and those same
+   * accounts' current value — the pair behind the unrealised gain. The gain is
+   * always `investedCurrent - invested`, never `total - invested`: only the
+   * accounts that reported a cost may be compared against it.
+   */
+  invested: number;
+  investedCurrent: number;
   isEmpty: boolean;
-  /** Pre-mount, or connected with nothing ready yet — show the skeleton. */
   isInitialLoading: boolean;
 }
 
 /**
- * Reactively read every non-expired consent from localStorage. Mirrors
- * useConsentQuery's event wiring so connecting/removing an account updates the
- * net-worth card live, without a per-type collapse (multiple consents of the
- * same type are all counted, not just the latest).
- */
-function useActiveConsents(): { consents: ConsentData[]; mounted: boolean } {
-  const [consents, setConsents] = useState<ConsentData[]>([]);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const read = () => {
-      const now = Date.now();
-      setConsents(
-        getAllUserConsents().filter(
-          (c) =>
-            !c.isExpired && new Date(c.consentExpiry).getTime() > now,
-        ),
-      );
-      setMounted(true);
-    };
-
-    read();
-    window.addEventListener("moneyone:consent-updated", read);
-    window.addEventListener("storage", read);
-    return () => {
-      window.removeEventListener("moneyone:consent-updated", read);
-      window.removeEventListener("storage", read);
-    };
-  }, []);
-
-  return { consents, mounted };
-}
-
-/**
- * Aggregate live net worth across every connected MoneyOne consent.
+ * Live net worth across every consent linked to the signed-in user.
  *
- * Reuses the SAME extraction the preview modals use
- * (extractCurrentValueFromFiData for investments, extractBankBalanceFromFiData
- * for cash) and the SAME React Query cache key (['fi-data', consentID]) — so the
- * figures match the modals exactly and no extra network calls are made when a
- * consent's data is already cached. SIP carries no value and is surfaced only as
- * a registration count.
+ * Reads the same server-normalized figures the account rows use, from the same
+ * React Query cache, so the card and the rows can never disagree. SIP carries
+ * no value and is surfaced only as a registration count.
  */
 export function useNetworthData(): NetworthData {
-  const { consents, mounted } = useActiveConsents();
+  const { positions, isLoading, isError, hasConnections } = useAaPortfolio();
 
-  const results = useQueries({
-    queries: consents.map((c) => ({
-      queryKey: [FI_DATA_QUERY_KEY, c.consentID],
-      queryFn: async () => {
-        const data = await getAllFiData(c.consentID);
-        if (data && typeof data === "object" && "error" in data) {
-          throw new Error((data as { error: string }).error);
-        }
-        return data as FiDataResponse;
-      },
-      // Don't fetch before the AA has the data ready; gc'd/refreshed consents
-      // re-fetch and surface as "syncing" until they resolve.
-      enabled: c.isDataReady && !c.isExpired,
-    })),
-  });
+  const byType = new Map(positions.map((p) => [p.type, p]));
+  const sipCount = byType.get("SIP")?.count ?? 0;
 
-  // Accumulate per value-class (multiple consents of one type fold together).
-  const acc: Record<
-    NetworthClassKey,
-    { value: number | null; count: number }
-  > = {
-    [ConsentType.EQUITIES]: { value: null, count: 0 },
-    [ConsentType.MUTUAL_FUNDS]: { value: null, count: 0 },
-    [ConsentType.ETF]: { value: null, count: 0 },
-    [ConsentType.BANK_ACCOUNTS]: { value: null, count: 0 },
-  };
-  const connected = new Set<NetworthClassKey>();
-  let sipCount = 0;
   let latestUpdate: string | undefined;
+  let invested = 0;
+  let investedCurrent = 0;
 
-  consents.forEach((consent, i) => {
-    const result = results[i];
+  const classes: NetworthClass[] = CLASS_ORDER.map((key) => {
+    const position = byType.get(key);
+    if (!position || position.consents.length === 0) return null;
 
-    if (consent.type === ConsentType.SIP) {
-      if (result?.isSuccess && Array.isArray(result.data)) {
-        sipCount += result.data.length;
-      }
-      return;
+    if (position.updatedAt && (!latestUpdate || position.updatedAt > latestUpdate)) {
+      latestUpdate = position.updatedAt;
     }
 
-    const key = consent.type as NetworthClassKey;
-    const bucket = acc[key];
-    if (!bucket) return;
-    connected.add(key);
-
-    const ready = consent.isDataReady && result?.isSuccess && result.data;
-    if (!ready) return;
-
-    const data = result.data as FiDataResponse;
-    let value = 0;
-    let count = 0;
-    if (key === ConsentType.BANK_ACCOUNTS) {
-      value = extractBankBalanceFromFiData(data as never) ?? 0;
-      count = Array.isArray(data) ? data.length : 0;
-    } else {
-      value = Number(extractCurrentValueFromFiData(data) ?? 0);
-      count = extractHoldingsFromFiData(data).length;
+    // Only accounts that report both a cost and the matching covered value
+    // count toward the gain.
+    for (const blob of position.blobs) {
+      const n = blob.normalized;
+      if (!isInvestments(n)) continue;
+      if (n.costValue == null || n.costBasisValue == null) continue;
+      invested += n.costValue;
+      investedCurrent += n.costBasisValue;
     }
 
-    bucket.value = (bucket.value ?? 0) + value;
-    bucket.count += count;
-    if (!latestUpdate || consent.consentCreationData > latestUpdate) {
-      latestUpdate = consent.consentCreationData;
-    }
-  });
-
-  const classes: NetworthClass[] = CLASS_ORDER.filter((key) =>
-    connected.has(key),
-  ).map((key) => {
-    const bucket = acc[key];
     const meta = CLASS_META[key];
     return {
       key,
       label: meta.label,
       color: meta.color,
-      value: bucket.value,
-      count: bucket.count,
-      unitLabel: meta.unit(bucket.count),
+      value: position.value,
+      count: position.count,
+      unitLabel: meta.unit(position.count),
       pct: 0,
-      status: bucket.value === null ? "syncing" : "ready",
+      status: position.value === null ? ("syncing" as const) : ("ready" as const),
     };
-  });
+  }).filter((c): c is NetworthClass => c !== null);
 
   const total = classes.reduce((sum, c) => sum + (c.value ?? 0), 0);
   classes.forEach((c) => {
@@ -227,7 +135,6 @@ export function useNetworthData(): NetworthData {
 
   const connectedCount = classes.length;
   const readyCount = classes.filter((c) => c.status === "ready").length;
-  const syncingCount = connectedCount - readyCount;
 
   return {
     total,
@@ -235,10 +142,15 @@ export function useNetworthData(): NetworthData {
     sipCount,
     connectedCount,
     readyCount,
-    syncingCount,
+    syncingCount: connectedCount - readyCount,
     latestUpdate,
-    isEmpty: mounted && connectedCount === 0,
+    invested,
+    investedCurrent,
+    // A failed consent list is NOT an empty portfolio — saying "connect an
+    // account" to someone who has five would be a lie. The accounts section
+    // below owns the error and the retry; the card just stays quiet.
+    isEmpty: !isLoading && !isError && connectedCount === 0 && !hasConnections,
     isInitialLoading:
-      !mounted || (connectedCount > 0 && readyCount === 0),
+      isLoading || isError || (connectedCount > 0 && readyCount === 0),
   };
 }

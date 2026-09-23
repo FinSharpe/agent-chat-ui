@@ -1,51 +1,41 @@
 import { cn } from "@/lib/utils";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Hourglass,
-  ShieldOff,
-  XCircle,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import type { DisplayStatus } from "../utils/grant-display";
 
 interface StatusConfig {
   label: string;
-  icon: LucideIcon;
   className: string;
 }
 
+// Reference status pills: small uppercase text on a soft tone. Mint means
+// usable, amber waiting on an admin, blue scheduled, rose refused/ended by
+// an admin, and plain navy tint simply over.
 const STATUS_MAP: Record<DisplayStatus, StatusConfig> = {
   active: {
     label: "Active",
-    icon: CheckCircle2,
-    className: "bg-success-bg text-success-fg border-success-border",
+    className: "bg-[#97edcc]/25 text-[#0A9E6E]",
   },
   pending: {
     label: "Pending",
-    icon: Clock,
-    className: "bg-warning-bg text-warning-fg border-warning-border",
+    className:
+      "bg-amber-50 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400",
   },
   queued: {
     label: "Queued",
-    icon: Hourglass,
-    className: "bg-info-bg text-info-foreground border-info-border",
+    className: "bg-[#063BAA]/8 text-[#063BAA]",
   },
   expired: {
     label: "Expired",
-    icon: AlertCircle,
-    className: "bg-muted text-muted-foreground border-border",
+    className: "bg-slate-100 text-slate-500",
   },
   rejected: {
     label: "Rejected",
-    icon: XCircle,
-    className: "bg-error-bg text-error-fg border-error-border",
+    className:
+      "bg-rose-50 text-rose-600 dark:bg-rose-500/12 dark:text-rose-400",
   },
   revoked: {
     label: "Revoked",
-    icon: ShieldOff,
-    className: "bg-error-bg text-error-fg border-error-border",
+    className:
+      "bg-rose-50 text-rose-600 dark:bg-rose-500/12 dark:text-rose-400",
   },
 };
 
@@ -56,17 +46,15 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ displayStatus, className }: StatusBadgeProps) {
   const config = STATUS_MAP[displayStatus];
-  const Icon = config.icon;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium tracking-tight",
+        "inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[9px] font-medium tracking-wider uppercase",
         config.className,
         className,
       )}
     >
-      <Icon className="size-3.5" strokeWidth={2.25} />
       {config.label}
     </span>
   );

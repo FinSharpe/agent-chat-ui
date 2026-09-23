@@ -2,7 +2,7 @@
  * Which paths are reachable without a session.
  *
  * One list, two readers: the middleware, which decides whether a request gets
- * bounced to `/login`, and the client-side 401 interceptor in `AuthProvider`,
+ * bounced to the Welcome screen, and the client-side 401 interceptor in `AuthProvider`,
  * which decides whether a failed `/api/*` call means the session died. They had
  * drifted — the interceptor knew only about the three auth screens — so a
  * logged-out visitor on any other public page was redirected to `/login` the
@@ -11,6 +11,9 @@
 
 /** Exact page paths served without a session. */
 export const PUBLIC_PAGE_PATHS = [
+  // The sign-in flow (src/modules/auth/constants/routes.ts).
+  "/get-started",
+  "/get-started/choose",
   "/login",
   "/register",
   "/verify-email",

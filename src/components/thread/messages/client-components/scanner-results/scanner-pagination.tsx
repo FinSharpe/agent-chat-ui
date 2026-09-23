@@ -2,7 +2,7 @@
 
 import { Control, Controller } from 'react-hook-form';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FIELD_CLASS } from './scanner-filters';
 import {
     Select,
     SelectContent,
@@ -11,6 +11,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import type { ScannerFilterFormValues } from './scanner-filters';
+
+const PAGE_BUTTON =
+    "flex h-8 items-center gap-1 rounded-full bg-[#063BAA]/6 px-3 text-[11px] font-medium text-[#063BAA] transition-colors disabled:cursor-not-allowed disabled:opacity-40";
 
 type ScannerPaginationProps = {
     control: Control<ScannerFilterFormValues>;
@@ -42,9 +45,9 @@ export function ScannerPagination({
     };
 
     return (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label className="text-[9px] font-medium uppercase tracking-wider text-slate-400">
                     Page Size
                 </label>
                 <Controller
@@ -59,7 +62,7 @@ export function ScannerPagination({
                                 onPageSizeChange(pageSize);
                             }}
                         >
-                            <SelectTrigger className="w-[100px]">
+                            <SelectTrigger className={`${FIELD_CLASS} w-[88px]`}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -74,27 +77,27 @@ export function ScannerPagination({
             </div>
 
             <div className="flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
+                <button
+                    type="button"
                     onClick={handlePreviousPage}
                     disabled={currentPage <= 1 || isLoading}
+                    className={PAGE_BUTTON}
                 >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft size={14} />
                     Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">
+                </button>
+                <span className="text-[10px] text-slate-400 tabular-nums">
                     Page {currentPage} of {totalPages}
                 </span>
-                <Button
-                    variant="outline"
-                    size="sm"
+                <button
+                    type="button"
                     onClick={handleNextPage}
                     disabled={currentPage >= totalPages || isLoading}
+                    className={PAGE_BUTTON}
                 >
                     Next
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
+                    <ChevronRight size={14} />
+                </button>
             </div>
         </div>
     );

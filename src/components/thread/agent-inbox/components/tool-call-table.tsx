@@ -3,12 +3,12 @@ import { unknownToPrettyDate } from "../utils";
 
 export function ToolCallTable({ toolCall }: { toolCall: ToolCall }) {
   return (
-    <div className="max-w-full min-w-[300px] overflow-hidden rounded-lg border">
+    <div className="max-w-full min-w-[300px] overflow-hidden rounded-nested border border-slate-100">
       <table className="w-full border-collapse">
         <thead>
           <tr>
             <th
-              className="bg-gray-100 px-2 py-0 text-left text-sm"
+              className="bg-slate-50 px-3 py-1.5 text-left text-[11px] font-medium text-[#0A1F4D]"
               colSpan={2}
             >
               {toolCall.name}
@@ -37,10 +37,10 @@ export function ToolCallTable({ toolCall }: { toolCall: ToolCall }) {
             return (
               <tr
                 key={key}
-                className="border-t"
+                className="border-t border-slate-100"
               >
-                <td className="w-1/3 px-2 py-1 text-xs font-medium">{key}</td>
-                <td className="px-2 py-1 font-mono text-xs">{valueStr}</td>
+                <td className="w-1/3 px-3 py-1.5 align-top text-[11px] text-slate-500">{key}</td>
+                <td className="px-3 py-1.5 font-mono text-[11px] break-words text-[#0A1F4D]">{valueStr}</td>
               </tr>
             );
           })}

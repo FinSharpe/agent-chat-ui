@@ -10,7 +10,6 @@ import {
   ZoomOut,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   citationDisplayName,
   citationMeta,
@@ -20,6 +19,10 @@ import {
 import { loadFilingPdf } from "@/lib/citations/filings-pdf";
 import { loadPdfJs, type PdfDocument } from "@/lib/citations/pdfjs";
 import { cn } from "@/lib/utils";
+
+/** Round toolbar control, the reference's popup close-button shape. */
+const TOOL_BUTTON =
+  "hover-tint flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 text-[#0A1F4D] transition-colors disabled:pointer-events-none disabled:opacity-40";
 
 /**
  * The filing behind a citation.
@@ -49,7 +52,7 @@ export function FilingViewer({
   const { doc, error } = useFilingDocument(filing);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="font-funnel flex h-full flex-col overflow-hidden">
       {!doc && (
         <PassagePanel
           passages={passages}
@@ -129,51 +132,51 @@ function PassagePanel({
   const many = passages.length > 1;
 
   return (
-    <div className="flex-1 overflow-auto px-4 py-4">
-      <div className="flex items-start gap-2">
+    <div className="flex-1 overflow-auto px-5 py-5">
+      <div className="flex items-start gap-2.5">
         {number != null && (
-          <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-50 px-1.5 text-xs font-semibold text-blue-700 tabular-nums dark:bg-blue-950 dark:text-blue-300">
+          <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#063BAA]/8 px-1.5 text-[11px] font-medium text-[#063BAA] tabular-nums">
             {number}
           </span>
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">
+          <p className="font-geist truncate text-sm font-medium text-[#0A1F4D]">
             {citationDisplayName(filing)}
           </p>
           {/* The header describes the filing; each passage carries its own page below. */}
-          <p className="text-muted-foreground text-xs">
+          <p className="text-[11px] text-slate-400">
             {citationMeta(filing, { withPage: !many })}
           </p>
         </div>
       </div>
 
-      <div className="mt-3 space-y-3">
+      <div className="mt-4 space-y-2.5">
         {passages.map((passage) => (
           <blockquote
             key={passage.cite}
-            className="bg-muted/50 rounded-md border-l-2 border-blue-500 py-2.5 pr-3 pl-3.5"
+            className="rounded-nested border-l-2 border-[#063BAA] bg-[#063BAA]/6 py-3 pr-4 pl-4"
           >
             {many && passage.page != null && (
-              <p className="text-muted-foreground mb-1 text-[10px] font-semibold tracking-wide uppercase">
+              <p className="mb-1 text-[9px] font-medium tracking-wider text-slate-400 uppercase">
                 Page {passage.page}
               </p>
             )}
-            <p className="text-[13px] leading-relaxed">{passage.quote}</p>
+            <p className="text-[13px] leading-relaxed text-[#0A1F4D]">{passage.quote}</p>
           </blockquote>
         ))}
       </div>
 
       {error ? (
-        <div className="text-muted-foreground mt-4 flex items-start gap-2 text-xs">
-          <TriangleAlert className="mt-px size-4 shrink-0 text-amber-500" />
+        <div className="mt-4 flex items-start gap-2 rounded-nested bg-amber-500/10 px-3.5 py-2.5 text-[11px] leading-relaxed text-amber-600">
+          <TriangleAlert className="mt-px size-3.5 shrink-0" />
           <span>
             {error} The passage above is what the answer drew on, and is
             unaffected.
           </span>
         </div>
       ) : (
-        <div className="text-muted-foreground mt-4 flex items-center gap-2 text-xs">
-          <Loader2 className="size-3.5 animate-spin" />
+        <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-400">
+          <Loader2 className="size-3.5 animate-spin text-[#063BAA]" />
           Opening the filing at the cited page…
         </div>
       )}
@@ -266,57 +269,57 @@ function PdfPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="bg-background flex items-center justify-between border-b px-3 py-2">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-50 px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
+            className={TOOL_BUTTON}
             onClick={() => step(-1)}
             disabled={page <= 1}
             aria-label="Previous page"
           >
             <ChevronLeft className="size-4" />
-          </Button>
-          <span className="text-xs tabular-nums">
+          </button>
+          <span className="text-[11px] text-slate-500 tabular-nums">
             Page {page} of {doc.numPages}
           </span>
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
+            className={TOOL_BUTTON}
             onClick={() => step(1)}
             disabled={page >= doc.numPages}
             aria-label="Next page"
           >
             <ChevronRight className="size-4" />
-          </Button>
+          </button>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
+            className={TOOL_BUTTON}
             onClick={() => setScale((s) => Math.max(s - 0.2, 0.6))}
             disabled={scale <= 0.6}
             aria-label="Zoom out"
           >
             <ZoomOut className="size-4" />
-          </Button>
-          <span className="text-xs tabular-nums">
+          </button>
+          <span className="w-9 text-center text-[11px] text-slate-500 tabular-nums">
             {Math.round(scale * 100)}%
           </span>
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
+            className={TOOL_BUTTON}
             onClick={() => setScale((s) => Math.min(s + 0.2, 3))}
             disabled={scale >= 3}
             aria-label="Zoom in"
           >
             <ZoomIn className="size-4" />
-          </Button>
+          </button>
         </div>
       </div>
 
-      <div className="bg-muted/40 flex-1 overflow-auto p-4">
-        <div className="relative mx-auto w-fit shadow-sm">
+      <div className="flex-1 overflow-auto bg-slate-50 p-5">
+        <div className="premium-shadow-md relative mx-auto w-fit overflow-hidden rounded-tile">
           <canvas
             ref={canvasRef}
             className="block"

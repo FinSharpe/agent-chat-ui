@@ -1,10 +1,6 @@
 "use client";
-import { Loader2, Repeat, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  EmptyState,
-  formatINRCompact,
-} from "./shared/ui";
+import { ArrowRight } from "lucide-react";
+import { formatINRShort } from "../utils/inr";
 import { formatLastUpdated } from "../utils/date-formatting";
 import {
   useNetworthData,
@@ -12,42 +8,34 @@ import {
   type NetworthData,
 } from "../hooks/useNetworthData";
 
-/** Diagonal hatch used for a still-syncing slice / dot — neutral in both modes. */
-const PENDING_STRIPES =
-  "repeating-linear-gradient(45deg, rgba(120,120,120,0.22) 0 5px, transparent 5px 10px)";
+/**
+ * Allocation segments are white at decreasing strength — the card is the
+ * brand gradient, so colour would fight it. Dots in the breakdown use the
+ * same strengths, so the row doubles as the bar's legend.
+ */
+const SEGMENT_ALPHA = [1, 0.7, 0.46, 0.28];
+
+/** Diagonal hatch for a class that is still syncing. */
+const SYNCING_HATCH =
+  "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)";
 
 /**
- * "My Networth" — live net worth aggregated across every connected MoneyOne
- * consent (Equities + Mutual Funds + ETF + Cash). A single stacked allocation
- * bar plus a ledger breakdown, in the Calm-Ledger language. Replaces the old
- * hardcoded placeholder; SIP is shown only as a registration count, never summed.
+ * "Total Portfolio Value" — the reference Import screen's net worth card,
+ * driven by the live MoneyOne data aggregated in useNetworthData. There is no
+ * value history to chart, so the reference's trend line becomes the asset
+ * allocation bar, and "since last year" becomes the unrealised gain on the
+ * accounts that report a cost basis.
  */
-export function NetworthGraph() {
+export function NetworthGraph({ onConnect }: { onConnect?: () => void }) {
   const nw = useNetworthData();
 
   return (
-    <section>
-      <div className="mb-4 flex items-center gap-2">
-        <TrendingUp className="text-success-fg h-5 w-5" />
-        <h3 className="text-text-primary font-medium">My Networth</h3>
-        {nw.sipCount > 0 && (
-          <span className="border-info-border bg-info-icon-bg text-info-icon ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium">
-            <Repeat className="h-3 w-3" />
-            {nw.sipCount} SIP registration{nw.sipCount === 1 ? "" : "s"}
-          </span>
-        )}
-      </div>
-
-      <div className="border-border bg-card rounded-2xl border p-5 shadow-sm md:p-6">
+    <section className="space-y-3">
+      <div className="bg-brand-gradient premium-shadow-sm card-hover relative space-y-4 overflow-hidden rounded-card p-6">
         {nw.isInitialLoading ? (
           <NetworthSkeleton />
         ) : nw.isEmpty ? (
-          <EmptyState
-            icon={TrendingUp}
-            intent="positive"
-            title="Connect an account to see your net worth"
-            description="Link a demat, mutual fund or bank account above and your live net worth — with a full asset-allocation breakdown — appears here."
-          />
+          <NetworthEmpty onConnect={onConnect} />
         ) : (
           <NetworthSummary nw={nw} />
         )}
@@ -58,166 +46,185 @@ export function NetworthGraph() {
 
 function NetworthSummary({ nw }: { nw: NetworthData }) {
   const syncing = nw.syncingCount > 0;
-  const valued = nw.classes.filter((c) => c.value != null && c.value > 0);
-  const syncingLabels = nw.classes
-    .filter((c) => c.status === "syncing")
-    .map((c) => c.label);
+  const gain = nw.invested > 0 ? nw.investedCurrent - nw.invested : null;
+  const gainPct = gain != null ? (gain / nw.invested) * 100 : null;
+  const sip =
+    nw.sipCount > 0
+      ? `${nw.sipCount} SIP${nw.sipCount === 1 ? "" : "s"}`
+      : null;
+
+  const subline = syncing
+    ? `${nw.readyCount} of ${nw.connectedCount} account types synced`
+    : gain != null
+      ? `${gain >= 0 ? "+" : ""}${formatINRShort(gain)} unrealised ${gain >= 0 ? "gain" : "loss"}`
+      : `Across ${nw.connectedCount} connected account type${nw.connectedCount === 1 ? "" : "s"}`;
+
+  const pill = syncing
+    ? "Updating…"
+    : gainPct != null
+      ? `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(1)}% returns`
+      : nw.latestUpdate
+        ? `Updated ${formatLastUpdated(nw.latestUpdate)}`
+        : "Synced";
+
+  const valued = nw.classes.filter((c) => (c.value ?? 0) > 0);
 
   return (
-    <div>
-      {/* Headline */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-text-tertiary text-[11px] font-semibold tracking-[0.08em] uppercase">
-            Total net worth
-            {syncing && (
-              <span className="text-text-muted normal-case">
-                {" · "}
-                {nw.readyCount} of {nw.connectedCount} synced
-              </span>
-            )}
+    <>
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-[10px] tracking-wider text-white uppercase">
+            Total Portfolio Value
           </p>
-          <p className="text-text-primary mt-1.5 text-3xl leading-none font-semibold tracking-tight tabular-nums md:text-[34px]">
-            {formatINRCompact(nw.total)}
+          <p className="v3-display text-[34px] leading-none text-white tabular-nums">
+            {formatINRShort(nw.total)}
+          </p>
+          <p className="text-[11px] font-medium text-white">
+            {subline}
+            {sip && ` · ${sip}`}
           </p>
         </div>
-        <AsOfPill syncing={syncing} latest={nw.latestUpdate} />
-      </div>
-
-      {/* Allocation bar */}
-      <div className="mt-6">
-        <div
-          className="bg-muted flex h-3.5 gap-[3px] overflow-hidden rounded-lg"
-          role="img"
-          aria-label={`Asset allocation: ${nw.classes
-            .map(
-              (c) =>
-                `${c.label} ${
-                  c.value == null ? "syncing" : formatINRCompact(c.value)
-                }`,
-            )
-            .join(", ")}`}
-        >
-          {valued.map((c) => (
-            <div
-              key={c.key}
-              className="h-full rounded-[3px] first:rounded-l-lg last:rounded-r-lg"
-              style={{ flexGrow: c.value ?? 0, flexBasis: 0, background: c.color }}
-              title={`${c.label} · ${formatINRCompact(c.value)} · ${Math.round(c.pct)}%`}
-            />
-          ))}
+        <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-medium text-white">
           {syncing && (
-            <div
-              className="h-full rounded-[3px] last:rounded-r-lg"
-              style={{
-                flexGrow: Math.max(nw.total * 0.18, 1),
-                flexBasis: 0,
-                backgroundImage: PENDING_STRIPES,
-              }}
-              title="Syncing…"
-            />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white motion-reduce:animate-none" />
           )}
-        </div>
-      </div>
-
-      {/* Ledger breakdown */}
-      <div className="border-border-subtle mt-6 flex flex-wrap gap-x-6 gap-y-5 border-t pt-5">
-        {nw.classes.map((c) => (
-          <ClassTile key={c.key} c={c} />
-        ))}
-      </div>
-
-      {/* Syncing hint */}
-      {syncing && (
-        <div className="border-warning-border bg-warning-bg text-warning-fg mt-5 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
-          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-          <span>
-            Syncing {syncingLabels.join(", ")} — the total updates automatically
-            when it’s ready.
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ClassTile({ c }: { c: NetworthClass }) {
-  const isSyncing = c.status === "syncing";
-  return (
-    <div className="flex min-w-[120px] flex-1 flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-          style={
-            isSyncing
-              ? { backgroundImage: PENDING_STRIPES, backgroundColor: "var(--muted)" }
-              : { background: c.color }
-          }
-        />
-        <span className="text-text-tertiary text-[11px] font-semibold tracking-[0.05em] uppercase">
-          {c.label}
+          {pill}
         </span>
       </div>
-      {isSyncing ? (
-        <>
-          <span className="bg-muted h-[18px] w-16 animate-pulse rounded motion-reduce:animate-none" />
-          <span className="text-text-tertiary text-xs">syncing…</span>
-        </>
-      ) : (
-        <>
-          <span className="text-text-primary text-lg leading-none font-semibold tabular-nums md:text-xl">
-            {formatINRCompact(c.value)}
-          </span>
-          <span className="text-text-tertiary text-xs">
-            {Math.round(c.pct)}% · {c.unitLabel}
-          </span>
-        </>
-      )}
-    </div>
+
+      <div
+        className="relative flex h-3 gap-[3px] overflow-hidden rounded-full bg-white/10"
+        role="img"
+        aria-label={`Asset allocation: ${nw.classes
+          .map(
+            (c) =>
+              `${c.label} ${c.value == null ? "syncing" : `${Math.round(c.pct)}%`}`,
+          )
+          .join(", ")}`}
+      >
+        {valued.map((c) => (
+          <span
+            key={c.key}
+            className="h-full"
+            style={{
+              flexGrow: c.value ?? 0,
+              flexBasis: 0,
+              background: `rgba(255,255,255,${alphaFor(nw.classes, c)})`,
+            }}
+            title={`${c.label} · ${formatINRShort(c.value)} · ${Math.round(c.pct)}%`}
+          />
+        ))}
+        {syncing && (
+          <span
+            className="h-full"
+            style={{
+              flexGrow: Math.max(nw.total * 0.18, 1),
+              flexBasis: 0,
+              backgroundImage: SYNCING_HATCH,
+            }}
+            title="Syncing…"
+          />
+        )}
+      </div>
+
+      <div
+        className={`relative grid gap-2 border-t border-white/15 pt-3 ${
+          nw.classes.length > 3 ? "grid-cols-4" : "grid-cols-3"
+        }`}
+      >
+        {nw.classes.map((c) => (
+          <div
+            key={c.key}
+            className="min-w-0"
+          >
+            <div className="flex items-center gap-1">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={
+                  c.status === "syncing"
+                    ? { backgroundImage: SYNCING_HATCH, backgroundColor: "rgba(255,255,255,0.25)" }
+                    : { background: `rgba(255,255,255,${alphaFor(nw.classes, c)})` }
+                }
+              />
+              <span className="truncate text-[9px] text-white">{c.label}</span>
+            </div>
+            {c.status === "syncing" ? (
+              <span className="mt-1 block h-4 w-14 animate-pulse rounded bg-white/20 motion-reduce:animate-none" />
+            ) : (
+              <p className="mt-0.5 text-[13px] font-medium text-white tabular-nums">
+                {formatINRShort(c.value)}
+                <span className="ml-1.5 text-[10px] font-normal text-white">
+                  {Math.round(c.pct)}%
+                </span>
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
-function AsOfPill({
-  syncing,
-  latest,
-}: {
-  syncing: boolean;
-  latest?: string;
-}) {
-  const label = syncing
-    ? "Updating…"
-    : latest
-      ? `Updated ${formatLastUpdated(latest)}`
-      : "Synced";
+function alphaFor(classes: NetworthClass[], c: NetworthClass) {
+  return SEGMENT_ALPHA[classes.indexOf(c) % SEGMENT_ALPHA.length];
+}
+
+function NetworthEmpty({ onConnect }: { onConnect?: () => void }) {
   return (
-    <span className="border-border bg-bg-subtle text-text-tertiary inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs">
-      <span
-        className={cn(
-          "h-1.5 w-1.5 rounded-full",
-          syncing
-            ? "bg-warning-fg animate-pulse motion-reduce:animate-none"
-            : "bg-success-fg",
-        )}
-      />
-      {label}
-    </span>
+    <div className="relative space-y-4">
+      <div className="space-y-2">
+        <p className="text-[10px] tracking-wider text-white uppercase">
+          Total Portfolio Value
+        </p>
+        <p className="v3-display text-[24px] leading-[1.2] text-white">
+          Connect an account to see your net worth
+        </p>
+        <p className="max-w-[440px] text-[11px] leading-relaxed text-white">
+          Link a demat, mutual fund or bank account below — your live portfolio
+          value and asset allocation appear here.
+        </p>
+      </div>
+      {onConnect && (
+        <button
+          onClick={onConnect}
+          className="flex w-fit items-center gap-3 rounded-full bg-white py-1.5 pr-1.5 pl-5 text-sm font-medium text-[#0A1F4D] transition-all active:scale-95"
+        >
+          Connect accounts
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#97edcc]">
+            <ArrowRight
+              size={15}
+              className="text-[#0A1F4D]"
+            />
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
 
 function NetworthSkeleton() {
+  const bar = "block animate-pulse rounded bg-white/15 motion-reduce:animate-none";
   return (
-    <div className="space-y-6">
+    <div
+      className="relative space-y-4"
+      aria-busy="true"
+      aria-label="Loading portfolio value"
+    >
       <div className="space-y-2">
-        <span className="bg-muted block h-3 w-28 animate-pulse rounded motion-reduce:animate-none" />
-        <span className="bg-muted block h-8 w-40 animate-pulse rounded motion-reduce:animate-none" />
+        <span className={`${bar} h-3 w-36`} />
+        <span className={`${bar} h-9 w-40`} />
+        <span className={`${bar} h-3 w-44`} />
       </div>
-      <span className="bg-muted block h-3.5 w-full animate-pulse rounded-lg motion-reduce:animate-none" />
-      <div className="flex flex-wrap gap-6 pt-2">
+      <span className={`${bar} h-3 w-full rounded-full`} />
+      <div className="grid grid-cols-3 gap-2 border-t border-white/15 pt-3">
         {[0, 1, 2].map((i) => (
-          <span
+          <div
             key={i}
-            className="bg-muted h-12 min-w-[120px] flex-1 animate-pulse rounded motion-reduce:animate-none"
-          />
+            className="space-y-1.5"
+          >
+            <span className={`${bar} h-2.5 w-16`} />
+            <span className={`${bar} h-4 w-14`} />
+          </div>
         ))}
       </div>
     </div>

@@ -1,5 +1,24 @@
 # Adding a New MoneyOne Consent Type — Runbook
 
+> **⚠ Out of date since T-11 (the AA transport moved to the backend).**
+>
+> This app no longer talks to MoneyOne. The five consent types, their consent
+> forms and their FIP scoping now live in **finsharpe-agents**
+> (`src/api/aa.py`, `src/services/moneyone.py`, `MONEY_ONE_*` env), and this app
+> calls `/api/utilities/aa/*` under the session JWT. A **new consent type is now
+> a backend change first**: add it to the backend's `ConsentType` enum, give it
+> a consent form and FIP config, and teach `fi_normalize.py` to normalize it.
+>
+> Only then does the web side need work, and only these parts of the runbook
+> still apply: the **preview-modal fork** (§1–§2) and its transformer. Ignore
+> everything about `MoneyOneHoldingsCard`, the server actions, the localStorage
+> consent store and `.env` — all four are gone. The account rows are now
+> generated from `ACCOUNT_ROW_ORDER` in
+> `src/modules/import-data/utils/aa-fold.ts`; a new type needs an entry there,
+> in `CLASS_LABELS`/`CLASS_PITCHES`, in `CLASS_META`
+> (`components/account-types/account-class-meta.ts`) and in `ANALYSIS_MODALS`
+> (`components/account-types/ConnectedAccounts.tsx`).
+
 A step-by-step guide to wiring a new AA asset type (e.g. NPS, Insurance via AA)
 into the Import feature.
 

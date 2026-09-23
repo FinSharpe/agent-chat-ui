@@ -73,8 +73,8 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="border-border-default bg-bg-card rounded-md border px-3 py-2 text-xs shadow-md">
-      <p className="text-text-primary mb-1 font-medium">
+    <div className="glass-card rounded-nested px-3 py-2 text-[11px] shadow-md">
+      <p className="mb-1 font-medium text-[#0A1F4D] dark:text-white">
         {formatXLong(label, chart.xKind)}
       </p>
       {chart.series.map((series) => {
@@ -85,10 +85,10 @@ function ChartTooltip({
         return (
           <p
             key={series.key}
-            className="text-text-secondary flex items-center justify-between gap-4"
+            className="flex items-center justify-between gap-4 text-slate-500 dark:text-slate-400"
           >
             <span>{series.name}</span>
-            <span className="text-text-primary tabular-nums">
+            <span className="text-[#0A1F4D] tabular-nums dark:text-white">
               {formatNumber(entry.value)}
             </span>
           </p>
@@ -292,11 +292,11 @@ export function ReportChart({ spec }: { spec: ChartSpec }) {
                   y: number;
                 };
                 return (
-                  <div className="border-border-default bg-bg-card rounded-md border px-3 py-2 text-xs shadow-md">
-                    <p className="text-text-primary font-medium">
+                  <div className="glass-card rounded-nested px-3 py-2 text-[11px] shadow-md">
+                    <p className="font-medium text-[#0A1F4D] dark:text-white">
                       {point.name}
                     </p>
-                    <p className="text-text-secondary">
+                    <p className="text-slate-500 dark:text-slate-400">
                       {formatNumber(point.x)} · {formatNumber(point.y)}
                     </p>
                   </div>
@@ -387,23 +387,18 @@ export function ReportChart({ spec }: { spec: ChartSpec }) {
   }
 
   return (
-    <figure
-      className={cn(
-        "border-border-default bg-bg-card rounded-lg border p-4",
-        spec.hero && "md:p-5",
-      )}
-    >
+    <figure className="rounded-nested border border-slate-100 p-4 dark:border-slate-800/60">
       <figcaption className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h4
           className={cn(
-            "text-text-primary font-medium",
-            spec.hero ? "text-base" : "text-sm",
+            "font-medium text-[#0A1F4D] dark:text-white",
+            spec.hero ? "text-[12px]" : "text-[11px]",
           )}
         >
           {spec.title}
         </h4>
         {/* Never optional: the reader has to know how old this is. */}
-        <span className="text-text-tertiary text-xs">
+        <span className="text-[10px] text-slate-400">
           {vintageStampText(spec.vintage)}
         </span>
       </figcaption>
@@ -413,7 +408,7 @@ export function ReportChart({ spec }: { spec: ChartSpec }) {
           {chart.series.map((series) => (
             <li
               key={series.key}
-              className="text-text-secondary flex items-center gap-1.5 text-xs"
+              className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400"
             >
               {/* The swatch is the mark: a stroke for line and area (dash
                   pattern included, since that is what separates a subject's
@@ -453,7 +448,7 @@ export function ReportChart({ spec }: { spec: ChartSpec }) {
               </svg>
               {series.name}
               {series.role === "benchmark" && (
-                <span className="text-text-tertiary">(benchmark)</span>
+                <span className="text-slate-400">(benchmark)</span>
               )}
             </li>
           ))}
@@ -478,7 +473,7 @@ export function ReportChart({ spec }: { spec: ChartSpec }) {
             <button
               type="button"
               onClick={() => setShowTable((open) => !open)}
-              className="text-text-tertiary hover:text-text-primary text-xs underline underline-offset-2"
+              className="text-[10px] font-medium text-[#063BAA] hover:underline"
               aria-expanded={showTable}
             >
               {showTable ? "Hide values" : "Show values"}
@@ -491,7 +486,7 @@ export function ReportChart({ spec }: { spec: ChartSpec }) {
           )}
         </>
       ) : (
-        <p className="text-text-tertiary py-8 text-center text-sm">
+        <p className="py-8 text-center text-[11px] text-slate-400">
           This chart carries no data points.
         </p>
       )}

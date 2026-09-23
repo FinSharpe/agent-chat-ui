@@ -11,7 +11,7 @@ interface ClientProvidersProps {
 
 /**
  * Client-side providers for thread and stream state management
- * NavigationShell is now handled in MainLayout
+ * The app shell (sidebar, nav, overlays) is added by MainLayout
  */
 export function ClientProviders({ children }: ClientProvidersProps) {
   return (

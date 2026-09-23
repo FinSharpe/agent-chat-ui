@@ -12,7 +12,7 @@ export interface StockBasketBuilderContextValue {
   basketConfig: StockBasketConfig;
   updateConfig: <K extends keyof StockBasketConfig>(
     key: K,
-    value: StockBasketConfig[K]
+    value: StockBasketConfig[K],
   ) => void;
   currentStep: number;
   totalSteps: number;
@@ -24,6 +24,8 @@ export interface StockBasketBuilderContextValue {
   setShowResults: (show: boolean) => void;
   handleComplete: () => void;
   handleModify: () => void;
+  /** Leave the results for the first step of this flow, answers kept. */
+  restart: () => void;
   generatedBasket: CreateCustomPortfolioResponse | null;
   isGenerating: boolean;
   generationError: string | null;
@@ -70,7 +72,7 @@ export function StockBasketBuilderProvider({
    */
   const updateConfig = <K extends keyof StockBasketConfig>(
     key: K,
-    value: StockBasketConfig[K]
+    value: StockBasketConfig[K],
   ) => {
     setBasketConfig((prev) => ({ ...prev, [key]: value }));
   };
@@ -145,6 +147,11 @@ export function StockBasketBuilderProvider({
     // Keep generated basket in case user wants to go back to results
   };
 
+  const restart = () => {
+    setShowResults(false);
+    setCurrentStep(1);
+  };
+
   const value: StockBasketBuilderContextValue = {
     basketConfig,
     updateConfig,
@@ -158,6 +165,7 @@ export function StockBasketBuilderProvider({
     setShowResults,
     handleComplete,
     handleModify,
+    restart,
     generatedBasket,
     isGenerating: generateBasketMutation.isPending,
     generationError: generateBasketMutation.error

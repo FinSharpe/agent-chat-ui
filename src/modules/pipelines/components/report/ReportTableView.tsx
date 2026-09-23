@@ -74,13 +74,15 @@ export function ReportTableView({ table }: { table: TableSpec }) {
   const rows = table.rows ?? [];
 
   return (
-    <figure className="border-border-default bg-bg-card rounded-lg border p-4">
-      <figcaption className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h4 className="text-text-primary text-sm font-medium">{table.title}</h4>
+    <figure className="rounded-nested border border-slate-100 p-4 dark:border-slate-800/60">
+      <figcaption className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h4 className="text-[11px] font-medium text-[#0A1F4D] dark:text-white">
+          {table.title}
+        </h4>
         {/* Optional here, unlike a chart: a Table may be derived from several
             sources at once, in which case no single stamp would be true. */}
         {table.vintage && (
-          <span className="text-text-tertiary text-xs">
+          <span className="text-[10px] text-slate-400">
             {vintageStampText(table.vintage)}
           </span>
         )}
@@ -91,16 +93,16 @@ export function ReportTableView({ table }: { table: TableSpec }) {
           rows are not capped and put behind a second vertical scrollbar: this
           is the Section's content, and the PDF and the app both show every
           row. A reader comparing the three must not find a different report. */}
-      <div className="border-border-default overflow-x-auto rounded-md border">
-        <table className="w-full text-xs">
-          <thead className="bg-bg-subtle text-text-secondary">
-            <tr>
+      <div className="scrollbar-none overflow-x-auto">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="border-b border-slate-100 dark:border-slate-800/60">
               {columns.map((column) => (
                 <th
                   key={column.key}
                   scope="col"
                   className={cn(
-                    "px-3 py-2 font-medium whitespace-nowrap",
+                    "px-2 pb-2 text-[9px] font-medium tracking-wider whitespace-nowrap text-slate-400 uppercase first:pl-0 last:pr-0",
                     alignClass(column),
                   )}
                 >
@@ -109,12 +111,9 @@ export function ReportTableView({ table }: { table: TableSpec }) {
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
             {rows.map((row, index) => (
-              <tr
-                key={index}
-                className="border-border-subtle border-t"
-              >
+              <tr key={index}>
                 {columns.map((column, columnIndex) => {
                   const text = formatCell(row?.[column.key], column.unit ?? "");
                   // The first column names the row, so it reads as its header.
@@ -124,10 +123,10 @@ export function ReportTableView({ table }: { table: TableSpec }) {
                       key={column.key}
                       scope={columnIndex === 0 ? "row" : undefined}
                       className={cn(
-                        "px-3 py-1.5 whitespace-nowrap tabular-nums",
+                        "px-2 py-2 whitespace-nowrap tabular-nums first:pl-0 last:pr-0",
                         columnIndex === 0
-                          ? "text-text-secondary font-normal"
-                          : "text-text-primary",
+                          ? "font-medium text-[#0A1F4D] dark:text-white"
+                          : "text-slate-500 dark:text-slate-300",
                         alignClass(column),
                       )}
                     >
@@ -143,7 +142,7 @@ export function ReportTableView({ table }: { table: TableSpec }) {
 
       {/* Rule-authored, like the rows: what they were selected or ordered by. */}
       {table.note && (
-        <p className="text-text-tertiary mt-2 text-xs">{table.note}</p>
+        <p className="mt-2.5 text-[10px] text-slate-400">{table.note}</p>
       )}
     </figure>
   );

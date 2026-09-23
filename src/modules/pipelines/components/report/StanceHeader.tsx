@@ -2,14 +2,12 @@
 
 import { AlertTriangle } from "lucide-react";
 
+import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
 import { cn } from "@/lib/utils";
-import {
-  SECTION_ABSENCE_CHIP,
-  badgeTone,
-  stanceTone,
-} from "../../constants/presentation";
+import { SECTION_ABSENCE_CHIP } from "../../constants/presentation";
 import type { ReportDocument } from "../../types/pipelines.types";
 import { summariseSections } from "../../utils/report";
+import { Notice } from "../shared/kit";
 
 /**
  * What a report frozen before the header took its own wording said.
@@ -26,74 +24,75 @@ const LEGACY_CAPTION =
 /** What the slot is called on a report that named neither. */
 const LEGACY_HEADING = "Stance";
 
+/** A section's jump chip, toned by the badge it earned. */
+const BADGE_CHIP: Record<string, string> = {
+  positive: "bg-[#97edcc]/30 text-[#0A9E6E]",
+  caution:
+    "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400",
+  neutral: "bg-[#063BAA]/8 text-[#063BAA]",
+};
+
 /**
- * The header, and the way into the report.
+ * The header, and the way into the report: the verdict as the page's banner,
+ * the caption that bounds it, then a chip per section to jump to.
  *
- * The heading and the caption are the Pipeline's, not this component's. They
- * were hard coded here to the word "Stance" and to a sentence naming eight
- * section verdicts, which is true of the eight-Step flagship and of no other
- * Pipeline: a market wide report fills this slot with the stocks its run
- * selected rather than with a verdict, and printing "Stance" over three
- * symbols would label a selection as a call on the market.
+ * The heading and the caption are the Pipeline's, not this component's: a
+ * market wide report fills this slot with the stocks its run selected rather
+ * than with a verdict, and printing "Stance" over three symbols would label a
+ * selection as a call on the market. The banner stays one neutral colour for
+ * the same reason — the Stance is never a green "buy" or a red "sell".
  *
  * The jump chips are built from `document.sections`, never from
  * `Stance.badges`: that list is positional and silently omits the Sections that
  * produced nothing, so zipping it against the section list mislabels every
- * badge after the first gap. Sections is the only source that keeps names,
- * order, and the gap/failed states — which are exactly what a reader needs to
- * decide where to jump.
+ * badge after the first gap.
  */
 export function StanceHeader({ document }: { document: ReportDocument }) {
   const sections = summariseSections(document);
   const stance = document.stance;
-  const tone = stanceTone(stance?.value);
 
   return (
-    <header className="border-border-default bg-bg-card overflow-hidden rounded-xl border">
-      <div className="border-border-subtle from-brand-gradient-from via-brand-gradient-via to-brand-gradient-to border-b bg-gradient-to-r px-6 py-5">
-        <p className="text-text-tertiary text-xs tracking-wide uppercase">
-          {stance?.heading || LEGACY_HEADING}
-        </p>
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <span className={cn("size-2.5 rounded-full", tone.dot)} />
-          <h2 className="text-text-primary text-xl font-semibold">
-            {stance?.label || "No stance"}
-          </h2>
-        </div>
-        <p className="text-text-tertiary mt-2 max-w-2xl text-xs">
-          {stance?.caption || LEGACY_CAPTION}
-        </p>
-      </div>
+    <header className="space-y-3">
+      <SectionBanner
+        eyebrow={stance?.heading || LEGACY_HEADING}
+        title={stance?.label || "No stance"}
+        tone="blue"
+        height={200}
+        image={BANNER_WAVE.royal}
+        imageScrim
+      />
+      <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+        {stance?.caption || LEGACY_CAPTION}
+      </p>
 
       {document.degraded && (
-        <p className="border-warning-border bg-warning-bg text-warning-fg flex items-start gap-2 border-b px-6 py-3 text-sm">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        <Notice
+          tone="amber"
+          icon={<AlertTriangle size={13} />}
+        >
           This report is incomplete: at least one section could not be produced.
           Every missing section is marked in place below.
-        </p>
+        </Notice>
       )}
 
-      <nav
-        aria-label="Sections"
-        className="px-6 py-4"
-      >
-        <ul className="flex flex-wrap gap-2">
+      <nav aria-label="Sections">
+        <ul className="flex flex-wrap gap-1.5">
           {sections.map((section) => {
             const isAbsent = section.status !== "succeeded";
-            const badge = badgeTone(section.badge?.value);
             return (
               <li key={section.stepId}>
                 <a
                   href={`#${section.anchorId}`}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] transition-opacity hover:opacity-80",
                     isAbsent
-                      ? "border-border-default text-text-tertiary hover:bg-bg-hover border-dashed"
-                      : cn(badge.chip, "hover:opacity-80"),
+                      ? "border border-dashed border-slate-200 text-slate-400"
+                      : (BADGE_CHIP[section.badge?.value ?? ""] ??
+                          BADGE_CHIP.neutral),
                   )}
                 >
                   <span className="font-medium">{section.title}</span>
-                  <span className="opacity-70">
+                  <span className="opacity-75">
                     {isAbsent
                       ? (SECTION_ABSENCE_CHIP[section.status] ?? "unavailable")
                       : (section.badge?.label ?? "—")}

@@ -39,9 +39,20 @@ const FALLBACK: ChartTokens = {
   "--bg-card": "#ffffff",
 };
 
+/**
+ * The element whose computed style carries the live theme.
+ *
+ * The app shell puts its `dark` class on the viewport frame around
+ * `[data-app-mode]`, not on <html>, so the tokens are read from inside that
+ * frame; a page outside the shell falls back to the document root.
+ */
+function themedElement(): Element {
+  return document.querySelector("[data-app-mode]") ?? document.documentElement;
+}
+
 function read(): ChartTokens {
   if (typeof window === "undefined") return FALLBACK;
-  const styles = getComputedStyle(document.documentElement);
+  const styles = getComputedStyle(themedElement());
   const resolved: ChartTokens = { ...FALLBACK };
   for (const token of TOKENS) {
     const value = styles.getPropertyValue(token).trim();
@@ -55,12 +66,18 @@ export function useChartTokens(): ChartTokens {
 
   useEffect(() => {
     setTokens(read());
-    // The dark variant is a class on <html>; re-resolve when it flips.
+    // Re-resolve when the theme class flips — on <html>, or on the shell's
+    // viewport frame that wraps `[data-app-mode]`.
     const observer = new MutationObserver(() => setTokens(read()));
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
+    const targets = new Set<Element>([document.documentElement]);
+    const frame = themedElement().parentElement;
+    if (frame) targets.add(frame);
+    for (const target of targets) {
+      observer.observe(target, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
     return () => observer.disconnect();
   }, []);
 

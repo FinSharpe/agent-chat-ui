@@ -4,15 +4,8 @@ import { useState } from "react";
 import { Check, Copy, Lock } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "./McpKit";
 
 interface SetupInstructionsProps {
   enabled: boolean;
@@ -27,7 +20,7 @@ const STEPS = [
   },
   {
     title: "Add Custom Connector",
-    detail: "Click the button, then choose \"Add Custom Connector\".",
+    detail: 'Click the button, then choose "Add Custom Connector".',
   },
   {
     title: "Paste the URL above",
@@ -58,86 +51,88 @@ export function SetupInstructions({
   };
 
   return (
-    <Card
-      className={cn(
-        "relative overflow-hidden py-4",
-        !enabled && "pointer-events-none",
-        className,
-      )}
-    >
-      <CardHeader>
-        <CardTitle className="text-base">Connect from Claude Desktop</CardTitle>
-        <CardDescription>
-          Paste this URL into Claude Desktop&apos;s custom connector settings.
-        </CardDescription>
-      </CardHeader>
+    <section className={cn("space-y-3", className)}>
+      <SectionHeading
+        title="Connect from Claude Desktop"
+        sub="Paste this URL into Claude Desktop's custom connector settings."
+      />
 
-      <CardContent>
-        <div
-          className={cn(
-            "group flex items-center gap-2 rounded-lg border border-border-default bg-bg-subtle px-3 py-2.5",
-          )}
-        >
-          <code className="flex-1 truncate font-mono text-sm text-text-primary">
-            {serverUrl}
+      <div
+        className={cn(
+          "glass-card rounded-card relative overflow-hidden p-5",
+          !enabled && "pointer-events-none",
+        )}
+      >
+        <div className="glass-tile flex items-center gap-2 rounded-full py-1.5 pr-1.5 pl-4">
+          <code
+            className={cn(
+              "flex-1 truncate font-mono text-[11px]",
+              serverUrl ? "text-[#0A1F4D]" : "text-slate-400",
+            )}
+          >
+            {serverUrl || "Server URL not configured"}
           </code>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             onClick={copy}
-            disabled={!enabled}
-            className="gap-1.5"
+            disabled={!enabled || !serverUrl}
+            className="flex shrink-0 items-center gap-1 rounded-full bg-[#DFF9EF] px-3 py-1.5 text-[10px] font-medium text-[#0A1F4D] transition-colors disabled:opacity-50"
           >
             {copied ? (
               <>
-                <Check className="size-3.5 text-success-fg" />
+                <Check
+                  size={12}
+                  strokeWidth={2.5}
+                  className="text-[#0A9E6E]"
+                />
                 Copied
               </>
             ) : (
               <>
-                <Copy className="size-3.5" />
+                <Copy size={12} />
                 Copy
               </>
             )}
-          </Button>
+          </button>
         </div>
 
-        <ol className="mt-6 space-y-4">
+        <ol className="mt-2">
           {STEPS.map((step, i) => (
-            <li key={step.title} className="flex gap-3">
-              <span
-                className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full",
-                  "bg-primary-paper text-xs font-semibold text-primary-main-light",
-                )}
-              >
+            <li
+              key={step.title}
+              className="flex gap-3 border-b border-slate-50 py-3.5 last:border-b-0 last:pb-0"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[10px] font-medium text-[#063BAA]">
                 {i + 1}
               </span>
-              <div className="flex-1 pt-0.5">
-                <p className="text-sm font-medium text-text-primary">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-medium text-[#0A1F4D]">
                   {step.title}
                 </p>
-                <p className="mt-0.5 text-sm text-text-secondary">
+                <p className="mt-0.5 text-[10.5px] leading-relaxed text-slate-400">
                   {step.detail}
                 </p>
               </div>
             </li>
           ))}
         </ol>
-      </CardContent>
 
-      {!enabled && (
-        <div
-          aria-hidden
-          className="absolute inset-0 flex items-center justify-center bg-bg-card/70 backdrop-blur-[2px]"
-        >
-          <div className="flex items-center gap-2 rounded-full border border-border-default bg-bg-card px-3 py-1.5 text-xs font-medium text-text-secondary shadow-sm">
-            <Lock className="size-3.5 text-text-tertiary" />
-            Request access to unlock setup
+        {!enabled && (
+          <div
+            aria-hidden
+            className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px]"
+            // Token-based veil so it dims the card in either theme.
+            style={{
+              background: "color-mix(in srgb, var(--card-bg) 72%, transparent)",
+            }}
+          >
+            <div className="glass-nav flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-medium text-slate-500">
+              <Lock size={13} />
+              Request access to unlock setup
+            </div>
           </div>
-        </div>
-      )}
-    </Card>
+        )}
+      </div>
+    </section>
   );
 }

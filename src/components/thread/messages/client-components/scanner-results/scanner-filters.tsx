@@ -21,6 +21,10 @@ export type ScannerFilterFormValues = {
     sortDirection: 'asc' | 'desc';
 };
 
+// The reference's field look: white nested surface, hairline border, navy text.
+export const FIELD_CLASS =
+    "h-9 rounded-nested border-slate-100 bg-white text-[11px] font-normal text-[#0A1F4D] shadow-none hover:bg-white";
+
 type ScannerFiltersProps = {
     control: Control<ScannerFilterFormValues>;
 };
@@ -30,10 +34,10 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
     const { options: ratioOptions, isLoading: ratiosLoading } = useRatioOptions();
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {/* Segment Select */}
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label className="text-[9px] font-medium uppercase tracking-wider text-slate-400">
                     Exchange
                 </label>
                 <Controller
@@ -41,7 +45,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
                     control={control}
                     render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger>
+                            <SelectTrigger className={FIELD_CLASS}>
                                 <SelectValue placeholder="Select exchange" />
                             </SelectTrigger>
                             <SelectContent>
@@ -56,7 +60,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
 
             {/* Group Combobox */}
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label className="text-[9px] font-medium uppercase tracking-wider text-slate-400">
                     Group
                 </label>
                 <Controller
@@ -72,6 +76,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
                             emptyText="No group found."
                             clearLabel="All Groups"
                             disabled={groupsLoading}
+                            className={FIELD_CLASS}
                         />
                     )}
                 />
@@ -79,7 +84,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
 
             {/* Sort Ratio Combobox */}
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label className="text-[9px] font-medium uppercase tracking-wider text-slate-400">
                     Sort By
                 </label>
                 <Controller
@@ -95,6 +100,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
                             emptyText="No ratio found."
                             clearLabel="None"
                             disabled={ratiosLoading}
+                            className={FIELD_CLASS}
                         />
                     )}
                 />
@@ -102,7 +108,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
 
             {/* Sort Direction */}
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
+                <label className="text-[9px] font-medium uppercase tracking-wider text-slate-400">
                     Direction
                 </label>
                 <Controller
@@ -110,7 +116,7 @@ export function ScannerFilters({ control }: ScannerFiltersProps) {
                     control={control}
                     render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger>
+                            <SelectTrigger className={FIELD_CLASS}>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

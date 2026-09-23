@@ -1,111 +1,54 @@
-import {
-  decryptUrl,
-  getConsentList,
-  // requestFiData
-} from "@/lib/moneyone/moneyone.actions";
-import { ConsentType } from "@/lib/moneyone/moneyone.enums";
-import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
-import { ConsentFailedRedirect } from "./ConsentFailedRedirect";
+import { isAaConsentType } from "@/modules/import-data/types/aa";
 
 type Props = {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<Record<string, string | undefined>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function page({ params, searchParams }: Props) {
-  // Await params and searchParams (Next.js 15 requirement)
+/**
+ * The URL the backend registers with MoneyOne for every consent, web or mobile:
+ * `{MONEY_ONE_REDIRECT_ORIGIN}/moneyone/{TYPE}~{accountID}~mobile`
+ * (finsharpe-agents `src/api/aa.py::_redirect_url_for`), whose origin is this
+ * app. MoneyOne appends exactly three params — `ecres`, `resdate`, `fi`.
+ *
+ * This route no longer talks to MoneyOne. Since T-11 the backend owns the
+ * credentials and the decrypt, so all this page does is carry the encrypted
+ * params — plus the `type` and `accountID` that live in the slug, not in the
+ * query — over to `/app/consent-return`, which decides whether the return
+ * belongs to the mobile app (Android App Link) or to this browser.
+ *
+ * Slug shapes seen in the wild: `{type}~{accountID}~mobile` (what the backend
+ * registers today), and the two-segment `{type}~{accountID}` the pre-T-11 web
+ * build created. Both forward identically.
+ */
+export default async function MoneyOneReturnPage({ params, searchParams }: Props) {
   const { slug } = await params;
-  const searchParamsData = await searchParams;
+  const query = (await searchParams) ?? {};
 
-  const slugParts = slug.split("~");
+  // `~` is the delimiter because an accountID may itself contain dashes.
+  const [typeSlug, accountID] = slug.split("~");
 
-  // Slug pattern: {consentType}~{accountID} or {consentType}~{accountID}~{threadId}
-  // Using ~ as delimiter since accountID and threadID may contain dashes
-  if (!Object.values(ConsentType).includes(slugParts[0] as ConsentType))
-    return <div>Invalid slug</div>;
-
-  const consentType = slugParts[0] as ConsentType;
-  const accountID = slugParts[1];
-  const _threadId = slugParts[2];
-
-  if (!accountID) {
-    return <div>Missing account ID in URL</div>;
+  if (!isAaConsentType(typeSlug)) {
+    return <ReturnNotice message="This consent link is not valid." />;
   }
 
-  // Mobile-created consents (finsharpe-mobile ADR-0004/0009): no decrypt, no
-  // processing — forward the raw encrypted return params to the App Link URL.
-  // Android reopens the FinSharpe app, which resolves the params against the
-  // backend under its own JWT; if App Link interception fails, the page shows
-  // a "return to the app" fallback and the app's foreground poll completes
-  // the consent instead.
-  if (slugParts[2] === "mobile") {
-    const forwarded = new URLSearchParams();
-    for (const [key, value] of Object.entries(searchParamsData ?? {})) {
-      if (typeof value === "string") forwarded.set(key, value);
-    }
-    forwarded.set("type", consentType);
-    forwarded.set("accountID", accountID);
-    redirect(`/app/consent-return?${forwarded.toString()}`);
+  const forwarded = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === "string") forwarded.set(key, value);
   }
+  forwarded.set("type", typeSlug);
+  if (accountID) forwarded.set("accountID", accountID);
 
-  const decryptResult = await decryptUrl(searchParamsData as Record<string, string>);
+  redirect(`/app/consent-return?${forwarded.toString()}`);
+}
 
-  // Handle decryption failures
-  if (!decryptResult.success) {
-    if (decryptResult.status === "error") {
-      return <div>Error: {decryptResult.error}</div>;
-    }
-    return <ConsentFailedRedirect status={decryptResult.status} />;
-  }
-
-  const decryptedUrlData = decryptResult.data;
-
-  try {
-    const mobileNo: string = decryptedUrlData.userid.split("@")[0];
-
-    // Get pending consent handle from localStorage on client side
-    // For now, we'll use the srcref from decrypted data
-    const consentHandle = decryptedUrlData.srcref;
-
-    const consent = await getConsentList(
-      consentHandle,
-      mobileNo,
-      consentType,
-      accountID,
-    );
-
-    if (!consent) return <div>Consent not found</div>;
-
-    const consentID = consent.consentID;
-    if (!consentID) return <div>Invalid consent ID</div>;
-
-    // Request FI data from Account Aggregator
-    // Hmm this is not required as we've set
-    // DATA FETCH AND PERIODICITY to Periodic
-    // Data Request Mode : Manual
-    // Do First Time Data Request Automatic is set to true
-    // const fiRequestResult = await requestFiData(consentID);
-
-    // if ("error" in fiRequestResult) {
-    //   console.error("FI request failed:", fiRequestResult.error);
-    //   // Continue with redirect even if FI request fails
-    //   // The data flow is asynchronous, so we don't wait for the actual FI data
-    // } else if (process.env.NODE_ENV === "development") {
-    //   console.log("FI request initiated successfully:", fiRequestResult);
-    // }
-
-    // Redirect with consent data as search params
-    const redirectUrlParams = new URLSearchParams();
-    redirectUrlParams.set("consentID", consentID);
-    redirectUrlParams.set("consentType", consentType);
-    redirectUrlParams.set("mobileNo", mobileNo);
-    redirectUrlParams.set("consentCreationData", consent.consentCreationData);
-
-    redirect(`/import?${redirectUrlParams.toString()}`);
-  } catch (error) {
-    if (isRedirectError(error)) throw error;
-    console.error("Error processing consent redirect:", error);
-    return <div>Error processing consent</div>;
-  }
+function ReturnNotice({ message }: { message: string }) {
+  return (
+    <div className="bg-background flex min-h-screen items-center justify-center p-4">
+      <div className="bg-card w-full max-w-md rounded-lg border p-6 text-center shadow-lg">
+        <p className="text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  );
 }

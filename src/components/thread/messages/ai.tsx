@@ -2,7 +2,6 @@ import { useHideToolCalls } from "@/hooks/useDefaultApiValues";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
 import { stripCitationMarkers } from "@/lib/citations";
 import { isScannerApprovalInterrupt } from "@/lib/scanner-approval-interrupt";
-import { cn } from "@/lib/utils";
 import {
   PipelineSummaryCardView,
   readSummaryCard,
@@ -34,6 +33,7 @@ import { ScannerApprovalInterruptView } from "./scanner-approval-interrupt";
 import { BranchSwitcher, CommandBar } from "./shared";
 import { ToolCalls } from "./tool-calls";
 import { ThinkingLoader } from "./thinking-loader";
+import { HearOutputCard } from "@/modules/chat";
 
 function CustomComponent({
   message,
@@ -135,6 +135,29 @@ function Interrupt({
   );
 }
 
+/**
+ * The answer card: the reference's white bubble, squared at the top-left.
+ * Its copy / regenerate / version actions float on the top edge on hover
+ * (desktop) or sit under the text on touch screens — see `.chat-msg-actions`
+ * in chat.css — so they never reserve empty space between turns.
+ */
+function AnswerCard({
+  children,
+  actions,
+}: {
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="chat-msg glass-card relative max-w-[92%] min-w-0 rounded-nested rounded-tl-xs p-4.5 text-[13px] text-[#0A1F4D]">
+      {children}
+      {actions && (
+        <div className="chat-msg-actions chat-msg-actions--end">{actions}</div>
+      )}
+    </div>
+  );
+}
+
 export function AssistantMessage({
   message,
   isLoading,
@@ -190,6 +213,16 @@ export function AssistantMessage({
   // footer belongs under this message.
   const citations = useTurnCitations(message, contentString);
   const answer = citations.index.text;
+  // A turn is settled once its run has ended — or a later question exists,
+  // which can only happen after it did.
+  const turnSettled = useMemo(() => {
+    if (!isLoading) return true;
+    const position = thread.messages.findIndex((m) => m.id === message?.id);
+    return (
+      position !== -1 &&
+      thread.messages.slice(position + 1).some((m) => m.type === "human")
+    );
+  }, [isLoading, thread.messages, message?.id]);
   // The floor, not a fallback: the footer renders whenever the turn retrieved
   // filings, cited or not. Held back until the run finishes so it does not
   // judder down the screen on every token.
@@ -198,6 +231,9 @@ export function AssistantMessage({
     citations.isLastAnswerOfTurn &&
     !isLoading &&
     !!answer;
+  // Read-aloud belongs to the turn's final answer, once it is complete.
+  const showHearOutput =
+    citations.isLastAnswerOfTurn && turnSettled && !!answer;
 
   const allToolCallsAreWidgets =
     !!hasToolCalls &&
@@ -216,7 +252,7 @@ export function AssistantMessage({
   const summaryCard = readSummaryCard(message);
   if (summaryCard) {
     return (
-      <div className="chat-message-table group mr-auto flex w-full items-start">
+      <div className="animate-fade-in flex w-full items-start">
         <PipelineSummaryCardView card={summaryCard} />
       </div>
     );
@@ -228,65 +264,81 @@ export function AssistantMessage({
     return null;
   }
 
+  const interrupt = (
+    <Interrupt
+      interruptValue={threadInterrupt?.value}
+      isLastMessage={isLastMessage}
+      hasNoAIOrToolMessages={hasNoAIOrToolMessages}
+    />
+  );
+  const customComponents = message && (
+    <CustomComponent
+      message={message}
+      thread={thread}
+    />
+  );
+
   if (hideToolCalls && hasToolCalls) {
     return (
       <CitationProvider>
         <>
-          <Interrupt
-            interruptValue={threadInterrupt?.value}
-            isLastMessage={isLastMessage}
-            hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-          />
-          {message && (
-            <CustomComponent
-              message={message}
-              thread={thread}
-            />
-          )}
+          {interrupt}
+          {customComponents}
         </>
       </CitationProvider>
     );
   }
 
+  const actions = !hasToolCalls && !!answer && (
+    <>
+      <BranchSwitcher
+        branch={meta?.branch}
+        branchOptions={meta?.branchOptions}
+        onSelect={(branch) => thread.setBranch(branch)}
+        isLoading={isLoading}
+      />
+      <CommandBar
+        // Copying an answer must not carry its citation machinery.
+        content={stripCitationMarkers(answer)}
+        isLoading={isLoading}
+        isAiMessage={true}
+        handleRegenerate={() => handleRegenerate(parentCheckpoint)}
+      />
+    </>
+  );
+
+  const answerCard = answer.length > 0 && (
+    <AnswerCard actions={actions}>
+      <MarkdownText
+        variant="chat"
+        citations={citations.index}
+      >
+        {answer}
+      </MarkdownText>
+      {showSourcesFooter && (
+        <CitationSourcesFooter registry={citations.registry} />
+      )}
+    </AnswerCard>
+  );
+
   if (hasToolCalls && !hideToolCalls) {
     return (
       <CitationProvider>
-        <div className="chat-message-table group mr-auto flex w-full items-start">
-          <div className="flex w-full flex-col">
-            {answer.length > 0 && (
-              <div className="py-1">
-                <MarkdownText citations={citations.index}>{answer}</MarkdownText>
-                {showSourcesFooter && (
-                  <CitationSourcesFooter registry={citations.registry} />
-                )}
-              </div>
-            )}
+        <div className="animate-fade-in flex w-full flex-col gap-3">
+          {answerCard}
 
-            {(hasToolCalls && toolCallsHaveContents && (
-              <ToolCalls toolCalls={message.tool_calls} />
+          {(hasToolCalls && toolCallsHaveContents && (
+            <ToolCalls toolCalls={message.tool_calls} />
+          )) ||
+            (hasAnthropicToolCalls && (
+              <ToolCalls toolCalls={anthropicStreamedToolCalls} />
             )) ||
-              (hasAnthropicToolCalls && (
-                <ToolCalls toolCalls={anthropicStreamedToolCalls} />
-              )) ||
-              (hasToolCalls && (
-                <ToolCalls toolCalls={message.tool_calls} />
-              ))}
+            (hasToolCalls && <ToolCalls toolCalls={message.tool_calls} />)}
 
-            <Interrupt
-              interruptValue={threadInterrupt?.value}
-              isLastMessage={isLastMessage}
-              hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-            />
-            {message && (
-              <CustomComponent
-                message={message}
-                thread={thread}
-              />
-            )}
-            {/* No command bar on messages with tool calls — the copy/regenerate
-                controls would leave dead whitespace between the tool group and
-                the next turn. Plain-text turns keep their command bar below. */}
-          </div>
+          {interrupt}
+          {customComponents}
+          {/* No actions on messages with tool calls: the copy/regenerate
+              controls belong to the turn's final answer. */}
         </div>
       </CitationProvider>
     );
@@ -294,60 +346,26 @@ export function AssistantMessage({
 
   return (
     <CitationProvider>
-      <div className="chat-message-table group mr-auto flex w-full items-start">
-        <div className="flex w-full flex-col">
-          {answer.length > 0 && (
-            <div className="py-1">
-              <MarkdownText citations={citations.index}>{answer}</MarkdownText>
-              {showSourcesFooter && (
-                <CitationSourcesFooter registry={citations.registry} />
-              )}
-            </div>
-          )}
-
-          {message && (
-            <CustomComponent
-              message={message}
-              thread={thread}
-            />
-          )}
-          <Interrupt
-            interruptValue={threadInterrupt?.value}
-            isLastMessage={isLastMessage}
-            hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-          />
-          {!hasToolCalls && !!answer && (
-            <div
-              className={cn(
-                "mr-auto flex items-center gap-2 transition-opacity",
-                "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
-              )}
-            >
-              <BranchSwitcher
-                branch={meta?.branch}
-                branchOptions={meta?.branchOptions}
-                onSelect={(branch) => thread.setBranch(branch)}
-                isLoading={isLoading}
-              />
-              <CommandBar
-                // Copying an answer must not carry its citation machinery.
-                content={stripCitationMarkers(answer)}
-                isLoading={isLoading}
-                isAiMessage={true}
-                handleRegenerate={() => handleRegenerate(parentCheckpoint)}
-              />
-            </div>
-          )}
-        </div>
+      <div className="animate-fade-in flex w-full flex-col gap-3">
+        {answerCard}
+        {customComponents}
+        {interrupt}
+        {showHearOutput && (
+          <HearOutputCard text={stripCitationMarkers(answer)} />
+        )}
       </div>
     </CitationProvider>
   );
 }
 
-export function AssistantMessageLoading() {
+export function AssistantMessageLoading({
+  phase = "thinking",
+}: {
+  phase?: "thinking" | "finishing";
+}) {
   return (
-    <div className="mr-auto flex w-full items-start">
-      <ThinkingLoader />
+    <div className="flex w-full items-start">
+      <ThinkingLoader phase={phase} />
     </div>
   );
 }

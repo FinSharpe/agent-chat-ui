@@ -149,36 +149,38 @@ export default function ScannerResults({
     // Empty state (no initial results and not loading)
     if (!results && !isLoading) {
         return (
-            <div className="mt-4 rounded-lg border bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">No results found</p>
+            <div className="glass-card rounded-card mt-3 p-5">
+                <p className="text-[11px] text-slate-400">No results found</p>
             </div>
         );
     }
 
     return (
-        <div className="mt-4 w-full space-y-4 chat-container">
+        <div className="mt-3 w-full space-y-3 chat-container">
             {/* Error Banner */}
             {error && (
-                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
-                    <p className="text-sm text-destructive">
+                <div className="rounded-nested bg-rose-500/10 px-3.5 py-2.5">
+                    <p className="text-[11px] text-rose-600">
                         Error loading scanner results: {error instanceof Error ? error.message : 'Unknown error'}
                     </p>
                 </div>
             )}
 
             {/* Header */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">
-                        Scanner Results
+            <div className="glass-card rounded-card p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <h4 className="font-geist text-sm font-medium text-[#0A1F4D]">
+                            Scanner Results
+                        </h4>
                         {scanner_id && (
-                            <span className="ml-2 text-muted-foreground">
-                                (ID: {scanner_id})
+                            <span className="rounded-full bg-[#063BAA]/8 px-2 py-0.5 text-[10px] font-medium text-[#063BAA] tabular-nums">
+                                ID {scanner_id}
                             </span>
                         )}
-                    </h4>
+                    </div>
                     <div className="flex items-center gap-3">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-[10px] text-slate-400 tabular-nums">
                             {totalElements} {totalElements === 1 ? 'result' : 'results'}
                             {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
                         </p>
@@ -194,23 +196,23 @@ export default function ScannerResults({
 
                 {/* Show user query only if scanner_type is not "saved" */}
                 {scanner_type !== 'saved' && userQuery && (
-                    <div className="rounded-md border bg-background p-3">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <div className="glass-tile rounded-nested px-3.5 py-2.5">
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-slate-400 mb-1">
                             Query
                         </p>
-                        <p className="text-sm text-foreground font-mono break-words">
+                        <p className="text-[11px] text-[#0A1F4D] font-mono break-words">
                             {userQuery}
                         </p>
                     </div>
                 )}
 
                 {/* Filters */}
-                <div className="pt-3 border-t">
+                <div className="pt-4 border-t border-slate-50">
                     <ScannerFilters control={control} />
                 </div>
 
                 {/* Pagination Controls */}
-                <div className="pt-3 border-t">
+                <div className="pt-4 border-t border-slate-50">
                     <ScannerPagination
                         control={control}
                         currentPage={currentPage}

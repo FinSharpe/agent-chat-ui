@@ -2,6 +2,7 @@
 
 import { useFileUpload } from "@/hooks/use-file-upload";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { cn } from "@/lib/utils";
 import {
   ChatComposer,
@@ -18,7 +19,6 @@ import { toast } from "sonner";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { ArtifactPanel } from "./artifact-panel";
 import { MessageList } from "./message-list";
-import { ConversationSkeleton } from "./messages/conversation-skeleton";
 
 // The phone composer floats this far above the bottom of the page — clear of
 // the bottom nav, as in the reference — plus any home-indicator inset the nav
@@ -189,40 +189,43 @@ export function Thread() {
     />
   );
 
+  // Repopulating a saved chat is a full-page wait for the transcript: the
+  // page loader fills it (until then `useStream` still holds the previous
+  // chat), while the toolbar and composer stay drawn — as mobile (#153).
   const conversation = (
-    <StickToBottom
-      className="relative flex-1 overflow-hidden"
-      initial="instant"
-      resize="smooth"
-    >
-      <ScrollArea
-        className={cn("px-5", desktop ? "pt-[52px] pb-8" : "py-5 pb-44")}
+    <PageLoaderSwitch loading={threadLoading}>
+      <StickToBottom
+        className="relative flex-1 overflow-hidden"
+        initial="instant"
+        resize="smooth"
       >
-        <div
-          className={cn(
-            desktop && "mx-auto w-full max-w-[calc(764px*var(--wx,1))]",
-          )}
+        <ScrollArea
+          className={cn("px-5", desktop ? "pt-[52px] pb-8" : "py-5 pb-44")}
         >
-          {isEmpty ? (
-            <ChatEmptyState
-              desktop={false}
-              onPrompt={sendPrompt}
-              disabled={isLoading}
-            />
-          ) : threadLoading ? (
-            <ConversationSkeleton />
-          ) : (
-            <MessageList
-              onSuggestion={sendPrompt}
-              onRegenerate={regenerate}
-              onRetry={retry}
-              loadFailed={looksBlank && !reachable}
-            />
-          )}
-        </div>
-      </ScrollArea>
-      {!isEmpty && <ScrollToBottom desktop={desktop} />}
-    </StickToBottom>
+          <div
+            className={cn(
+              desktop && "mx-auto w-full max-w-[calc(764px*var(--wx,1))]",
+            )}
+          >
+            {isEmpty ? (
+              <ChatEmptyState
+                desktop={false}
+                onPrompt={sendPrompt}
+                disabled={isLoading}
+              />
+            ) : (
+              <MessageList
+                onSuggestion={sendPrompt}
+                onRegenerate={regenerate}
+                onRetry={retry}
+                loadFailed={looksBlank && !reachable}
+              />
+            )}
+          </div>
+        </ScrollArea>
+        {!isEmpty && <ScrollToBottom desktop={desktop} />}
+      </StickToBottom>
+    </PageLoaderSwitch>
   );
 
   return (

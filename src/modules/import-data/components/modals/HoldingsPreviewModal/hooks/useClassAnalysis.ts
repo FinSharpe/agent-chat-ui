@@ -96,5 +96,9 @@ export function useClassAnalysis(
     retry: () => void query.refetch(),
     /** Nothing to send: no holding has a positive quantity. */
     isEmpty: sent.count === 0,
+    /** There is a book to analyse and no answer yet, not even a failed one —
+     * including the render before the first request goes out. */
+    isAwaitingFirst:
+      enabled && request.itemCount > 0 && query.data == null && !query.isError,
   };
 }

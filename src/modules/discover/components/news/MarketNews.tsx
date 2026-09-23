@@ -2,7 +2,7 @@
 
 import { Newspaper } from "lucide-react";
 import FeatureHeader from "@/components/discover/FeatureHeader";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
@@ -44,12 +44,8 @@ export function MarketNews({ onBack }: { onBack: () => void }) {
     // The feed is the whole page, so its first load is a full-page wait under
     // the header — Home, where the same cards are one section of many, keeps
     // the skeletons instead.
-    body = (
-      <SoftLoader
-        variant="wave"
-        message="Loading headlines"
-      />
-    );
+    // Drawn by the PageLoaderSwitch below.
+    body = null;
   } else if (data.length === 0) {
     body = (
       <FeatureEmptyState
@@ -95,7 +91,9 @@ export function MarketNews({ onBack }: { onBack: () => void }) {
         subtitle="Nifty 50 headlines"
         onBack={onBack}
       />
-      {body}
+      <PageLoaderSwitch loading={isPending && !isError}>
+        {body}
+      </PageLoaderSwitch>
     </div>
   );
 }

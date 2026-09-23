@@ -7,10 +7,8 @@ import {
   FooterButton,
   OverlayBody,
   OverlayFooter,
-  StatTileGridSkeleton,
-  TableSkeleton,
-  ChartSkeleton,
 } from "@/modules/import-data/components/shared/ui";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { ClassAnalysisView } from "./components/ClassAnalysisView";
 import { HoldingsSearch } from "./components/HoldingsSearch";
 import { HoldingsTable } from "./components/HoldingsTable";
@@ -140,57 +138,50 @@ export function HoldingsPreviewForm({
         onClose={onClose}
       />
 
-      <OverlayBody>
-        {isLoading ? (
-          <>
-            <StatTileGridSkeleton count={4} />
-            <ChartSkeleton />
-            <TableSkeleton
-              rows={5}
-              label={`Loading ${config.assetLabel}`}
+      {/* Opening Analyse asks for the analysis, and it can take half a
+          minute cold: one full-page wait under the header until the holdings
+          and their first answer are in, as mobile's class analytics (#153).
+          An edit that re-runs it keeps the last answer on screen. */}
+      <PageLoaderSwitch loading={isLoading || analysis.isAwaitingFirst}>
+        <OverlayBody>
+          <SummaryTiles
+            control={control}
+            consentType={consentType}
+            fallbackValue={fallbackValue}
+            costBasis={costBasisOf(normalized)}
+            snapshot={analysis.analysis?.snapshot}
+          />
+
+          {count > 0 && (
+            <ClassAnalysisView
+              analysis={analysis.analysis}
+              isLoading={analysis.isLoading}
+              isRefreshing={analysis.isRefreshing}
+              isError={analysis.isError}
+              errorStatus={analysis.error?.status}
+              isEmpty={analysis.isEmpty}
+              onRetry={analysis.retry}
             />
-          </>
-        ) : (
-          <>
-            <SummaryTiles
+          )}
+
+          <DataPanel
+            title="Edit before importing"
+            addon={`${count} ${holdingNoun(consentType, count)}`}
+            bodyClassName="space-y-4"
+          >
+            <HoldingsSearch
+              consentType={consentType}
+              onSelectResult={handleAddSearchResult}
+            />
+            <HoldingsTable
+              fields={fields}
               control={control}
               consentType={consentType}
-              fallbackValue={fallbackValue}
-              costBasis={costBasisOf(normalized)}
-              snapshot={analysis.analysis?.snapshot}
+              onRemove={handleRemoveHolding}
             />
-
-            {count > 0 && (
-              <ClassAnalysisView
-                analysis={analysis.analysis}
-                isLoading={analysis.isLoading}
-                isRefreshing={analysis.isRefreshing}
-                isError={analysis.isError}
-                errorStatus={analysis.error?.status}
-                isEmpty={analysis.isEmpty}
-                onRetry={analysis.retry}
-              />
-            )}
-
-            <DataPanel
-              title="Edit before importing"
-              addon={`${count} ${holdingNoun(consentType, count)}`}
-              bodyClassName="space-y-4"
-            >
-              <HoldingsSearch
-                consentType={consentType}
-                onSelectResult={handleAddSearchResult}
-              />
-              <HoldingsTable
-                fields={fields}
-                control={control}
-                consentType={consentType}
-                onRemove={handleRemoveHolding}
-              />
-            </DataPanel>
-          </>
-        )}
-      </OverlayBody>
+          </DataPanel>
+        </OverlayBody>
+      </PageLoaderSwitch>
 
       <OverlayFooter>
         <FooterButton

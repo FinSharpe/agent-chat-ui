@@ -6,6 +6,7 @@ import { Loader2, Play, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { PipelineApiError } from "../../api/pipelines-client";
 import { creditsLabel, pipelineKindLabel } from "../../constants/presentation";
@@ -159,107 +160,104 @@ export function QuoteScreen({
         onBack={close}
       />
 
-      <div className={`${SCROLL_BODY} space-y-5`}>
-        {catalogLoading && (
-          <div className="space-y-3">
-            <Placeholder className="h-3 w-32" />
-            <Placeholder className="h-2 w-full" />
-            <Placeholder className="h-40 w-full" />
-          </div>
-        )}
-
-        {/* A catalog that failed to load has not told us this workflow is
+      {/* The catalog names the workflow and its steps: until it is in, a
+          full-page wait under the header (#153). The quote below arrives
+          inside a page that is already drawn and keeps its placeholder. */}
+      <PageLoaderSwitch loading={catalogLoading}>
+        <div className={`${SCROLL_BODY} space-y-5`}>
+          {/* A catalog that failed to load has not told us this workflow is
             gone — only a catalog that came back without it has. */}
-        {!catalogLoading && !entry && (
-          <SectionErrorState
-            title={workflowCopy.title}
-            description={workflowCopy.description}
-            onRetry={
-              workflowCopy.retryable ? () => refetchCatalog() : undefined
-            }
-            retrying={catalogFetching}
-          />
-        )}
-
-        {entry && (
-          <>
-            {wantsSymbol && (
-              <TargetField
-                symbol={symbol}
-                resolvedSymbol={targetSymbol(data?.target) || undefined}
-                onSelect={(next) =>
-                  router.replace(
-                    researchRoutes.quote(pipelineId, next, threadId),
-                  )
-                }
-                onClear={() =>
-                  router.replace(
-                    researchRoutes.quote(pipelineId, null, threadId),
-                  )
-                }
-              />
-            )}
-
-            {quote.isLoading && <Placeholder className="h-[62px] w-full" />}
-
-            {/* No price, no balance, no purchase — say which of those is the
-                server refusing and which is a connection we couldn't make. */}
-            {quote.isError && (
-              <SectionErrorState
-                className="py-6"
-                title={quoteCopy.title}
-                description={quoteCopy.description}
-                onRetry={
-                  quoteCopy.retryable ? () => quote.refetch() : undefined
-                }
-                retrying={quote.isFetching}
-              />
-            )}
-
-            {data && (
-              <StatStrip
-                stats={[
-                  { label: "Price", value: creditsLabel(price) },
-                  { label: "Your Balance", value: creditsLabel(balance) },
-                  // A stock report's subject is already on the field above,
-                  // so its slot says how much of the report will run instead.
-                  isMarket
-                    ? { label: "Covers", value: label || "—" }
-                    : {
-                        label: "Sections",
-                        value: data.coverage_gaps?.length
-                          ? `${steps.length - data.coverage_gaps.length} of ${steps.length}`
-                          : `${steps.length}`,
-                      },
-                ]}
-              />
-            )}
-
-            <ProgressBlock
-              done={0}
-              total={steps.length}
-              note={
-                ordered
-                  ? "Each step narrows the one before it, so they run in order."
-                  : "The sections are researched in parallel and finish out of order."
+          {!entry && (
+            <SectionErrorState
+              title={workflowCopy.title}
+              description={workflowCopy.description}
+              onRetry={
+                workflowCopy.retryable ? () => refetchCatalog() : undefined
               }
+              retrying={catalogFetching}
             />
+          )}
 
-            <PipelineSteps
-              steps={steps}
-              ordered={ordered}
-            />
+          {entry && (
+            <>
+              {wantsSymbol && (
+                <TargetField
+                  symbol={symbol}
+                  resolvedSymbol={targetSymbol(data?.target) || undefined}
+                  onSelect={(next) =>
+                    router.replace(
+                      researchRoutes.quote(pipelineId, next, threadId),
+                    )
+                  }
+                  onClear={() =>
+                    router.replace(
+                      researchRoutes.quote(pipelineId, null, threadId),
+                    )
+                  }
+                />
+              )}
 
-            {data && (
-              <QuoteDetails
-                quote={data}
-                subject={isMarket ? "market" : "stock"}
-                shortfall={shortfall}
+              {quote.isLoading && <Placeholder className="h-[62px] w-full" />}
+
+              {/* No price, no balance, no purchase — say which of those is the
+                server refusing and which is a connection we couldn't make. */}
+              {quote.isError && (
+                <SectionErrorState
+                  className="py-6"
+                  title={quoteCopy.title}
+                  description={quoteCopy.description}
+                  onRetry={
+                    quoteCopy.retryable ? () => quote.refetch() : undefined
+                  }
+                  retrying={quote.isFetching}
+                />
+              )}
+
+              {data && (
+                <StatStrip
+                  stats={[
+                    { label: "Price", value: creditsLabel(price) },
+                    { label: "Your Balance", value: creditsLabel(balance) },
+                    // A stock report's subject is already on the field above,
+                    // so its slot says how much of the report will run instead.
+                    isMarket
+                      ? { label: "Covers", value: label || "—" }
+                      : {
+                          label: "Sections",
+                          value: data.coverage_gaps?.length
+                            ? `${steps.length - data.coverage_gaps.length} of ${steps.length}`
+                            : `${steps.length}`,
+                        },
+                  ]}
+                />
+              )}
+
+              <ProgressBlock
+                done={0}
+                total={steps.length}
+                note={
+                  ordered
+                    ? "Each step narrows the one before it, so they run in order."
+                    : "The sections are researched in parallel and finish out of order."
+                }
               />
-            )}
-          </>
-        )}
-      </div>
+
+              <PipelineSteps
+                steps={steps}
+                ordered={ordered}
+              />
+
+              {data && (
+                <QuoteDetails
+                  quote={data}
+                  subject={isMarket ? "market" : "stock"}
+                  shortfall={shortfall}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </PageLoaderSwitch>
 
       <ActionBar>
         <button

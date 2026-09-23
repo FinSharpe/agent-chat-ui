@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { CalendarX, CloudOff, Rocket } from "lucide-react";
 import FeatureHeader from "@/components/discover/FeatureHeader";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { PopupFrame } from "@/components/shared/Popup";
 import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
@@ -101,12 +101,8 @@ export function IpoWatch({
       />
     );
   } else if (isPending) {
-    body = (
-      <SoftLoader
-        variant="wave"
-        message="Loading the calendar"
-      />
-    );
+    // Drawn by the PageLoaderSwitch below.
+    body = null;
   } else if (data.issues.length === 0) {
     body = (
       <FeatureEmptyState
@@ -178,7 +174,9 @@ export function IpoWatch({
         subtitle="Open & upcoming issues"
         onBack={onBack}
       />
-      {body}
+      <PageLoaderSwitch loading={isPending && !isError}>
+        {body}
+      </PageLoaderSwitch>
     </div>
   );
 }

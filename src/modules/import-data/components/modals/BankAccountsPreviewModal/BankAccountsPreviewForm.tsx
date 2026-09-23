@@ -12,16 +12,14 @@ import {
   BankAccountsFiDataResponse,
 } from "@/modules/import-data/types/bank-accounts";
 import {
-  CardListSkeleton,
-  ChartSkeleton,
   EmptyState,
   FooterButton,
   OverlayBody,
   OverlayFooter,
   OverlayHeader,
-  StatTileGridSkeleton,
   formatINRShort,
 } from "@/modules/import-data/components/shared/ui";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import {
   extractBankBalanceFromFiData,
   transformFormDataToBankAccounts,
@@ -83,27 +81,25 @@ export function BankAccountsPreviewForm({
         onClose={onClose}
       />
 
-      <OverlayBody>
-        {isLoading ? (
-          <>
-            <StatTileGridSkeleton />
-            <CardListSkeleton count={3} />
-            <ChartSkeleton />
-          </>
-        ) : count === 0 ? (
-          <EmptyState
-            icon={Building2}
-            title="No bank accounts found"
-            description="There are no linked deposit accounts to preview for this connection."
-            className="py-16"
-          />
-        ) : (
-          <BankOverview
-            accounts={accounts}
-            onRemove={handleRemoveHolding}
-          />
-        )}
-      </OverlayBody>
+      {/* The first load is a full-page wait under the header, as mobile's
+          cash screen (#153). */}
+      <PageLoaderSwitch loading={isLoading}>
+        <OverlayBody>
+          {count === 0 ? (
+            <EmptyState
+              icon={Building2}
+              title="No bank accounts found"
+              description="There are no linked deposit accounts to preview for this connection."
+              className="py-16"
+            />
+          ) : (
+            <BankOverview
+              accounts={accounts}
+              onRemove={handleRemoveHolding}
+            />
+          )}
+        </OverlayBody>
+      </PageLoaderSwitch>
 
       <OverlayFooter>
         <FooterButton

@@ -147,7 +147,7 @@ src/modules/
 - `SidebarAccountFooter` carries the light/dark switch and the identity row — the name opens Profile, a separate button signs out — or a Login button when signed out. On mobile the header avatar opens the same actions as a bottom sheet (`MobileAccountMenu`, after finsharpe-mobile's `account_sheet.dart`); the bottom tab bar holds navigation only. MCP Access and Delete Account are not in the nav — they are on the Profile page.
 - Navigation is Next routing, wrapped by `useAppNavigation()` (`src/hooks/`): tabs chat `/`, home `/home`, discover `/discover`, import `/import`, memory `/history`. `createNewChat(prompt?)` opens a fresh chat; with a prompt it sets `useUiStore.pendingPrompt`, which the chat page sends once as the first message.
 - `useUiStore` (`src/store/`, zustand, persists only theme and sidebar state) holds the shell's overlay flags, `pendingPrompt` and `pendingDiscoverFeature`.
-- Reference layout kit shared by the pages: `src/components/shared/{SectionKit,WavePattern,HeroCarousel,Popup,OverlayColumn}`, `src/components/discover/FeatureHeader`, `CarouselDots`, `SoftLoader`. On desktop, detail views open as `PopupFrame`/`OverlayRoot` popups portalled into `<main data-popup-root>`; feature pages sit in the centred `OverlayColumn`.
+- Reference layout kit shared by the pages: `src/components/shared/{SectionKit,WavePattern,HeroCarousel,Popup,OverlayColumn,PageLoader}`, `src/components/discover/FeatureHeader`, `CarouselDots`. On desktop, detail views open as `PopupFrame`/`OverlayRoot` popups portalled into `<main data-popup-root>`; feature pages sit in the centred `OverlayColumn`.
 
 ### auth module
 `src/modules/auth/` is the sign-in flow: Welcome `/get-started`, Auth Choice `/get-started/choose`, Sign In `/login`, Sign Up `/register`, OTP `/verify-email` (routes in `constants/routes.ts`, which the middleware imports, so keep it free of React).
@@ -177,6 +177,9 @@ Do not ship invented figures. A screen with no data source is drawn disabled or 
 
 ### Failure states
 `src/components/shared/SectionErrorState.tsx` is the shared inline error state (full and `compact`). Every list or section that can fail must tell **empty** (loaded, nothing there) from **failed** (we could not load) — a failed query must never render the empty copy, because that states a fact about the user's account. Root and shell error boundaries live in `src/app/{global-error,(main)/error}.tsx`; the shell shows `ServerUnreachableBanner` when `useAuth().authError` is set. React Query retries network/5xx twice and never a 4xx.
+
+### Loading states
+`src/components/shared/PageLoader.tsx` is the one full-page loader, after finsharpe-mobile's `FsPageLoader` (#153, `fs_page_loader.dart`; change the two together): the Welcome ribbon with the logo mark centred — no wordmark, no copy. It fills the region that is waiting (the body under a screen's header, an analysis popup's body), never the header. Wrap the page in `PageLoaderSwitch loading={…}`: nothing shows for a 200ms grace, a loader that did show stays 400ms, then cross-fades to the content. A section still arriving inside a page that is already drawn keeps its skeleton; chat's assistant turn keeps its own loader.
 
 ### history module
 `src/modules/history/` renders the Memory page (`/history`). The shell's sidebar and drawer read the same data through `useChatHistory`, which groups chats Today / Yesterday / This Week / Older and exposes rename, bookmark and delete.

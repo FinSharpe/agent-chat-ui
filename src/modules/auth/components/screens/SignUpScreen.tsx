@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoader } from "@/components/shared/PageLoader";
 import { AUTH_ROUTES } from "../../constants/routes";
 import {
   INPUT_CLASS,
@@ -102,10 +102,7 @@ export default function SignUpScreen() {
       />
 
       {sending ? (
-        <SoftLoader
-          variant="wave"
-          message="Sending OTP…"
-        />
+        <PageLoader />
       ) : (
         <div className="scrollbar-none flex flex-1 flex-col justify-between overflow-y-auto pb-4">
           <div className="space-y-4">

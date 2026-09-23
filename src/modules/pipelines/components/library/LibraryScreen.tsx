@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
 import { researchRoutes } from "../../constants/routes";
@@ -11,7 +12,6 @@ import { useOwnedReports } from "../../hooks/usePipelineQueries";
 import {
   HEADER_PILL,
   PRIMARY_BUTTON,
-  Placeholder,
   SCROLL_BODY,
   StatStrip,
 } from "../shared/kit";
@@ -59,67 +59,56 @@ export function LibraryScreen() {
           }
         />
 
-        <div className={`${SCROLL_BODY} space-y-6`}>
-          {isLoading && (
-            <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
-              {[0, 1, 2].map((key) => (
-                <div
-                  key={key}
-                  className="space-y-2.5 p-4.5"
-                >
-                  <Placeholder className="h-3 w-40" />
-                  <Placeholder className="h-4 w-24" />
-                  <Placeholder className="h-3 w-52" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* "You have not commissioned a report yet" is a claim about the
+        {/* The first load is a full-page wait under the header, as mobile's
+            owned reports screen (#153). */}
+        <PageLoaderSwitch loading={isLoading}>
+          <div className={`${SCROLL_BODY} space-y-6`}>
+            {/* "You have not commissioned a report yet" is a claim about the
               account, and a failed list cannot make it. */}
-          {isError && (
-            <SectionErrorState
-              label="your reports"
-              onRetry={() => refetch()}
-              retrying={isFetching}
-            />
-          )}
-
-          {data && data.length === 0 && (
-            <div className="space-y-4 py-12 text-center">
-              <p className="text-[11px] text-slate-400">
-                You have not commissioned a report yet.
-              </p>
-              <button
-                type="button"
-                onClick={() => router.push(researchRoutes.catalog)}
-                className={cn(PRIMARY_BUTTON, "mx-auto w-fit px-6")}
-              >
-                Browse Agent Workflows
-              </button>
-            </div>
-          )}
-
-          {data && data.length > 0 && (
-            <>
-              <StatStrip
-                stats={[
-                  { label: "Reports", value: `${data.length}` },
-                  { label: "Ready", value: `${ready}`, accent: ready > 0 },
-                  { label: "In Progress", value: `${inFlight}` },
-                ]}
+            {isError && (
+              <SectionErrorState
+                label="your reports"
+                onRetry={() => refetch()}
+                retrying={isFetching}
               />
-              <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
-                {data.map((row) => (
-                  <PurchaseRow
-                    key={row.purchase_id}
-                    row={row}
-                  />
-                ))}
+            )}
+
+            {data && data.length === 0 && (
+              <div className="space-y-4 py-12 text-center">
+                <p className="text-[11px] text-slate-400">
+                  You have not commissioned a report yet.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push(researchRoutes.catalog)}
+                  className={cn(PRIMARY_BUTTON, "mx-auto w-fit px-6")}
+                >
+                  Browse Agent Workflows
+                </button>
               </div>
-            </>
-          )}
-        </div>
+            )}
+
+            {data && data.length > 0 && (
+              <>
+                <StatStrip
+                  stats={[
+                    { label: "Reports", value: `${data.length}` },
+                    { label: "Ready", value: `${ready}`, accent: ready > 0 },
+                    { label: "In Progress", value: `${inFlight}` },
+                  ]}
+                />
+                <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
+                  {data.map((row) => (
+                    <PurchaseRow
+                      key={row.purchase_id}
+                      row={row}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </PageLoaderSwitch>
       </div>
     </ResearchPage>
   );

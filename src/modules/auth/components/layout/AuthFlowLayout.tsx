@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoader } from "@/components/shared/PageLoader";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { AppViewport } from "@/modules/shell";
 import { AuthScreenTransition } from "./AuthScreenTransition";
@@ -26,14 +26,11 @@ export default function AuthFlowLayout({
   }, []);
 
   if (!mounted) {
-    // The layout (desktop split vs phone) is only known in the browser; show
-    // the brand wave for that first paint rather than the wrong layout.
+    // The layout (desktop split vs phone) is only known in the browser; hold
+    // the page loader for that first paint rather than the wrong layout.
     return (
       <div className="flex min-h-screen w-full flex-col bg-white">
-        <SoftLoader
-          variant="wave"
-          message="FinSharpeGPT"
-        />
+        <PageLoader />
       </div>
     );
   }

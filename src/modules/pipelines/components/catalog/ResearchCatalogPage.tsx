@@ -4,18 +4,14 @@ import { useRouter } from "next/navigation";
 import { Library } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
 import { creditsLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import { usePipelineCatalog } from "../../hooks/usePipelineQueries";
 import type { CatalogEntry } from "../../types/pipelines.types";
-import {
-  HEADER_PILL,
-  Placeholder,
-  SCROLL_BODY,
-  StatStrip,
-} from "../shared/kit";
+import { HEADER_PILL, SCROLL_BODY, StatStrip } from "../shared/kit";
 import { WorkflowCard } from "./WorkflowCard";
 
 /** Real figures for the strip under the banner. The reference quotes an
@@ -72,55 +68,51 @@ export function ResearchCatalogPage() {
         }
       />
 
-      <div className={`${SCROLL_BODY} space-y-6`}>
-        <div className="space-y-3">
-          <SectionBanner
-            eyebrow="Agent Workflows"
-            title="Multi-step AI agents chaining macro, fundamental and technical analysis"
-            tone="blue"
-            height={260}
-            image={BANNER_WAVE.cyan}
-            imageScrim
-          />
-          <StatStrip stats={catalogStats(catalog)} />
-        </div>
-
-        {isLoading && (
-          <div className="glass-card rounded-card space-y-3 p-4.5">
-            <Placeholder className="h-4 w-40" />
-            <Placeholder className="h-3 w-full" />
-            <Placeholder className="h-3 w-2/3" />
+      {/* The catalog is the page: its first load is a full-page wait under
+          the header, as mobile's catalog screen (#153). */}
+      <PageLoaderSwitch loading={isLoading}>
+        <div className={`${SCROLL_BODY} space-y-6`}>
+          <div className="space-y-3">
+            <SectionBanner
+              eyebrow="Agent Workflows"
+              title="Multi-step AI agents chaining macro, fundamental and technical analysis"
+              tone="blue"
+              height={260}
+              image={BANNER_WAVE.cyan}
+              imageScrim
+            />
+            <StatStrip stats={catalogStats(catalog)} />
           </div>
-        )}
 
-        {/* A failed catalog is not an empty catalog: without this the screen
+          {/* A failed catalog is not an empty catalog: without this the screen
             below would claim there are no workflows to run. */}
-        {isError && (
-          <SectionErrorState
-            label="the agent workflows"
-            onRetry={() => refetch()}
-            retrying={isFetching}
-          />
-        )}
+          {isError && (
+            <SectionErrorState
+              label="the agent workflows"
+              onRetry={() => refetch()}
+              retrying={isFetching}
+            />
+          )}
 
-        {catalog && catalog.length === 0 && (
-          <p className="py-8 text-center text-[11px] text-slate-400">
-            No agent workflows are available right now.
-          </p>
-        )}
+          {catalog && catalog.length === 0 && (
+            <p className="py-8 text-center text-[11px] text-slate-400">
+              No agent workflows are available right now.
+            </p>
+          )}
 
-        {catalog && catalog.length > 0 && (
-          <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
-            {catalog.map((entry) => (
-              <WorkflowCard
-                key={entry.id}
-                entry={entry}
-                onRun={() => router.push(researchRoutes.quote(entry.id))}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+          {catalog && catalog.length > 0 && (
+            <div className="glass-card rounded-card divide-y divide-slate-100 overflow-hidden dark:divide-slate-800/60">
+              {catalog.map((entry) => (
+                <WorkflowCard
+                  key={entry.id}
+                  entry={entry}
+                  onRun={() => router.push(researchRoutes.quote(entry.id))}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </PageLoaderSwitch>
     </div>
   );
 }

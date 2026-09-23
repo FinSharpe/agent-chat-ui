@@ -2,11 +2,9 @@ import { MEMORY_COPY } from "../constants/memory-content";
 import type { ChatSummary } from "../hooks/useChatHistory";
 import type { ChatGroup } from "../hooks/useMemoryChats";
 import ChatRow from "./ChatRow";
-import ChatRowsSkeleton from "./ChatRowsSkeleton";
 
 interface ChatHistorySectionProps {
   groups: ChatGroup[];
-  isLoading: boolean;
   isError: boolean;
   /** False when the user has no chats at all, as opposed to none matching. */
   hasChats: boolean;
@@ -48,7 +46,6 @@ function Notice({
 /** The full, searchable history — cardless hairline rows under date labels. */
 export default function ChatHistorySection({
   groups,
-  isLoading,
   isError,
   hasChats,
   onRetry,
@@ -56,17 +53,6 @@ export default function ChatHistorySection({
   ...rowHandlers
 }: ChatHistorySectionProps) {
   const body = () => {
-    if (isLoading) {
-      return (
-        <div className="space-y-1">
-          <div className="h-3 w-16 animate-pulse rounded-md bg-slate-100" />
-          <ChatRowsSkeleton
-            variant="history"
-            rows={4}
-          />
-        </div>
-      );
-    }
     if (isError) {
       return (
         <Notice

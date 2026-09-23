@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Bell, Loader2, RefreshCw } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { cn } from "@/lib/utils";
 import {
@@ -24,7 +25,6 @@ import {
   ActionBar,
   CIRCLE_BUTTON,
   PRIMARY_BUTTON,
-  Placeholder,
   SCROLL_BODY,
 } from "../shared/kit";
 import { PipelineSteps, type StepRow } from "../shared/PipelineSteps";
@@ -142,73 +142,71 @@ export function RunScreen({
         }
       />
 
-      <div className={`${SCROLL_BODY} space-y-5`}>
-        {isLoading && (
-          <div className="space-y-3">
-            <Placeholder className="h-3 w-32" />
-            <Placeholder className="h-2 w-full" />
-            <Placeholder className="h-48 w-full" />
-          </div>
-        )}
-
-        {/* Nothing ever arrived: there is no progress to qualify, only a
+      {/* The first read of the run is a full-page wait under the header, as
+          mobile's run screen (#153); polls after it keep the page drawn. */}
+      <PageLoaderSwitch loading={isLoading}>
+        <div className={`${SCROLL_BODY} space-y-5`}>
+          {/* Nothing ever arrived: there is no progress to qualify, only a
             reason. */}
-        {isError && !run && (
-          <SectionErrorState
-            title={runCopy.title}
-            description={runCopy.description}
-            onRetry={runCopy.retryable ? () => refetch() : undefined}
-            retrying={isFetching}
-          />
-        )}
-
-        {lostContact && (
-          <SectionErrorState
-            compact
-            title="Lost contact with the server — the progress below has stopped updating"
-            onRetry={() => refetch()}
-            retrying={isFetching}
-          />
-        )}
-
-        {run && (
-          <>
-            <ProgressBlock
-              done={done}
-              total={steps.length}
-              note={
-                lostContact
-                  ? "This is where the run had got to when we last reached the server. The run itself carries on without this screen — we keep trying, and the report will be waiting in Your Reports either way."
-                  : isRunning
-                    ? `${
-                        ordered
-                          ? "Each step narrows the one before it, so they finish in order."
-                          : "Sections are fetched and written in parallel, so they finish out of order."
-                      } You can leave — the run keeps going, and the report will be waiting in Your Reports.`
-                    : undefined
-              }
+          {isError && !run && (
+            <SectionErrorState
+              title={runCopy.title}
+              description={runCopy.description}
+              onRetry={runCopy.retryable ? () => refetch() : undefined}
+              retrying={isFetching}
             />
+          )}
 
-            <PipelineSteps
-              steps={steps}
-              ordered={ordered}
-              stalled={lostContact}
+          {lostContact && (
+            <SectionErrorState
+              compact
+              title="Lost contact with the server — the progress below has stopped updating"
+              onRetry={() => refetch()}
+              retrying={isFetching}
             />
+          )}
 
-            {!isRunning && (
-              <RunOutcome
-                run={run}
+          {run && (
+            <>
+              <ProgressBlock
+                done={done}
                 total={steps.length}
-                onOpenReport={() => router.push(researchRoutes.report(runId))}
-                onLibrary={() => router.push(researchRoutes.library)}
-                onCatalog={() => router.push(researchRoutes.catalog)}
+                note={
+                  lostContact
+                    ? "This is where the run had got to when we last reached the server. The run itself carries on without this screen — we keep trying, and the report will be waiting in Your Reports either way."
+                    : isRunning
+                      ? `${
+                          ordered
+                            ? "Each step narrows the one before it, so they finish in order."
+                            : "Sections are fetched and written in parallel, so they finish out of order."
+                        } You can leave — the run keeps going, and the report will be waiting in Your Reports.`
+                      : undefined
+                }
               />
-            )}
 
-            <p className="text-[10px] text-slate-400">Run reference {runId}</p>
-          </>
-        )}
-      </div>
+              <PipelineSteps
+                steps={steps}
+                ordered={ordered}
+                stalled={lostContact}
+              />
+
+              {!isRunning && (
+                <RunOutcome
+                  run={run}
+                  total={steps.length}
+                  onOpenReport={() => router.push(researchRoutes.report(runId))}
+                  onLibrary={() => router.push(researchRoutes.library)}
+                  onCatalog={() => router.push(researchRoutes.catalog)}
+                />
+              )}
+
+              <p className="text-[10px] text-slate-400">
+                Run reference {runId}
+              </p>
+            </>
+          )}
+        </div>
+      </PageLoaderSwitch>
 
       {/* While we are out of contact the bar stops asserting "Running…" and
           becomes the way back — a live button, not a spinner to watch. */}

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 
 import FeatureHeader from "@/components/discover/FeatureHeader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { reportPdfUrl } from "../../api/pipelines-client";
 import { formatTimestamp } from "../../constants/presentation";
@@ -15,7 +16,7 @@ import {
 } from "../../hooks/usePipelineQueries";
 import { reportErrorCopy } from "../../utils/errors";
 import { targetLabel } from "../../utils/target";
-import { CIRCLE_BUTTON, Placeholder, SCROLL_BODY } from "../shared/kit";
+import { CIRCLE_BUTTON, SCROLL_BODY } from "../shared/kit";
 import { ResearchPage } from "../shared/ResearchPage";
 import { ReportDocumentView } from "./ReportDocumentView";
 import { ShareDialog } from "./ShareDialog";
@@ -81,27 +82,24 @@ export function ReportScreen({ runId }: { runId: string }) {
           }
         />
 
-        <div className={`${SCROLL_BODY} space-y-5`}>
-          {isLoading && (
-            <div className="space-y-4">
-              <Placeholder className="rounded-card h-[200px] w-full" />
-              <Placeholder className="rounded-card h-64 w-full" />
-            </div>
-          )}
-
-          {/* "Not yours", "not published yet" and "we couldn't reach the
+        {/* The first load is a full-page wait under the header, as mobile's
+            report screen (#153). */}
+        <PageLoaderSwitch loading={isLoading}>
+          <div className={`${SCROLL_BODY} space-y-5`}>
+            {/* "Not yours", "not published yet" and "we couldn't reach the
               server" are three different answers; only the last is a retry. */}
-          {isError && (
-            <SectionErrorState
-              title={reportCopy.title}
-              description={reportCopy.description}
-              onRetry={reportCopy.retryable ? () => refetch() : undefined}
-              retrying={isFetching}
-            />
-          )}
+            {isError && (
+              <SectionErrorState
+                title={reportCopy.title}
+                description={reportCopy.description}
+                onRetry={reportCopy.retryable ? () => refetch() : undefined}
+                retrying={isFetching}
+              />
+            )}
 
-          {document && <ReportDocumentView document={document} />}
-        </div>
+            {document && <ReportDocumentView document={document} />}
+          </div>
+        </PageLoaderSwitch>
       </div>
     </ResearchPage>
   );

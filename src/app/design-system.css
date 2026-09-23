@@ -376,6 +376,16 @@ html {
 }
 .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
 
+/* PageLoaderSwitch's cross-fade (src/components/shared/PageLoader.tsx). */
+@keyframes page-loader-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes page-loader-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 /* Carousel pagination dots. */
 .carousel-dot {
   width: 6px;

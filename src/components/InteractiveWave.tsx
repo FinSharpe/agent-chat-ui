@@ -9,6 +9,10 @@ interface InteractiveWaveProps {
   baseAmplitude?: number;
   baseFrequency?: number;
   className?: string;
+  /** The ribbon's outer stops as "r, g, b". The brand blue by default. */
+  blue?: string;
+  /** Draw one still frame instead of animating (reduced motion). */
+  still?: boolean;
 }
 
 export default function InteractiveWave({
@@ -18,6 +22,8 @@ export default function InteractiveWave({
   baseAmplitude = 35,
   baseFrequency = 0.005,
   className = "inset-0 w-full h-full",
+  blue = "6, 59, 170",
+  still = false,
 }: InteractiveWaveProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, active: false });
@@ -40,7 +46,12 @@ export default function InteractiveWave({
     };
 
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    // Resizing clears the canvas, so a still ribbon draws its frame again.
+    const handleResize = () => {
+      resizeCanvas();
+      if (still) draw();
+    };
+    window.addEventListener("resize", handleResize);
 
     // Mouse/Touch interaction listeners on parent
     const parent = canvas.parentElement;
@@ -123,9 +134,9 @@ export default function InteractiveWave({
         if (variant === "color") {
           // Draw standard blue-to-mint gradient wave matching the brand
           const grad = ctx.createLinearGradient(0, 0, width, 0);
-          grad.addColorStop(0, `rgba(6, 59, 170, ${0.08 - ratio * 0.03})`);
+          grad.addColorStop(0, `rgba(${blue}, ${0.08 - ratio * 0.03})`);
           grad.addColorStop(0.5, `rgba(151, 237, 204, ${0.14 - ratio * 0.04})`);
-          grad.addColorStop(1, `rgba(6, 59, 170, ${0.05 - ratio * 0.02})`);
+          grad.addColorStop(1, `rgba(${blue}, ${0.05 - ratio * 0.02})`);
           ctx.strokeStyle = grad;
         } else {
           // Draw clean semi-transparent white waves for dark card gradients
@@ -151,13 +162,13 @@ export default function InteractiveWave({
         ctx.stroke();
       }
 
-      animationFrameRef.current = requestAnimationFrame(draw);
+      if (!still) animationFrameRef.current = requestAnimationFrame(draw);
     };
 
     draw();
 
     return () => {
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("resize", handleResize);
       if (parent) {
         parent.removeEventListener("mousemove", handleMouseMove);
         parent.removeEventListener("touchmove", handleTouchMove);
@@ -168,7 +179,7 @@ export default function InteractiveWave({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [variant, waveCount, baseSpeed, baseAmplitude, baseFrequency]);
+  }, [variant, waveCount, baseSpeed, baseAmplitude, baseFrequency, blue, still]);
 
   return (
     <canvas

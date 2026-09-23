@@ -2,11 +2,9 @@ import { Bookmark } from "lucide-react";
 import { MEMORY_COPY } from "../constants/memory-content";
 import type { ChatSummary } from "../hooks/useChatHistory";
 import ChatRow from "./ChatRow";
-import ChatRowsSkeleton from "./ChatRowsSkeleton";
 
 interface BookmarkedChatsProps {
   chats: ChatSummary[];
-  isLoading: boolean;
   /** The list failed to load: say so rather than invite a first bookmark. */
   isError: boolean;
   onOpen: (chat: ChatSummary) => void;
@@ -21,7 +19,6 @@ interface BookmarkedChatsProps {
  */
 export default function BookmarkedChats({
   chats,
-  isLoading,
   isError,
   ...rowHandlers
 }: BookmarkedChatsProps) {
@@ -37,9 +34,7 @@ export default function BookmarkedChats({
         </h3>
       </div>
 
-      {isLoading ? (
-        <ChatRowsSkeleton variant="bookmarked" />
-      ) : chats.length === 0 ? (
+      {chats.length === 0 ? (
         <p className="py-4 text-center text-xs text-slate-400">
           {isError ? MEMORY_COPY.loadFailed : MEMORY_COPY.noBookmarks}
         </p>

@@ -2,7 +2,7 @@
 
 import { Rocket } from "lucide-react";
 import FeatureHeader from "@/components/discover/FeatureHeader";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { useIpoInsight } from "../../hooks/useIpoCalendar";
 import { RetryErrorState } from "../shared/FeatureStates";
 import { SectionHead } from "../shared/FeedKit";
@@ -61,12 +61,8 @@ export function IpoInsightView({
       />
     );
   } else if (isPending) {
-    body = (
-      <SoftLoader
-        variant="wave"
-        message="Loading the analysis"
-      />
-    );
+    // Drawn by the PageLoaderSwitch below.
+    body = null;
   } else {
     const { issue, news } = insight;
     body = (
@@ -132,7 +128,9 @@ export function IpoInsightView({
         subtitle={issuer ? FALLBACK_TITLE : undefined}
         onBack={onBack}
       />
-      {body}
+      <PageLoaderSwitch loading={isPending && !isError}>
+        {body}
+      </PageLoaderSwitch>
     </div>
   );
 }

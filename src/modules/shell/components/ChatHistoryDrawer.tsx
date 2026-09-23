@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useThreadsQuery } from "@/hooks/useThreadsQuery";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUiStore } from "@/store/useUiStore";
@@ -148,108 +149,116 @@ export default function ChatHistoryDrawer() {
               </div>
             </div>
 
-            {/* Scrollable Chat Groups */}
-            <div className="scrollbar-none flex-1 space-y-4 overflow-y-auto px-4 py-2">
-              {TIME_GROUPS.map((groupName) => {
-                const groupChats = groups[groupName];
-                if (groupChats.length === 0) return null;
+            {/* Scrollable Chat Groups. A first load fills the drawer's own
+                body with the page loader; the header, New Consultation and
+                search stay drawn, as mobile's history drawer (#153). */}
+            <PageLoaderSwitch loading={isLoading}>
+              <div className="scrollbar-none min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-2">
+                {TIME_GROUPS.map((groupName) => {
+                  const groupChats = groups[groupName];
+                  if (groupChats.length === 0) return null;
 
-                return (
-                  <div
-                    key={groupName}
-                    className="space-y-1"
-                  >
-                    <h3 className="px-2 py-1 text-xs font-medium tracking-wider text-[#0A1F4D] uppercase">
-                      {groupName}
-                    </h3>
-                    <div className="space-y-0.5">
-                      {groupChats.map((chat) => {
-                        const isActive = threadId === chat.id;
-                        const isEditing = editingId === chat.id;
+                  return (
+                    <div
+                      key={groupName}
+                      className="space-y-1"
+                    >
+                      <h3 className="px-2 py-1 text-xs font-medium tracking-wider text-[#0A1F4D] uppercase">
+                        {groupName}
+                      </h3>
+                      <div className="space-y-0.5">
+                        {groupChats.map((chat) => {
+                          const isActive = threadId === chat.id;
+                          const isEditing = editingId === chat.id;
 
-                        return (
-                          <div
-                            key={chat.id}
-                            onClick={() =>
-                              !isEditing && handleSelectChat(chat.id)
-                            }
-                            className={`group rounded-tile relative flex cursor-pointer items-center justify-between px-3 py-2 transition-all ${
-                              isActive
-                                ? "bg-[#063BAA]/8 text-[#063BAA]"
-                                : "hover-tint text-[#0A1F4D]"
-                            }`}
-                          >
-                            {isEditing ? (
-                              <div
-                                className="flex w-full items-center gap-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <input
-                                  type="text"
-                                  value={editTitle}
-                                  onChange={(e) => setEditTitle(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      handleRenameSave(chat, e);
-                                    if (e.key === "Escape") setEditingId(null);
-                                  }}
-                                  className="w-full rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-sm text-[#0A1F4D] focus:outline-none"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={(e) => handleRenameSave(chat, e)}
-                                  className="flex h-6 w-6 items-center justify-center rounded bg-emerald-50 text-[#97edcc] hover:bg-emerald-100"
+                          return (
+                            <div
+                              key={chat.id}
+                              onClick={() =>
+                                !isEditing && handleSelectChat(chat.id)
+                              }
+                              className={`group rounded-tile relative flex cursor-pointer items-center justify-between px-3 py-2 transition-all ${
+                                isActive
+                                  ? "bg-[#063BAA]/8 text-[#063BAA]"
+                                  : "hover-tint text-[#0A1F4D]"
+                              }`}
+                            >
+                              {isEditing ? (
+                                <div
+                                  className="flex w-full items-center gap-1"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <Check size={12} />
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <span className="max-w-[170px] truncate text-sm font-medium">
-                                  {chat.title}
-                                </span>
-
-                                {/* Hover Actions */}
-                                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                  <input
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) =>
+                                      setEditTitle(e.target.value)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        handleRenameSave(chat, e);
+                                      if (e.key === "Escape")
+                                        setEditingId(null);
+                                    }}
+                                    className="w-full rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-sm text-[#0A1F4D] focus:outline-none"
+                                    autoFocus
+                                  />
                                   <button
-                                    onClick={(e) => handleRenameStart(chat, e)}
-                                    className="rounded p-1 text-[#0A1F4D] transition-colors hover:bg-slate-200/50 hover:text-[#0A1F4D]"
+                                    onClick={(e) => handleRenameSave(chat, e)}
+                                    className="flex h-6 w-6 items-center justify-center rounded bg-emerald-50 text-[#97edcc] hover:bg-emerald-100"
                                   >
-                                    <Edit3 size={11} />
-                                  </button>
-                                  <button
-                                    onClick={(e) => handleDelete(chat.id, e)}
-                                    className="rounded p-1 text-[#0A1F4D] transition-colors hover:bg-rose-50 hover:text-rose-600"
-                                  >
-                                    <Trash2 size={11} />
+                                    <Check size={12} />
                                   </button>
                                 </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                              ) : (
+                                <>
+                                  <span className="max-w-[170px] truncate text-sm font-medium">
+                                    {chat.title}
+                                  </span>
 
-              {chatsFailed ? (
-                <SectionErrorState
-                  compact
-                  label="your chats"
-                  onRetry={() => refetchChats()}
-                  retrying={chatsRefetching}
-                />
-              ) : (
-                !isLoading &&
-                filteredChats.length === 0 && (
-                  <div className="py-6 text-center text-sm text-[#0A1F4D]">
-                    No conversations found.
-                  </div>
-                )
-              )}
-            </div>
+                                  {/* Hover Actions */}
+                                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                    <button
+                                      onClick={(e) =>
+                                        handleRenameStart(chat, e)
+                                      }
+                                      className="rounded p-1 text-[#0A1F4D] transition-colors hover:bg-slate-200/50 hover:text-[#0A1F4D]"
+                                    >
+                                      <Edit3 size={11} />
+                                    </button>
+                                    <button
+                                      onClick={(e) => handleDelete(chat.id, e)}
+                                      className="rounded p-1 text-[#0A1F4D] transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {chatsFailed ? (
+                  <SectionErrorState
+                    compact
+                    label="your chats"
+                    onRetry={() => refetchChats()}
+                    retrying={chatsRefetching}
+                  />
+                ) : (
+                  filteredChats.length === 0 && (
+                    <div className="py-6 text-center text-sm text-[#0A1F4D]">
+                      No conversations found.
+                    </div>
+                  )
+                )}
+              </div>
+            </PageLoaderSwitch>
 
             {/* User Profile Summary Footer */}
             <div className="shrink-0 border-t border-slate-50 bg-slate-50 p-4">

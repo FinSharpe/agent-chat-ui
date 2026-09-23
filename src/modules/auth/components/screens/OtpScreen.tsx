@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoader } from "@/components/shared/PageLoader";
 import { useAuth } from "@/providers/AuthProvider";
 import {
   AUTH_ROUTES,
@@ -90,10 +90,7 @@ export default function OtpScreen() {
       />
 
       {verifying ? (
-        <SoftLoader
-          variant="wave"
-          message="Verifying Account…"
-        />
+        <PageLoader />
       ) : (
         <div className="scrollbar-none flex flex-1 flex-col justify-between overflow-y-auto pb-4">
           <div className="space-y-6">

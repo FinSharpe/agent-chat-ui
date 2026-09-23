@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useGetStrategyAnalyticsApiStrategiesStrategyNameGet } from "@/api/generated/strategy-apis/strategy-apis/strategy-apis";
 import FeatureHeader from "@/components/discover/FeatureHeader";
-import SoftLoader from "@/components/SoftLoader";
+import { PageLoader } from "@/components/shared/PageLoader";
 import { useImportStrategyMutation } from "../../hooks/useImportStrategyMutation";
 import { IdeaStrategy } from "../../types/discover.types";
 import { StrategyDetailResponse } from "../../types/strategy-api";
@@ -49,10 +49,7 @@ function AdvisorDetail({ strategyId, listItem, onBack }: Props) {
           onBack={onBack}
         />
         {query.isLoading || (!failed && !notFound) ? (
-          <SoftLoader
-            variant="wave"
-            message="Loading strategy"
-          />
+          <PageLoader />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-8 pb-[130px] text-center">
             <p className="font-geist text-[13px] font-medium text-[#0A1F4D]">

@@ -14,14 +14,13 @@ import { FiDataErrorState } from "@/modules/import-data/components/shared/FiData
 import {
   formatINRShort,
   AnalyseButton,
-  CardListSkeleton,
   FooterButton,
   ImportOverlay,
   OverlayBody,
   OverlayFooter,
   OverlayHeader,
-  StatTileGridSkeleton,
 } from "@/modules/import-data/components/shared/ui";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { useSipData } from "./hooks/useSipData";
 import { useMfSips } from "./hooks/useMfSips";
 import { useImportSipMutation } from "./hooks/useImportSipMutation";
@@ -108,21 +107,18 @@ export function SipPreviewModal({
               />
             ) : (
               <>
-                <OverlayBody>
-                  {isLoading ? (
-                    <>
-                      <StatTileGridSkeleton />
-                      <CardListSkeleton count={3} />
-                    </>
-                  ) : (
+                {/* The first load is a full-page wait under the header, as
+                    mobile's SIPs screen (#153). */}
+                <PageLoaderSwitch loading={isLoading}>
+                  <OverlayBody>
                     <SipAnalysisBody
                       rows={displayData}
                       hygiene={hygiene}
                       registrarAnalytics={analytics}
                       mf={mf}
                     />
-                  )}
-                </OverlayBody>
+                  </OverlayBody>
+                </PageLoaderSwitch>
                 <OverlayFooter>
                   <FooterButton
                     onClick={handleSubmit}

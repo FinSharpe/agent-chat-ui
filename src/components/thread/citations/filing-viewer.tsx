@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Loader2,
   TriangleAlert,
   ZoomIn,
   ZoomOut,
@@ -18,6 +17,7 @@ import {
 } from "@/lib/citations";
 import { loadFilingPdf } from "@/lib/citations/filings-pdf";
 import { loadPdfJs, type PdfDocument } from "@/lib/citations/pdfjs";
+import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { cn } from "@/lib/utils";
 
 /** Round toolbar control, the reference's popup close-button shape. */
@@ -32,7 +32,9 @@ const TOOL_BUTTON =
  * makes a chip worth clicking before the PDF has arrived. They are a
  * **placeholder**: once the document lands, the cited page with the passage
  * highlighted says the same thing better, and the quote panel gives way to it.
- * A failed fetch leaves the quote standing with a calm error, so the click was
+ * While it loads, the document is the page that is waiting: the page loader
+ * fills its region under the quote, as mobile's filing viewer (#153). A
+ * failed fetch leaves the quote standing with a calm error, so the click was
  * never wasted.
  *
  * `passages` is one entry when a chip opened this, and every passage the turn
@@ -50,6 +52,7 @@ export function FilingViewer({
 }) {
   const filing = passages[0];
   const { doc, error } = useFilingDocument(filing);
+  const loading = !doc && !error;
 
   return (
     <div className="font-funnel flex h-full flex-col overflow-hidden">
@@ -58,15 +61,20 @@ export function FilingViewer({
           passages={passages}
           number={number}
           error={error}
+          loading={loading}
         />
       )}
-      {doc && (
-        <PdfPanel
-          doc={doc}
-          passages={passages}
-          citedPage={filing.page ?? 1}
-          requestId={requestId}
-        />
+      {!error && (
+        <PageLoaderSwitch loading={loading}>
+          {doc && (
+            <PdfPanel
+              doc={doc}
+              passages={passages}
+              citedPage={filing.page ?? 1}
+              requestId={requestId}
+            />
+          )}
+        </PageLoaderSwitch>
       )}
     </div>
   );
@@ -123,16 +131,24 @@ function PassagePanel({
   passages,
   number,
   error,
+  loading,
 }: {
   passages: Citation[];
   number?: number;
   error: string | null;
+  /** The document is on its way: the quote yields most of the height to it. */
+  loading: boolean;
 }) {
   const filing = passages[0];
   const many = passages.length > 1;
 
   return (
-    <div className="flex-1 overflow-auto px-5 py-5">
+    <div
+      className={cn(
+        "overflow-auto px-5 py-5",
+        loading ? "max-h-[45%] shrink-0" : "flex-1",
+      )}
+    >
       <div className="flex items-start gap-2.5">
         {number != null && (
           <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#063BAA]/8 px-1.5 text-[11px] font-medium text-[#063BAA] tabular-nums">
@@ -166,18 +182,13 @@ function PassagePanel({
         ))}
       </div>
 
-      {error ? (
+      {error && (
         <div className="mt-4 flex items-start gap-2 rounded-nested bg-amber-500/10 px-3.5 py-2.5 text-[11px] leading-relaxed text-amber-600">
           <TriangleAlert className="mt-px size-3.5 shrink-0" />
           <span>
             {error} The passage above is what the answer drew on, and is
             unaffected.
           </span>
-        </div>
-      ) : (
-        <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-400">
-          <Loader2 className="size-3.5 animate-spin text-[#063BAA]" />
-          Opening the filing at the cited page…
         </div>
       )}
     </div>

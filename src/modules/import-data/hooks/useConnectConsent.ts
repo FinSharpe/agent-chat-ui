@@ -33,7 +33,10 @@ export interface ConnectState {
 
 const INITIAL: ConnectState = { phase: "form", discovered: [], error: null };
 
-export function useConnectConsent(type: AaConsentType) {
+export function useConnectConsent(
+  type: AaConsentType,
+  { returnTo }: { returnTo?: string } = {},
+) {
   const [state, setState] = useState<ConnectState>(INITIAL);
   const { data: linkedConsents } = useConsentsQuery();
 
@@ -63,6 +66,7 @@ export function useConnectConsent(type: AaConsentType) {
           accountID: created.accountID,
           mobileNo: input.mobileNo,
           startedAt: Date.now(),
+          returnTo,
         });
 
         window.location.href = created.webRedirectionUrl;
@@ -76,7 +80,7 @@ export function useConnectConsent(type: AaConsentType) {
         });
       }
     },
-    [type],
+    [type, returnTo],
   );
 
   /**

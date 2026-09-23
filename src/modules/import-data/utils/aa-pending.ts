@@ -13,6 +13,7 @@
  *
  * It is cleared the moment the consent resolves, and ignored once stale.
  */
+import { safeReturnPath } from "@/lib/auth/return-path";
 import { isAaConsentType, type AaConsentType } from "../types/aa";
 
 const KEY = "fs:aa:pending";
@@ -26,6 +27,9 @@ export interface PendingConsentJourney {
   mobileNo: string;
   /** Epoch ms. */
   startedAt: number;
+  /** Where the journey started when that was not Import (a chat thread), so
+   *  the return can offer the way back. A same-origin path, or absent. */
+  returnTo?: string;
 }
 
 export function writePendingJourney(journey: PendingConsentJourney): void {
@@ -62,6 +66,11 @@ export function readPendingJourney(): PendingConsentJourney | null {
       accountID: parsed.accountID ?? "",
       mobileNo: parsed.mobileNo ?? "",
       startedAt: parsed.startedAt,
+      // Storage is writable by anything on the origin: only a vetted path
+      // may come back out as a place to navigate to.
+      returnTo: parsed.returnTo
+        ? safeReturnPath(parsed.returnTo, "") || undefined
+        : undefined,
     };
   } catch {
     clearPendingJourney();

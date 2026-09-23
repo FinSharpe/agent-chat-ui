@@ -14,6 +14,10 @@ const TOOL_LABELS: Record<string, string> = {
   scan: "Scanning the market",
   call_api: "Gathering financial data",
   get_endpoint_spec: "Reviewing available data options",
+  // The reader's own book, from their consents (agents ADR-0014). "Your", not
+  // "the user's": the row is read by the person whose portfolio it is.
+  get_user_portfolio: "Reading your portfolio",
+  analyze_user_portfolio: "Analysing your portfolio",
 };
 
 const ACRONYMS = new Set(["api", "id", "url", "sdk"]);

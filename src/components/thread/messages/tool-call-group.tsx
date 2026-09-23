@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronRight, Check, Loader2, AlertCircle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
+import { getPortfolioConnect } from "@/lib/portfolio-connect";
 import { cn } from "@/lib/utils";
 import { JsonViewer } from "./json-viewer";
 import { formatToolName } from "./tool-labels";
@@ -15,8 +16,19 @@ export interface ToolCallItem {
 
 type RunStatus = "running" | "error" | "done";
 
+/**
+ * A portfolio tool that found nothing to read answers with a connect card
+ * (#79). Its payload is an `error` object saying only what the card says, so
+ * the row stays as the record that the tool ran, but neither opens nor reads
+ * as failed — a failure beside an invitation reads as a broken run.
+ */
+function answeredByCard(response?: ToolMessage): boolean {
+  return !!response && getPortfolioConnect(response) !== null;
+}
+
 function statusOf(response?: ToolMessage): RunStatus {
   if (!response) return "running";
+  if (answeredByCard(response)) return "done";
   if (response.status === "error") return "error";
   return "done";
 }
@@ -194,7 +206,7 @@ function ToolRow({ toolCall, response }: ToolCallItem) {
   const [open, setOpen] = useState(false);
   const hasArgs = Object.keys(toolCall.args ?? {}).length > 0;
   const parsed = response ? parseResponseContent(response.content) : null;
-  const expandable = hasArgs || parsed !== null;
+  const expandable = !answeredByCard(response) && (hasArgs || parsed !== null);
 
   return (
     <div className="flex flex-col">

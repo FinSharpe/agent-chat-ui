@@ -2,36 +2,68 @@
 import { ArrowRight } from "lucide-react";
 import { formatINRShort } from "../utils/inr";
 import { formatLastUpdated } from "../utils/date-formatting";
+import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   useNetworthData,
-  type NetworthClass,
+  type NetworthClassKey,
   type NetworthData,
 } from "../hooks/useNetworthData";
+import { SectionTitle } from "./page/SectionTitle";
 
 /**
- * Allocation segments are white at decreasing strength — the card is the
- * brand gradient, so colour would fight it. Dots in the breakdown use the
- * same strengths, so the row doubles as the bar's legend.
+ * Class colours on the navy card — finsharpe-mobile's `allocationColor(…,
+ * onDark: true)` ramp, pinned dark in both themes because the light blues
+ * vanish into the gradient. The breakdown dots use the same colours, so the
+ * grid is the bar's legend. Change the two apps together.
  */
-const SEGMENT_ALPHA = [1, 0.7, 0.46, 0.28];
+const CLASS_ON_NAVY: Record<NetworthClassKey, string> = {
+  [ConsentType.EQUITIES]: "#8FB4FF",
+  [ConsentType.MUTUAL_FUNDS]: "#2563EB",
+  [ConsentType.ETF]: "#97EDCC",
+  [ConsentType.BANK_ACCOUNTS]: "#94A3B8",
+};
+
+/** Mobile's `AssetClass.compactLabel` — the third-width cells clip full names. */
+const COMPACT_LABEL: Record<NetworthClassKey, string> = {
+  [ConsentType.EQUITIES]: "Equities",
+  [ConsentType.MUTUAL_FUNDS]: "MF",
+  [ConsentType.ETF]: "ETFs",
+  [ConsentType.BANK_ACCOUNTS]: "Bank",
+};
+
+/** Mint for a gain, rose for a loss — the only inks that read on the navy. */
+const GAIN_INK = "#97EDCC";
+const LOSS_INK = "#FDA4AF";
 
 /** Diagonal hatch for a class that is still syncing. */
 const SYNCING_HATCH =
   "repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)";
 
 /**
- * "Total Portfolio Value" — the reference Import screen's net worth card,
- * driven by the live MoneyOne data aggregated in useNetworthData. There is no
- * value history to chart, so the reference's trend line becomes the asset
- * allocation bar, and "since last year" becomes the unrealised gain on the
- * accounts that report a cost basis.
+ * "My net worth" — finsharpe-mobile's portfolio summary card
+ * (`portfolio_tab.dart` `_SummaryCard`), driven by the live MoneyOne data
+ * aggregated in useNetworthData. Where mobile shows today's move we show the
+ * unrealised gain on the accounts that report a cost basis: there is no day
+ * move on the web yet.
  */
 export function NetworthGraph({ onConnect }: { onConnect?: () => void }) {
   const nw = useNetworthData();
+  const updated =
+    !nw.isInitialLoading && !nw.isEmpty && nw.latestUpdate
+      ? `Updated ${formatLastUpdated(nw.latestUpdate)?.toLowerCase()}`
+      : null;
 
   return (
     <section className="space-y-3">
-      <div className="bg-brand-gradient premium-shadow-sm card-hover relative space-y-4 overflow-hidden rounded-card p-6">
+      <div className="flex items-baseline justify-between gap-3 pr-1">
+        <SectionTitle>My net worth</SectionTitle>
+        {updated && (
+          <span className="text-muted-foreground text-[10px] font-medium">
+            {updated}
+          </span>
+        )}
+      </div>
+      <div className="bg-brand-gradient premium-shadow-sm card-hover rounded-card relative overflow-hidden p-6">
         {nw.isInitialLoading ? (
           <NetworthSkeleton />
         ) : nw.isEmpty ? (
@@ -48,132 +80,148 @@ function NetworthSummary({ nw }: { nw: NetworthData }) {
   const syncing = nw.syncingCount > 0;
   const gain = nw.invested > 0 ? nw.investedCurrent - nw.invested : null;
   const gainPct = gain != null ? (gain / nw.invested) * 100 : null;
-  const sip =
-    nw.sipCount > 0
-      ? `${nw.sipCount} SIP${nw.sipCount === 1 ? "" : "s"}`
-      : null;
 
   const subline = syncing
     ? `${nw.readyCount} of ${nw.connectedCount} account types synced`
     : gain != null
-      ? `${gain >= 0 ? "+" : ""}${formatINRShort(gain)} unrealised ${gain >= 0 ? "gain" : "loss"}`
-      : `Across ${nw.connectedCount} connected account type${nw.connectedCount === 1 ? "" : "s"}`;
+      ? `${gain >= 0 ? "+" : "-"}${formatINRShort(Math.abs(gain))} unrealised ${gain >= 0 ? "gain" : "loss"}`
+      : null;
+  const sublineInk =
+    syncing || gain == null
+      ? "rgba(255,255,255,0.6)"
+      : gain >= 0
+        ? GAIN_INK
+        : LOSS_INK;
 
   const pill = syncing
     ? "Updating…"
     : gainPct != null
-      ? `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(1)}% returns`
-      : nw.latestUpdate
-        ? `Updated ${formatLastUpdated(nw.latestUpdate)}`
-        : "Synced";
+      ? `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}% returns`
+      : null;
 
   const valued = nw.classes.filter((c) => (c.value ?? 0) > 0);
+  // Like mobile, a class worth nothing is left out of the legend; one still
+  // syncing keeps its cell so the wait is visible.
+  const cells = nw.classes.filter(
+    (c) => c.status === "syncing" || (c.value ?? 0) > 0,
+  );
 
   return (
-    <>
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-[10px] tracking-wider text-white uppercase">
+    <div className="relative">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-normal tracking-[0.07em] text-white/60 uppercase">
             Total Portfolio Value
           </p>
-          <p className="v3-display text-[34px] leading-none text-white tabular-nums">
+          <p className="v3-display mt-2 text-[34px] leading-[1.05] text-white tabular-nums">
             {formatINRShort(nw.total)}
           </p>
-          <p className="text-[11px] font-medium text-white">
-            {subline}
-            {sip && ` · ${sip}`}
-          </p>
-        </div>
-        <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-medium text-white">
-          {syncing && (
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white motion-reduce:animate-none" />
+          {subline && (
+            <p
+              className="mt-1 text-[11px] font-medium tabular-nums"
+              style={{ color: sublineInk }}
+            >
+              {subline}
+            </p>
           )}
-          {pill}
-        </span>
-      </div>
-
-      <div
-        className="relative flex h-3 gap-[3px] overflow-hidden rounded-full bg-white/10"
-        role="img"
-        aria-label={`Asset allocation: ${nw.classes
-          .map(
-            (c) =>
-              `${c.label} ${c.value == null ? "syncing" : `${Math.round(c.pct)}%`}`,
-          )
-          .join(", ")}`}
-      >
-        {valued.map((c) => (
-          <span
-            key={c.key}
-            className="h-full"
-            style={{
-              flexGrow: c.value ?? 0,
-              flexBasis: 0,
-              background: `rgba(255,255,255,${alphaFor(nw.classes, c)})`,
-            }}
-            title={`${c.label} · ${formatINRShort(c.value)} · ${Math.round(c.pct)}%`}
-          />
-        ))}
-        {syncing && (
-          <span
-            className="h-full"
-            style={{
-              flexGrow: Math.max(nw.total * 0.18, 1),
-              flexBasis: 0,
-              backgroundImage: SYNCING_HATCH,
-            }}
-            title="Syncing…"
-          />
+        </div>
+        {pill && (
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold whitespace-nowrap text-white tabular-nums">
+            {syncing && (
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white motion-reduce:animate-none" />
+            )}
+            {pill}
+          </span>
         )}
       </div>
 
-      <div
-        className={`relative grid gap-2 border-t border-white/15 pt-3 ${
-          nw.classes.length > 3 ? "grid-cols-4" : "grid-cols-3"
-        }`}
-      >
-        {nw.classes.map((c) => (
-          <div
-            key={c.key}
-            className="min-w-0"
-          >
-            <div className="flex items-center gap-1">
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={
-                  c.status === "syncing"
-                    ? { backgroundImage: SYNCING_HATCH, backgroundColor: "rgba(255,255,255,0.25)" }
-                    : { background: `rgba(255,255,255,${alphaFor(nw.classes, c)})` }
-                }
-              />
-              <span className="truncate text-[9px] text-white">{c.label}</span>
-            </div>
-            {c.status === "syncing" ? (
-              <span className="mt-1 block h-4 w-14 animate-pulse rounded bg-white/20 motion-reduce:animate-none" />
-            ) : (
-              <p className="mt-0.5 text-[13px] font-medium text-white tabular-nums">
-                {formatINRShort(c.value)}
-                <span className="ml-1.5 text-[10px] font-normal text-white">
-                  {Math.round(c.pct)}%
-                </span>
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
+      {(valued.length > 0 || syncing) && (
+        <div
+          className="mt-4 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-white/15"
+          role="img"
+          aria-label={`Asset allocation: ${nw.classes
+            .map(
+              (c) =>
+                `${c.label} ${c.value == null ? "syncing" : `${Math.round(c.pct)}%`}`,
+            )
+            .join(", ")}`}
+        >
+          {valued.map((c) => (
+            <span
+              key={c.key}
+              className="h-full"
+              style={{
+                flexGrow: c.value ?? 0,
+                flexBasis: 0,
+                background: CLASS_ON_NAVY[c.key],
+              }}
+              title={`${c.label} · ${formatINRShort(c.value)} · ${Math.round(c.pct)}%`}
+            />
+          ))}
+          {syncing && (
+            <span
+              className="h-full"
+              style={{
+                flexGrow: Math.max(nw.total * 0.18, 1),
+                flexBasis: 0,
+                backgroundImage: SYNCING_HATCH,
+              }}
+              title="Syncing…"
+            />
+          )}
+        </div>
+      )}
 
-function alphaFor(classes: NetworthClass[], c: NetworthClass) {
-  return SEGMENT_ALPHA[classes.indexOf(c) % SEGMENT_ALPHA.length];
+      {cells.length > 0 && (
+        <>
+          <div className="mt-4 h-px bg-white/15" />
+
+          {/* Three to a row at every width, like mobile's Wrap — a fourth class
+          starts the next row rather than squeezing the others. */}
+          <div className="mt-3 flex flex-wrap gap-x-2 gap-y-3">
+            {cells.map((c) => (
+              <div
+                key={c.key}
+                className="w-[calc((100%_-_16px)/3)] min-w-0 shrink-0"
+              >
+                <div className="flex items-center gap-1">
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={
+                      c.status === "syncing"
+                        ? {
+                            backgroundImage: SYNCING_HATCH,
+                            backgroundColor: "rgba(255,255,255,0.25)",
+                          }
+                        : { background: CLASS_ON_NAVY[c.key] }
+                    }
+                  />
+                  <span className="truncate text-[9px] font-normal text-white/60 tabular-nums">
+                    {COMPACT_LABEL[c.key]}
+                    {c.status === "ready" && ` · ${Math.round(c.pct)}%`}
+                  </span>
+                </div>
+                {c.status === "syncing" ? (
+                  <span className="mt-1 block h-4 w-14 animate-pulse rounded bg-white/20 motion-reduce:animate-none" />
+                ) : (
+                  <p className="mt-0.5 text-[13px] font-semibold text-white tabular-nums">
+                    {formatINRShort(c.value)}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function NetworthEmpty({ onConnect }: { onConnect?: () => void }) {
   return (
     <div className="relative space-y-4">
       <div className="space-y-2">
-        <p className="text-[10px] tracking-wider text-white uppercase">
+        <p className="text-[10px] font-normal tracking-[0.07em] text-white/60 uppercase">
           Total Portfolio Value
         </p>
         <p className="v3-display text-[24px] leading-[1.2] text-white">
@@ -203,7 +251,8 @@ function NetworthEmpty({ onConnect }: { onConnect?: () => void }) {
 }
 
 function NetworthSkeleton() {
-  const bar = "block animate-pulse rounded bg-white/15 motion-reduce:animate-none";
+  const bar =
+    "block animate-pulse rounded bg-white/15 motion-reduce:animate-none";
   return (
     <div
       className="relative space-y-4"
@@ -215,7 +264,7 @@ function NetworthSkeleton() {
         <span className={`${bar} h-9 w-40`} />
         <span className={`${bar} h-3 w-44`} />
       </div>
-      <span className={`${bar} h-3 w-full rounded-full`} />
+      <span className={`${bar} h-1.5 w-full rounded-full`} />
       <div className="grid grid-cols-3 gap-2 border-t border-white/15 pt-3">
         {[0, 1, 2].map((i) => (
           <div

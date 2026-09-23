@@ -1,9 +1,6 @@
 import type { ComponentType } from "react";
 import { BarChart3, PieChart, TrendingUp } from "lucide-react";
 import { ConsentType } from "@/modules/import-data/types/consent-type";
-import { EquitiesAnalyticsPanel } from "./components/EquitiesAnalyticsPanel";
-import { MfAnalyticsPanel } from "./components/MfAnalyticsPanel";
-import type { AnalyticsPanelComponent } from "./components/analytics-panel.types";
 
 /**
  * Per-ConsentType configuration for the editable holdings preview modal. The
@@ -25,8 +22,6 @@ export type EditableHoldingsConfig = {
   showCurrentValue?: boolean;
   /** Icon shown in the modal header chip. */
   icon: ComponentType<{ className?: string }>;
-  /** Asset-specific "Analyze Portfolio" panel. */
-  AnalyticsPanel: AnalyticsPanelComponent;
 };
 
 export const EQUITIES_CONFIG: EditableHoldingsConfig = {
@@ -37,7 +32,6 @@ export const EQUITIES_CONFIG: EditableHoldingsConfig = {
   assetLabel: "equity holdings",
   eyebrow: "Import · Demat Holdings",
   icon: BarChart3,
-  AnalyticsPanel: EquitiesAnalyticsPanel,
 };
 
 export const ETF_CONFIG: EditableHoldingsConfig = {
@@ -49,8 +43,6 @@ export const ETF_CONFIG: EditableHoldingsConfig = {
   eyebrow: "Import · ETF Holdings",
   showCurrentValue: true,
   icon: TrendingUp,
-  // The MF Portfolio Analytics API works on isin + quantity, so ETF reuses it.
-  AnalyticsPanel: MfAnalyticsPanel,
 };
 
 export const MUTUAL_FUNDS_CONFIG: EditableHoldingsConfig = {
@@ -61,5 +53,4 @@ export const MUTUAL_FUNDS_CONFIG: EditableHoldingsConfig = {
   assetLabel: "mutual fund holdings",
   eyebrow: "Import · Mutual Fund Holdings",
   icon: PieChart,
-  AnalyticsPanel: MfAnalyticsPanel,
 };

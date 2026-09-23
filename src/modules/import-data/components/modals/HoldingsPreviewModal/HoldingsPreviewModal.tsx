@@ -46,6 +46,7 @@ export function HoldingsPreviewModal({
     formDefaultValues,
     isLoading,
     fiData,
+    normalized,
     currentValue,
     isError,
     errorKind,
@@ -97,6 +98,7 @@ export function HoldingsPreviewModal({
                 config={config}
                 defaultValues={formDefaultValues}
                 fiData={fiData}
+                normalized={normalized}
                 isLoading={isLoading}
                 isImporting={importMutation.isPending}
                 currentValue={currentValue}

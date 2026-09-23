@@ -3,18 +3,14 @@ import { type Control, useWatch } from "react-hook-form";
 import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   OverlayHeader,
-  StatGrid,
-  StatTile,
-  formatCount,
   formatINRShort,
 } from "@/modules/import-data/components/shared/ui";
 import type { HoldingFormData } from "../hooks/useHoldingsForm";
 import type { HoldingWithQuantity } from "../utils/holdings-transformer";
-import { getHoldingName } from "../utils/holdings-constants";
 import { holdingNoun, ledgerTotals } from "../utils/holding-value";
 
-/** Watch the ledger in one place so the analysis cards don't re-render on
- *  every keystroke — only these small summaries do. */
+/** Watch the ledger here so the header's summary line follows edits without
+ *  re-rendering the analysis sections on every keystroke. */
 function useLedger(
   control: Control<HoldingFormData>,
   consentType: ConsentType,
@@ -62,55 +58,5 @@ export function LedgerHeader({
       subtitle={subtitle}
       onClose={onClose}
     />
-  );
-}
-
-/** The three reference stat tiles, computed live from the edited ledger. */
-export function LedgerStats({
-  control,
-  consentType,
-  fallbackValue,
-}: {
-  control: Control<HoldingFormData>;
-  consentType: ConsentType;
-  fallbackValue?: number | null;
-}) {
-  const { holdings, totals } = useLedger(control, consentType);
-  const count = holdings.length;
-  const value = totals.value > 0 ? totals.value : (fallbackValue ?? 0);
-
-  let topIndex = -1;
-  totals.values.forEach((v, i) => {
-    if (v > 0 && (topIndex < 0 || v > totals.values[topIndex])) topIndex = i;
-  });
-  const top = topIndex >= 0 ? holdings[topIndex] : null;
-
-  return (
-    <StatGrid>
-      <StatTile
-        label="Total Value"
-        value={value > 0 ? formatINRShort(value) : "—"}
-        hint={`${count} ${holdingNoun(consentType, count)}`}
-        tooltip={
-          totals.value > 0
-            ? "Units × last price / NAV reported by your account"
-            : "Reported account value (no per-holding prices)"
-        }
-      />
-      <StatTile
-        label="Total Units"
-        value={formatCount(totals.units)}
-        hint={`across ${count} ${holdingNoun(consentType, count)}`}
-      />
-      <StatTile
-        label="Top Holding"
-        value={
-          top && totals.value > 0
-            ? `${((totals.values[topIndex] / totals.value) * 100).toFixed(1)}%`
-            : "—"
-        }
-        hint={top ? getHoldingName(top, consentType) : "no prices yet"}
-      />
-    </StatGrid>
   );
 }

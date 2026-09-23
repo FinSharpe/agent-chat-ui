@@ -1,6 +1,6 @@
 /**
- * SIP performance dashboard — the unlocked counterpart to
- * {@link SipLockedAnalytics}. Renders from the normalized {@link SipAnalytics}
+ * SIP performance dashboard from the registrar's own Summary/Transactions,
+ * gated until the SIP consent shares them. Renders from the normalized {@link SipAnalytics}
  * model, degrading any unshared datum to an em-dash: a totals line, the
  * allocation donut by fund house and the per-scheme table, as reference cards.
  * (The headline value / returns / monthly figures sit in the stat tiles.)

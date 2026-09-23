@@ -1,39 +1,31 @@
 /**
  * SIP Preview Modal - Container Component
- * Renders its own "Analyse" pill and opens the SIP registry in the reference
- * analysis-popup layout: stat tiles, registry hygiene, the folio list and the
- * (currently gated) performance analytics. Handles modal state, data
- * fetching, and submission.
+ * Renders its own "Analyse" pill and opens the SIP view (SipAnalysisBody):
+ * the SIPs detected in the mutual-funds consent, then the registrar's
+ * registrations and their KYC/nominee health. Handles modal state, data
+ * fetching, and submission; the header's close button leaves.
  */
 
 "use client";
 import { AnimatePresence } from "framer-motion";
-import { Repeat } from "lucide-react";
 import { useAnalysisModalState } from "@/modules/import-data/hooks/useAnalysisModalState";
 import { BaseAnalysisModalProps } from "@/modules/import-data/types";
 import { FiDataErrorState } from "@/modules/import-data/components/shared/FiDataErrorState";
 import {
+  formatINRShort,
   AnalyseButton,
   CardListSkeleton,
-  EmptyState,
   FooterButton,
   ImportOverlay,
-  Notice,
   OverlayBody,
   OverlayFooter,
   OverlayHeader,
-  StatGrid,
-  StatTile,
   StatTileGridSkeleton,
-  formatINRShort,
-  formatPct,
 } from "@/modules/import-data/components/shared/ui";
 import { useSipData } from "./hooks/useSipData";
+import { useMfSips } from "./hooks/useMfSips";
 import { useImportSipMutation } from "./hooks/useImportSipMutation";
-import { SipHygieneStrip } from "./components/SipHygieneStrip";
-import { SipAnalyticsDashboard } from "./components/SipAnalyticsDashboard";
-import { SipLockedAnalytics } from "./components/SipLockedAnalytics";
-import { SipRegistryList } from "./components/SipRegistryList";
+import { SipAnalysisBody } from "./components/SipAnalysisBody";
 
 const TITLE = "SIP Accounts";
 
@@ -62,7 +54,6 @@ export function SipPreviewModal({
     displayData,
     hygiene,
     analytics,
-    hasPerformanceData,
     isLoading,
     fiData,
     isError,
@@ -76,73 +67,14 @@ export function SipPreviewModal({
     importMutation.mutate({ data: fiData });
   };
 
+  const mf = useMfSips();
   const count = displayData.length;
   const houses = hygiene.fundHouses.length;
   const subtitle = isLoading
     ? "Loading registrations…"
-    : `${count} registration${count === 1 ? "" : "s"} • ${houses} fund house${houses === 1 ? "" : "s"}`;
-
-  // Tiles lead with performance once the registrar shares it, otherwise the
-  // registry/hygiene figures the Profile block gives us today.
-  const tiles =
-    hasPerformanceData && analytics ? (
-      <StatGrid>
-        <StatTile
-          label="Current Value"
-          value={formatINRShort(analytics.totalCurrentValue)}
-          hint={`${formatINRShort(analytics.totalInvested)} invested`}
-        />
-        <StatTile
-          label="Returns"
-          value={formatPct(analytics.returnsPct)}
-          intent={
-            analytics.returnsPct === null
-              ? "neutral"
-              : analytics.returnsPct >= 0
-                ? "positive"
-                : "negative"
-          }
-          hint={
-            analytics.absoluteReturn !== null
-              ? `${formatINRShort(analytics.absoluteReturn, { signed: true })} absolute`
-              : "absolute"
-          }
-        />
-        <StatTile
-          label="Monthly SIP"
-          value={formatINRShort(analytics.monthlyCommitment)}
-          hint="total commitment"
-        />
-      </StatGrid>
-    ) : (
-      <StatGrid>
-        <StatTile
-          label="Registrations"
-          value={hygiene.registrations}
-          hint="active SIP folios"
-        />
-        <StatTile
-          label="KYC"
-          value={
-            hygiene.kycTotal > 0
-              ? `${hygiene.kycCompliant}/${hygiene.kycTotal}`
-              : "—"
-          }
-          intent={
-            hygiene.kycTotal > 0 && hygiene.kycCompliant === hygiene.kycTotal
-              ? "positive"
-              : "warning"
-          }
-          hint="holders verified"
-        />
-        <StatTile
-          label="Nominee Gap"
-          value={hygiene.nomineeGap}
-          intent={hygiene.nomineeGap > 0 ? "warning" : "positive"}
-          hint="folios without nominee"
-        />
-      </StatGrid>
-    );
+    : mf.sips.length > 0 && mf.monthlyCount === mf.sips.length
+      ? `${formatINRShort(mf.monthlyCommitment)} a month • ${mf.sips.length} SIP${mf.sips.length === 1 ? "" : "s"}`
+      : `${count} registration${count === 1 ? "" : "s"} • ${houses} fund house${houses === 1 ? "" : "s"}`;
 
   return (
     <>
@@ -182,43 +114,16 @@ export function SipPreviewModal({
                       <StatTileGridSkeleton />
                       <CardListSkeleton count={3} />
                     </>
-                  ) : count === 0 ? (
-                    <EmptyState
-                      icon={Repeat}
-                      title="No SIP registrations found"
-                      description="There are no active Systematic Investment Plans to preview for this connection."
-                      className="py-16"
-                    />
                   ) : (
-                    <>
-                      {tiles}
-                      <SipHygieneStrip
-                        hygiene={hygiene}
-                        showFigures={hasPerformanceData}
-                      />
-                      <Notice tone="info">
-                        SIP registrations show your active Systematic Investment
-                        Plans across fund houses, with account identifiers and
-                        registrar details fetched via the Account Aggregator
-                        framework. Import them so the assistant can factor your
-                        recurring commitments into planning.
-                      </Notice>
-                      <SipRegistryList rows={displayData} />
-                      {hasPerformanceData && analytics ? (
-                        <SipAnalyticsDashboard analytics={analytics} />
-                      ) : (
-                        <SipLockedAnalytics />
-                      )}
-                    </>
+                    <SipAnalysisBody
+                      rows={displayData}
+                      hygiene={hygiene}
+                      registrarAnalytics={analytics}
+                      mf={mf}
+                    />
                   )}
                 </OverlayBody>
                 <OverlayFooter>
-                  <FooterButton
-                    variant="secondary"
-                    onClick={handleClose}
-                  >
-                    Close
-                  </FooterButton>
                   <FooterButton
                     onClick={handleSubmit}
                     disabled={

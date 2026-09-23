@@ -1,65 +1,72 @@
 "use client";
-import { Receipt } from "lucide-react";
-import type { MFCostAnalysis } from "@/api/generated/mf-portfolio-apis/models";
+import type { CostAnalysis } from "@/modules/import-data/types/holdings-analysis";
 import {
   DataPanel,
-  MeterRow,
-  Notice,
   formatINR,
-  formatINRShort,
 } from "@/modules/import-data/components/shared/ui";
-
-/** Expense ratio shown against a 2.5% ceiling — the top of the retail range. */
-const ER_SCALE = 2.5;
+import { coverageLabel } from "./format";
 
 /**
- * Fund cost from the MF analytics' cost analysis: the weighted expense ratio
- * as a meter, the yearly and monthly drag on a reference portfolio value, and
- * a one-line verdict.
+ * What the book costs to hold: the weighted expense ratio and the rupee drag
+ * it implies — a property of today's holdings. Only the ETF endpoint's
+ * `portfolio_value` is the user's own book (the MF endpoint serves a fixed
+ * ₹1,00,000 reference base there), so the annual figure is qualified by a
+ * value only when `basisValue` is passed.
  */
-export function CostCard({ cost }: { cost: MFCostAnalysis | undefined }) {
+export function CostCard({
+  cost,
+  basisValue,
+}: {
+  cost: CostAnalysis | null;
+  basisValue?: number | null;
+}) {
   if (!cost) return null;
   const er = cost.weighted_expense_ratio;
-  const tone = er <= 0.5 ? "success" : er <= 1 ? "info" : "warning";
-  const bar =
-    er <= 0.5 ? "bg-[#0A9E6E]" : er <= 1 ? "bg-amber-500" : "bg-rose-500";
-
+  const rows = [
+    {
+      label: "Weighted expense ratio",
+      value: er == null ? "—" : `${er.toFixed(2)}%`,
+    },
+    {
+      label: "Estimated annual cost",
+      value: cost.annual_cost == null ? "—" : formatINR(cost.annual_cost),
+      caption:
+        basisValue != null
+          ? `on ${formatINR(basisValue)} at today's weights`
+          : "on a ₹1,00,000 reference value",
+    },
+    {
+      label: "Estimated monthly cost",
+      value: cost.monthly_cost == null ? "—" : formatINR(cost.monthly_cost),
+    },
+  ];
+  const coverage = cost.coverage_pct;
   return (
-    <DataPanel
-      title="Cost Analysis"
-      icon={Receipt}
-      iconClassName="text-amber-500"
-      bodyClassName="space-y-3 text-[10px]"
-    >
-      <MeterRow
-        label="Weighted expense ratio"
-        valueLabel={`${er.toFixed(2)}%`}
-        pct={(er / ER_SCALE) * 100}
-        barClass={bar}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-nested space-y-0.5 bg-slate-50 p-3 text-center dark:bg-slate-800/40">
-          <p className="font-geist text-forest-deep text-sm font-medium tabular-nums dark:text-white">
-            {formatINR(cost.annual_cost)}
-          </p>
-          <p className="text-[8.5px] text-slate-400">
-            Yearly cost on {formatINRShort(cost.portfolio_value)}
-          </p>
-        </div>
-        <div className="rounded-nested space-y-0.5 bg-slate-50 p-3 text-center dark:bg-slate-800/40">
-          <p className="font-geist text-forest-deep text-sm font-medium tabular-nums dark:text-white">
-            {formatINR(cost.monthly_cost)}
-          </p>
-          <p className="text-[8.5px] text-slate-400">Per month</p>
-        </div>
+    <DataPanel title="Cost of ownership">
+      <div className="divide-border-subtle -my-2 divide-y">
+        {rows.map((r) => (
+          <div
+            key={r.label}
+            className="flex items-baseline justify-between gap-3 py-2 text-[11px]"
+          >
+            <div className="min-w-0">
+              <p className="text-forest-deep dark:text-white">{r.label}</p>
+              {r.caption && (
+                <p className="text-[9.5px] text-slate-400">{r.caption}</p>
+              )}
+            </div>
+            <span className="text-forest-deep shrink-0 font-medium tabular-nums dark:text-white">
+              {r.value}
+            </span>
+          </div>
+        ))}
       </div>
-      <Notice tone={tone}>
-        {er <= 0.5
-          ? `A ${er.toFixed(2)}% blended expense ratio is low — more of your returns stay with you.`
-          : er <= 1
-            ? `A ${er.toFixed(2)}% blended expense ratio is moderate; direct plans or index funds could trim it.`
-            : `A ${er.toFixed(2)}% blended expense ratio is high — consider direct plans or lower-cost funds.`}
-      </Notice>
+      {coverage != null && coverage < 99.5 && (
+        <p className="border-border-subtle mt-3 border-t pt-2 text-[10px] text-slate-400">
+          Covers {coverageLabel(coverage)}% of value — the rest published no
+          expense ratio.
+        </p>
+      )}
     </DataPanel>
   );
 }

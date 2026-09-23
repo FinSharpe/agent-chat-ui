@@ -24,6 +24,7 @@ export function useHoldingsData(
 ) {
   const {
     data: fiData,
+    normalized,
     isLoading,
     isError,
     isConsentError,
@@ -55,6 +56,8 @@ export function useHoldingsData(
     isLoading,
     /** Raw FI data response */
     fiData,
+    /** The server-normalized block (cost basis, values) */
+    normalized,
     /** Whether the FI-data fetch failed */
     isError,
     /** Whether the failure is due to an expired/revoked consent */

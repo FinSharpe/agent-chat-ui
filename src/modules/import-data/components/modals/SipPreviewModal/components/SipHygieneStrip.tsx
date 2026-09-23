@@ -6,7 +6,6 @@
  */
 
 "use client";
-import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DataPanel,
@@ -27,13 +26,13 @@ function Figure({
   tone?: "brand" | "good" | "warn";
 }) {
   return (
-    <div className="rounded-nested space-y-0.5 bg-[#063BAA]/4 p-3 text-center dark:bg-[#063BAA]/10">
+    <div className="min-w-0 space-y-0.5">
       <p
         className={cn(
           "font-geist text-base font-medium tabular-nums",
           tone === "good" && "text-[#0A9E6E]",
           tone === "warn" && "text-amber-600",
-          tone === "brand" && "text-[#063BAA] dark:text-blue-400",
+          tone === "brand" && "text-forest-deep dark:text-white",
         )}
       >
         {value}
@@ -60,9 +59,7 @@ export function SipHygieneStrip({
 
   return (
     <DataPanel
-      title="Registry & Account Hygiene"
-      icon={ShieldCheck}
-      iconClassName="text-[#0A9E6E]"
+      title="KYC & nominee health"
       bodyClassName="space-y-3"
     >
       {showFigures && (

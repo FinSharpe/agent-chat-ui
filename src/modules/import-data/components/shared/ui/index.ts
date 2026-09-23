@@ -28,6 +28,7 @@ export { StatTile, StatGrid } from "./StatTile";
 export {
   SectionLabel,
   DataPanel,
+  BarePanels,
   EmptyState,
   Notice,
   FlagList,

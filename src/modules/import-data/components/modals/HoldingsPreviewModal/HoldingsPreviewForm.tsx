@@ -1,5 +1,6 @@
 "use client";
 import { FiDataResponse } from "@/modules/import-data/types/moneyone-raw";
+import type { NormalizedFi } from "@/modules/import-data/types/aa";
 import { toast } from "sonner";
 import {
   DataPanel,
@@ -10,11 +11,15 @@ import {
   TableSkeleton,
   ChartSkeleton,
 } from "@/modules/import-data/components/shared/ui";
+import { ClassAnalysisView } from "./components/ClassAnalysisView";
 import { HoldingsSearch } from "./components/HoldingsSearch";
 import { HoldingsTable } from "./components/HoldingsTable";
-import { LedgerHeader, LedgerStats } from "./components/LedgerSummary";
+import { LedgerHeader } from "./components/LedgerSummary";
+import { SummaryTiles } from "./components/analysis/SummaryTiles";
 import { holdingNoun } from "./utils/holding-value";
+import { analysisKind, costBasisOf } from "./utils/class-analysis";
 import { HoldingFormData, useHoldingsForm } from "./hooks/useHoldingsForm";
+import { useClassAnalysis } from "./hooks/useClassAnalysis";
 import {
   HoldingWithQuantity,
   transformFormDataToHoldings,
@@ -28,6 +33,8 @@ type HoldingsPreviewFormProps = {
   defaultValues: HoldingWithQuantity[];
   /** Raw FI data for creating the modified payload. */
   fiData: FiDataResponse | undefined;
+  /** The consent's normalized block (the FIP-reported cost basis). */
+  normalized?: NormalizedFi;
   /** Whether data is currently loading. */
   isLoading: boolean;
   /** Whether the import mutation is in progress. */
@@ -41,23 +48,25 @@ type HoldingsPreviewFormProps = {
 };
 
 /**
- * Editable-holdings analysis modal shared by Equities, ETF and Mutual Funds,
- * laid out like the reference analysis popups: live stat tiles, the portfolio
- * analysis cards, then the editable holdings table (search to add, edit units,
- * remove), with Cancel / Import to Chat pinned below. Asset differences live in
- * `config`.
+ * Holdings analysis shared by Equities, ETF and Mutual Funds. Opening it is the
+ * request: the analysis starts as soon as the holdings land, laid out in
+ * finsharpe-mobile's order (summary tiles, then the analysis sections), with
+ * the editable ledger (search to add, edit units, remove) below — an edit
+ * re-runs the analysis. Import to Chat is pinned below; the header's close
+ * button leaves. Asset differences live in `config`.
  */
 export function HoldingsPreviewForm({
   config,
   defaultValues,
   fiData,
+  normalized,
   isLoading,
   isImporting,
   currentValue,
   onSubmit,
   onClose,
 }: HoldingsPreviewFormProps) {
-  const { consentType, showCurrentValue, AnalyticsPanel } = config;
+  const { consentType, showCurrentValue } = config;
 
   const {
     control,
@@ -65,11 +74,16 @@ export function HoldingsPreviewForm({
     fields,
     handleAddSearchResult,
     handleRemoveHolding,
-    getValues,
   } = useHoldingsForm(defaultValues, consentType);
 
   const fallbackValue =
     showCurrentValue && currentValue ? parseFloat(currentValue) : null;
+
+  const analysis = useClassAnalysis(
+    analysisKind(consentType),
+    control,
+    !isLoading,
+  );
 
   const handleFormSubmit = (data: HoldingFormData) => {
     if (!fiData) {
@@ -129,7 +143,7 @@ export function HoldingsPreviewForm({
       <OverlayBody>
         {isLoading ? (
           <>
-            <StatTileGridSkeleton />
+            <StatTileGridSkeleton count={4} />
             <ChartSkeleton />
             <TableSkeleton
               rows={5}
@@ -138,19 +152,28 @@ export function HoldingsPreviewForm({
           </>
         ) : (
           <>
-            <LedgerStats
+            <SummaryTiles
               control={control}
               consentType={consentType}
               fallbackValue={fallbackValue}
+              costBasis={costBasisOf(normalized)}
+              snapshot={analysis.analysis?.snapshot}
             />
 
-            <AnalyticsPanel
-              holdingsCount={count}
-              getHoldings={() => getValues("holdings")}
-            />
+            {count > 0 && (
+              <ClassAnalysisView
+                analysis={analysis.analysis}
+                isLoading={analysis.isLoading}
+                isRefreshing={analysis.isRefreshing}
+                isError={analysis.isError}
+                errorStatus={analysis.error?.status}
+                isEmpty={analysis.isEmpty}
+                onRetry={analysis.retry}
+              />
+            )}
 
             <DataPanel
-              title="Holdings"
+              title="Edit before importing"
               addon={`${count} ${holdingNoun(consentType, count)}`}
               bodyClassName="space-y-4"
             >
@@ -170,13 +193,6 @@ export function HoldingsPreviewForm({
       </OverlayBody>
 
       <OverlayFooter>
-        <FooterButton
-          variant="secondary"
-          onClick={onClose}
-          disabled={isImporting}
-        >
-          Cancel
-        </FooterButton>
         <FooterButton
           type="submit"
           disabled={isLoading || count === 0 || isImporting}

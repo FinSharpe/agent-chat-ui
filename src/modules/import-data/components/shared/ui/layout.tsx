@@ -1,4 +1,10 @@
-import type { ComponentType, ReactNode } from "react";
+"use client";
+import {
+  createContext,
+  useContext,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { AlertTriangle, Check, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { INTENT_CHIP, type SurfaceIntent } from "./intent";
@@ -44,6 +50,21 @@ export function SectionLabel({
   );
 }
 
+const BarePanelContext = createContext(false);
+
+/**
+ * Drops the glass frame from every DataPanel inside it, so the same cards sit
+ * as cardless sections under a `divide-y` parent (the Discover strategy
+ * detail) — finsharpe-mobile's `framed: false`.
+ */
+export function BarePanels({ children }: { children: ReactNode }) {
+  return (
+    <BarePanelContext.Provider value={true}>
+      {children}
+    </BarePanelContext.Provider>
+  );
+}
+
 /** A titled glass card — the frame every chart, list and table sits in. */
 export function DataPanel({
   title,
@@ -62,9 +83,14 @@ export function DataPanel({
   className?: string;
   bodyClassName?: string;
 }) {
+  const bare = useContext(BarePanelContext);
   return (
     <section
-      className={cn("glass-card rounded-card min-w-0 space-y-3 p-5", className)}
+      className={cn(
+        "min-w-0 space-y-3",
+        bare ? "py-5" : "glass-card rounded-card p-5",
+        className,
+      )}
     >
       {(title || addon) && (
         <SectionLabel

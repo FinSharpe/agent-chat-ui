@@ -22,6 +22,8 @@ interface BalanceTrendChartProps {
   startDate?: string;
   endDate?: string;
   className?: string;
+  /** Line under the chart saying what the balance is a sum of. */
+  caption?: string;
 }
 
 /** Thin long series so the area stays smooth and fast (~100 points). */
@@ -39,6 +41,7 @@ export function BalanceTrendChart({
   startDate,
   endDate,
   className,
+  caption,
 }: BalanceTrendChartProps) {
   const period = periodLabel(startDate, endDate);
   // A time axis (ms) so ticks land once per month; the tooltip shows the day.
@@ -87,6 +90,7 @@ export function BalanceTrendChart({
           />
         </div>
       )}
+      {caption && <p className="mt-2 text-[10px] text-slate-400">{caption}</p>}
     </DataPanel>
   );
 }

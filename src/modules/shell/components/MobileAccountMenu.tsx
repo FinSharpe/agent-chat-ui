@@ -6,7 +6,6 @@ import {
   ChevronRight,
   LogIn,
   Moon,
-  Plug,
   Sun,
   User,
   type LucideIcon,
@@ -22,11 +21,10 @@ import { useAccountActions } from "../hooks/useAccountActions";
 /**
  * The mobile header avatar's account sheet — finsharpe-mobile's
  * `account_sheet.dart`, drawn on the web: drag handle, the identity row
- * (opens Profile, the web's "Your account"), Appearance, Sign out, and
- * Delete account kept faint at the foot, where the owner wanted it on the
- * app (findable by someone looking, invisible to someone who is not).
+ * (opens Profile, the web's "Your account"), Appearance and Sign out.
  *
- * MCP Access is web-only, so it is the one row the app's sheet does not have.
+ * MCP Access and Delete account are on the Profile page, one tap away via
+ * the identity row, rather than in this sheet.
  * The app's System theme segment is left out: the web theme is light or dark.
  * Signed out, the avatar is replaced by a Login button.
  */
@@ -48,8 +46,6 @@ export default function MobileAccountMenu() {
     themeMode,
     setThemeMode,
     openProfile,
-    openMcpAccess,
-    openDeleteAccount,
     openLogin,
     logout,
   } = useAccountActions();
@@ -146,14 +142,6 @@ export default function MobileAccountMenu() {
                 onChange={setThemeMode}
               />
 
-              <div className="mt-4">
-                <SheetRow
-                  icon={Plug}
-                  title="MCP Access"
-                  onClick={run(openMcpAccess)}
-                />
-              </div>
-
               {/* One tap signs out, no confirm — the app's sheet does the
                   same; a drag or the scrim is the way out without it. */}
               <button
@@ -162,15 +150,6 @@ export default function MobileAccountMenu() {
               >
                 Sign out
               </button>
-
-              <div className="mt-2 flex justify-center">
-                <button
-                  onClick={run(openDeleteAccount)}
-                  className="px-2 py-2.5 text-[11px] text-slate-400 transition-colors hover:text-rose-600 dark:hover:text-rose-400"
-                >
-                  Delete account
-                </button>
-              </div>
             </div>
           </motion.div>
         </SheetContent>

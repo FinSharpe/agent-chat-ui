@@ -132,8 +132,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Identity, theme, MCP Access, Delete Account and Sign out live
-                under this avatar (T-02); the bottom bar stays a pure 5-tab. */}
+            {/* Identity (→ Profile), theme and Sign out live under this
+                avatar (T-02); the bottom bar stays a pure 5-tab. */}
             <MobileAccountMenu />
           </div>
         </header>

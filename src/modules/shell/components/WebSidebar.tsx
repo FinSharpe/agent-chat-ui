@@ -361,7 +361,7 @@ export default function WebSidebar() {
         )}
       </div>
 
-      {/* MCP Access · Delete Account · theme · identity + sign out (T-02) */}
+      {/* theme · identity (→ Profile) + sign out (T-02) */}
       <SidebarAccountFooter />
     </aside>
   );

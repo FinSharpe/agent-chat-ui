@@ -1,47 +1,20 @@
 "use client";
 
 import React from "react";
-import { LogIn, LogOut, Moon, Plug, Sun, Trash2, User } from "lucide-react";
+import { LogIn, LogOut, Moon, Sun, User } from "lucide-react";
 import { useAccountActions } from "../hooks/useAccountActions";
 
 /**
  * The desktop sidebar's bottom block (T-02). There is no Account Settings
- * screen: the theme switch sits on its own row, the identity row carries the
- * name plus a logout button of its own, and the two destinations worth
- * keeping — MCP Access and Delete Account — are plain sidebar rows above.
+ * screen: the theme switch sits on its own row, and the identity row carries
+ * the name (opens Profile) plus a logout button of its own. MCP Access and
+ * Delete account live on the Profile page.
  *
  * Signed out, the identity row becomes a Login button.
  */
 
 const ROW =
   "rounded-tile hover-tint flex w-full items-center gap-2.5 px-2.5 text-left transition-colors";
-
-function PlainRow({
-  icon,
-  label,
-  onClick,
-  danger = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={label}
-      className={`${ROW} h-9 ${
-        danger
-          ? "text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
-          : "text-[#0A1F4D] dark:text-slate-300"
-      }`}
-    >
-      <span className="shrink-0 text-slate-400">{icon}</span>
-      <span className="text-[12.5px] font-medium">{label}</span>
-    </button>
-  );
-}
 
 /** Track-and-knob switch; the row itself is the click target. */
 function ThemeSwitch({ dark }: { dark: boolean }) {
@@ -94,8 +67,6 @@ export default function SidebarAccountFooter({
     themeMode,
     toggleThemeMode,
     openProfile,
-    openMcpAccess,
-    openDeleteAccount,
     openLogin,
     logout,
   } = useAccountActions();
@@ -114,15 +85,6 @@ export default function SidebarAccountFooter({
         </button>
         {signedIn ? (
           <>
-            {/* Delete Account is deliberately absent from the rail: a bare
-                trash icon here would read as "delete chat". */}
-            <button
-              onClick={openMcpAccess}
-              title="MCP Access"
-              className="rounded-tile hover-tint flex h-10 w-full items-center justify-center text-slate-400 transition-colors hover:text-[#063BAA]"
-            >
-              <Plug size={19} />
-            </button>
             <button
               onClick={openProfile}
               title={name || "Profile"}
@@ -157,22 +119,6 @@ export default function SidebarAccountFooter({
 
   return (
     <div className="shrink-0 space-y-0.5 p-2">
-      {signedIn && (
-        <>
-          <PlainRow
-            icon={<Plug size={16} />}
-            label="MCP Access"
-            onClick={openMcpAccess}
-          />
-          <PlainRow
-            icon={<Trash2 size={16} />}
-            label="Delete Account"
-            onClick={openDeleteAccount}
-            danger
-          />
-        </>
-      )}
-
       <button
         onClick={toggleThemeMode}
         aria-pressed={dark}

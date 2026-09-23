@@ -5,9 +5,14 @@ import { ArrowLeft, User } from "lucide-react";
 import OverlayColumn from "@/components/shared/OverlayColumn";
 import { useAccountUser } from "../hooks/useAccountUser";
 import { InfoRow, MintBadge, SignOutButton } from "./shared/AccountKit";
+import {
+  DeleteAccountSection,
+  McpAccessSection,
+} from "./shared/AccountActionRows";
 
 /**
- * The only account screen left (T-02): who is signed in, and a way out.
+ * The only account screen left (T-02): who is signed in, MCP Access, sign
+ * out and — last, drawn destructive but quiet — Delete account.
  *
  * Everything the old Account Settings modal showed beside this — usage,
  * billing, security, token and subscription figures — was invented, so it was
@@ -87,10 +92,14 @@ export default function ProfileSettingsPage({
             />
           </div>
 
+          <McpAccessSection onLeave={onClose} />
+
           <SignOutButton
             onClick={signOut}
             disabled={signingOut}
           />
+
+          <DeleteAccountSection onLeave={onClose} />
         </div>
       </OverlayColumn>
     </motion.div>

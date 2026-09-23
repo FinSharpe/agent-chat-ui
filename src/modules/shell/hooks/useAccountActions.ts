@@ -9,10 +9,11 @@ import { getInitials } from "../utils/initials";
 
 /**
  * Everything the shell's identity surfaces need, in one place, so the desktop
- * sidebar footer and the mobile header menu behave identically (T-02).
+ * sidebar footer, the mobile header menu and the Profile page behave
+ * identically (T-02).
  *
  * There is no Account Settings screen any more: the only two real destinations
- * it used to host — MCP Access and Delete Account — are plain rows here.
+ * it used to host — MCP Access and Delete Account — are rows on Profile.
  */
 export function useAccountActions() {
   const router = useRouter();

@@ -2,18 +2,17 @@
 
 import type {
   BadgeTone,
-  FinSharpeScoreCard,
   FundamentalCard,
   NewsArticle,
   NudgeBadge,
   TechnicalCard,
 } from "@/api/generated/nudge-apis/models";
-import { AlertTriangle, ArrowRight, Check, Sparkles } from "lucide-react";
-import { Fragment, type ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
 
 /* The reference Import screen's Smart Alerts cards, filled from the nudge
    APIs. Sentiment is the one place colour carries meaning, so a badge's tone
-   picks the pill / icon colours and nothing else does. */
+   picks the pill colours and nothing else does. */
 
 const TONE_PILL: Record<BadgeTone, string> = {
   positive:
@@ -23,40 +22,19 @@ const TONE_PILL: Record<BadgeTone, string> = {
   negative: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400",
 };
 
-const TONE_TILE: Record<BadgeTone, string> = {
-  positive: "bg-[#97edcc]/30 text-[#0A9E6E]",
-  neutral: "bg-[#063BAA]/8 text-[#063BAA]",
-  negative:
-    "bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-400",
-};
-
 const toneOf = (badge?: NudgeBadge | null): BadgeTone =>
   (badge?.tone as BadgeTone) ?? "neutral";
 
-/** Emphasises ₹ amounts and percentages within a sentence, as the reference
- *  does for its FinSharpe Insights copy. */
-function emphasize(text: string) {
-  return text
-    .split(/(₹[\d,.]+(?:[A-Za-z]+)?|\d+(?:\.\d+)?%)/g)
-    .map((part, i) =>
-      /^(₹|\d)/.test(part) ? (
-        <span
-          key={i}
-          className="text-forest-deep font-medium dark:text-white"
-        >
-          {part}
-        </span>
-      ) : (
-        <Fragment key={i}>{part}</Fragment>
-      ),
-    );
-}
-
-const tickerOf = (h: { symbol?: string | null; name?: string | null; isin: string }) =>
-  h.symbol || h.name || h.isin;
+const tickerOf = (h: {
+  symbol?: string | null;
+  name?: string | null;
+  isin: string;
+}) => h.symbol || h.name || h.isin;
 
 const fmt = (n: number | null | undefined, digits = 1) =>
-  n == null ? null : n.toLocaleString("en-IN", { maximumFractionDigits: digits });
+  n == null
+    ? null
+    : n.toLocaleString("en-IN", { maximumFractionDigits: digits });
 
 /* ------------------------- Row (News / Technical / Fundamental) ------------------------- */
 
@@ -73,10 +51,19 @@ interface AlertCardProps {
 }
 
 /** News / Technical / Fundamental card — same shape as Home's market news. */
-function AlertCard({ width, ticker, badge, title, desc, meta, action, titleLines = 2 }: AlertCardProps) {
+function AlertCard({
+  width,
+  ticker,
+  badge,
+  title,
+  desc,
+  meta,
+  action,
+  titleLines = 2,
+}: AlertCardProps) {
   return (
     <div
-      className={`${width} glass-card premium-shadow-sm flex snap-start flex-col justify-between gap-3 rounded-card p-5`}
+      className={`${width} glass-card premium-shadow-sm rounded-card flex snap-start flex-col justify-between gap-3 p-5`}
     >
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -143,7 +130,9 @@ export function NewsCard({
         ) : (
           <button
             onClick={() =>
-              onDiscuss(`What does this news mean for my ${ticker} holding? "${article.title}"`)
+              onDiscuss(
+                `What does this news mean for my ${ticker} holding? "${article.title}"`,
+              )
             }
             className={actionClass}
           >
@@ -155,14 +144,21 @@ export function NewsCard({
   );
 }
 
-export function TechnicalAlertCard({ card, width }: { card: TechnicalCard; width: string }) {
+export function TechnicalAlertCard({
+  card,
+  width,
+}: {
+  card: TechnicalCard;
+  width: string;
+}) {
   const d = card.data;
   const meta =
     d?.support != null && d?.resistance != null
       ? `Support ₹${fmt(d.support, 0)} · Resistance ₹${fmt(d.resistance, 0)}`
       : [
           d?.rsi14 != null && `RSI ${fmt(d.rsi14, 0)}`,
-          d?.returns?.yearly != null && `1Y ${d.returns.yearly >= 0 ? "+" : ""}${fmt(d.returns.yearly)}%`,
+          d?.returns?.yearly != null &&
+            `1Y ${d.returns.yearly >= 0 ? "+" : ""}${fmt(d.returns.yearly)}%`,
         ]
           .filter(Boolean)
           .join(" · ");
@@ -178,7 +174,13 @@ export function TechnicalAlertCard({ card, width }: { card: TechnicalCard; width
   );
 }
 
-export function FundamentalAlertCard({ card, width }: { card: FundamentalCard; width: string }) {
+export function FundamentalAlertCard({
+  card,
+  width,
+}: {
+  card: FundamentalCard;
+  width: string;
+}) {
   const d = card.data;
   const meta = [
     d?.pe != null && `P/E ${fmt(d.pe)}x`,
@@ -200,102 +202,15 @@ export function FundamentalAlertCard({ card, width }: { card: FundamentalCard; w
   );
 }
 
-/* ----------------------------------- FinSharpe Insights ----------------------------------- */
-
-function scoreSummary(card: FinSharpeScoreCard) {
-  const s = card.scores;
-  if (s?.kind === "equity" && s.overall != null) {
-    return `Score ${fmt(s.overall, 0)}${s.overallIndustry != null ? ` vs industry ${fmt(s.overallIndustry, 0)}` : ""}`;
-  }
-  if (s?.kind === "mf" && s.overallRank != null) {
-    return `Category rank #${fmt(s.overallRank, 0)}`;
-  }
-  return "FinSharpe Score";
-}
-
-/**
- * One FinSharpe Score insight — icon tile, holding, verdict, the nudge line
- * and a mint "Ask FinSharpe" action that opens a chat about it. `variant`
- * picks the desktop slider card or the mobile stacked row.
- */
-export function InsightCard({
-  card,
-  variant,
-  onAsk,
-}: {
-  card: FinSharpeScoreCard;
-  variant: "slide" | "row";
-  onAsk: (prompt: string) => void;
-}) {
-  const tone = toneOf(card.badge);
-  const Icon = tone === "negative" ? AlertTriangle : tone === "positive" ? Check : Sparkles;
-  const name = card.holding.name || tickerOf(card.holding);
-  const slide = variant === "slide";
-
-  const body = (
-    <>
-      <div className={slide ? "space-y-3" : undefined}>
-        <div className={`flex items-center gap-3 ${slide ? "" : "mb-3"}`}>
-          <div
-            className={`flex shrink-0 items-center justify-center rounded-full ${slide ? "h-10 w-10" : "h-11 w-11"} ${TONE_TILE[tone]}`}
-          >
-            <Icon size={slide ? 18 : 19} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-forest-deep font-geist line-clamp-2 text-[13px] leading-snug font-medium dark:text-white">
-              {name}
-            </p>
-            <p className="mt-0.5 text-[10.5px] text-slate-400">
-              {card.badge?.label ? `${card.badge.label} · ` : ""}
-              {scoreSummary(card)}
-            </p>
-          </div>
-        </div>
-        {card.line && (
-          <p
-            className={`text-[11.5px] leading-relaxed text-slate-500 dark:text-slate-400 ${slide ? "" : "mb-4"}`}
-          >
-            {emphasize(card.line)}
-          </p>
-        )}
-      </div>
-      <button
-        onClick={() =>
-          onAsk(
-            `Explain the FinSharpe Score for ${name}${card.line ? `: ${card.line}` : ""}. What should I do with this holding?`,
-          )
-        }
-        className="text-forest-deep flex w-full items-center justify-between rounded-full bg-[#DFF9EF] px-4 py-3 text-[11.5px] font-medium dark:text-white"
-      >
-        Ask FinSharpe
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">
-          <ArrowRight
-            size={12}
-            className="text-[#0A1F4D]"
-          />
-        </span>
-      </button>
-    </>
-  );
-
-  if (slide) {
-    return (
-      <div className="glass-card premium-shadow-sm flex w-[calc(50%-9px)] min-w-[calc(50%-9px)] snap-start flex-col justify-between gap-3 rounded-card p-5">
-        {body}
-      </div>
-    );
-  }
-  return <div className="p-4.5">{body}</div>;
-}
-
 /* ------------------------------------ Loading / empty ------------------------------------ */
 
-const shimmer = "block animate-pulse rounded bg-slate-100 dark:bg-slate-800 motion-reduce:animate-none";
+const shimmer =
+  "block animate-pulse rounded bg-slate-100 dark:bg-slate-800 motion-reduce:animate-none";
 
 export function AlertCardSkeleton({ width }: { width: string }) {
   return (
     <div
-      className={`${width} glass-card flex snap-start flex-col gap-3 rounded-card p-5`}
+      className={`${width} glass-card rounded-card flex snap-start flex-col gap-3 p-5`}
       aria-hidden="true"
     >
       <div className="flex justify-between">
@@ -310,26 +225,6 @@ export function AlertCardSkeleton({ width }: { width: string }) {
   );
 }
 
-export function InsightSkeletonRow() {
-  return (
-    <div
-      className="space-y-3 p-4.5"
-      aria-hidden="true"
-    >
-      <div className="flex items-center gap-3">
-        <span className={`${shimmer} h-11 w-11 rounded-full`} />
-        <div className="flex-1 space-y-1.5">
-          <span className={`${shimmer} h-3.5 w-1/2`} />
-          <span className={`${shimmer} h-3 w-1/3`} />
-        </div>
-      </div>
-      <span className={`${shimmer} h-3 w-full`} />
-      <span className={`${shimmer} h-3 w-4/5`} />
-      <span className={`${shimmer} h-11 w-full rounded-full`} />
-    </div>
-  );
-}
-
 /** Quiet message card for a row with nothing to show (or a failed load). */
 export function RowMessage({
   children,
@@ -339,7 +234,7 @@ export function RowMessage({
   action?: ReactNode;
 }) {
   return (
-    <div className="glass-card flex items-center justify-between gap-3 rounded-card px-5 py-4">
+    <div className="glass-card rounded-card flex items-center justify-between gap-3 px-5 py-4">
       <p className="text-[11px] leading-relaxed text-slate-400">{children}</p>
       {action}
     </div>

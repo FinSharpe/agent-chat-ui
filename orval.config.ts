@@ -106,6 +106,7 @@ export default defineConfig({
           finsharpe_score_nudge_api_nudges_finsharpe_score_post: {
             query: { useQuery: true },
           },
+          smart_alerts_api_nudges_alerts_post: { query: { useQuery: true } },
         },
       },
     },

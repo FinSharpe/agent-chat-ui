@@ -20,7 +20,7 @@ import { SectionBanner } from "@/components/shared/SectionKit";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { Bell, RefreshCw } from "lucide-react";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode, Ref } from "react";
 import { useInView } from "../../hooks/useInView";
 import { RowLabel, SectionTitle } from "../page/SectionTitle";
 import {
@@ -270,7 +270,7 @@ function AlertRow({
   width,
   children,
 }: {
-  sectionRef: RefObject<HTMLElement | null>;
+  sectionRef: Ref<HTMLElement>;
   label: string;
   nudge: ReturnType<typeof useNudge>;
   seen: boolean;

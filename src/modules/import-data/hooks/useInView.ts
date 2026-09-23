@@ -1,19 +1,22 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Becomes true the first time the element comes within `rootMargin` of the
  * viewport, then stays true. The Smart Alerts rows use it so each nudge
  * endpoint is only called once its row is about to be seen, as the old
  * collapsed accordions only fetched when opened.
+ *
+ * `ref` is a callback ref, so an element that mounts after the hook (the
+ * equity rows appear only once the equities blob lands, which can be after
+ * the MF one) is still observed.
  */
 export function useInView<T extends Element>(rootMargin = "400px") {
-  const ref = useRef<T>(null);
+  const [node, setNode] = useState<T | null>(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el || inView) return;
+    if (!node || inView) return;
     if (typeof IntersectionObserver === "undefined") {
       setInView(true);
       return;
@@ -27,9 +30,9 @@ export function useInView<T extends Element>(rootMargin = "400px") {
       },
       { rootMargin },
     );
-    io.observe(el);
+    io.observe(node);
     return () => io.disconnect();
-  }, [inView, rootMargin]);
+  }, [node, inView, rootMargin]);
 
-  return { ref, inView };
+  return { ref: setNode, inView };
 }

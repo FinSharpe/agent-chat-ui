@@ -130,7 +130,9 @@ export function parseIpoIssue(raw: unknown): IpoIssue {
   };
 }
 
-export async function fetchIpoCalendar(signal?: AbortSignal): Promise<IpoCalendar> {
+export async function fetchIpoCalendar(
+  signal?: AbortSignal,
+): Promise<IpoCalendar> {
   const body = await getJson<Record<string, unknown>>("ipo/issues", { signal });
   return {
     issues: arr(body.issues).map(parseIpoIssue),
@@ -230,7 +232,12 @@ export interface IpoInsight {
     peers: IpoPeer[];
     detail: string | null;
   };
-  news: { count: number; headlines: IpoHeadline[]; note: string | null; detail: string | null };
+  news: {
+    count: number;
+    headlines: IpoHeadline[];
+    note: string | null;
+    detail: string | null;
+  };
   sections: IpoInsightSection[];
   citations: { claim: string; citation: IpoCitation }[];
   documentProse: string | null;
@@ -277,7 +284,11 @@ function parseCitation(raw: unknown): IpoCitation {
     page: page === null ? null : Math.round(page),
     // A stored URL that already carries a fragment is left alone — the archive
     // pointed it somewhere deliberately.
-    documentUrl: url ? (page === null || url.includes("#") ? url : `${url}#page=${page}`) : null,
+    documentUrl: url
+      ? page === null || url.includes("#")
+        ? url
+        : `${url}#page=${page}`
+      : null,
   };
 }
 
@@ -333,11 +344,15 @@ export function parseIpoInsight(raw: unknown): IpoInsight {
 
   return {
     status:
-      j.status === "ready" ? "ready" : j.status === "generating" ? "generating" : "unavailable",
+      j.status === "ready"
+        ? "ready"
+        : j.status === "generating"
+          ? "generating"
+          : "unavailable",
     reason: rawReason
-      ? ((REASONS as string[]).includes(rawReason)
-          ? (rawReason as IpoInsightReason)
-          : "unknown")
+      ? (REASONS as string[]).includes(rawReason)
+        ? (rawReason as IpoInsightReason)
+        : "unknown"
       : null,
     detail: str(j.detail),
     issue,
@@ -416,7 +431,10 @@ export function parseIpoInsight(raw: unknown): IpoInsight {
     }),
     citations: arr(j.citations).map((c) => {
       const cited = obj(c);
-      return { claim: str(cited.claim) ?? "", citation: parseCitation(cited.citation) };
+      return {
+        claim: str(cited.claim) ?? "",
+        citation: parseCitation(cited.citation),
+      };
     }),
     documentProse: str(j.documentProse),
     stageLabel: stage ? stage.toUpperCase() : "Prospectus",
@@ -428,7 +446,10 @@ export function parseIpoInsight(raw: unknown): IpoInsight {
       ? {
           sections: arr(editorial.sections).map((s) => {
             const section = obj(s);
-            return { title: str(section.title) ?? "", body: str(section.body) ?? "" };
+            return {
+              title: str(section.title) ?? "",
+              body: str(section.body) ?? "",
+            };
           }),
           attribution: str(editorial.attribution) ?? "",
           rhpUrl: str(editorial.rhpUrl),

@@ -44,7 +44,10 @@ export async function getJson<T>(
 
   let response: Response;
   try {
-    response = await fetch(url, { signal, headers: { Accept: "application/json" } });
+    response = await fetch(url, {
+      signal,
+      headers: { Accept: "application/json" },
+    });
   } catch (error) {
     // An aborted query is react-query cancelling, not a feed failure.
     if (signal?.aborted) throw error;

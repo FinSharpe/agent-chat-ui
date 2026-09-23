@@ -1,3 +1,9 @@
+import type {
+  AnalysedHolding,
+  Distribution,
+} from "@/modules/import-data/types/holdings-analysis";
+import type { StrategySnapshot } from "./strategy-api";
+
 /**
  * Discover feature types — the landing's feature ids, the Explore Investment
  * Ideas catalog, and the view model the strategy detail renders from.
@@ -47,10 +53,20 @@ export interface IdeaStrategy {
   /** Longer description — the detail banner's headline. */
   description?: string;
   tags: string[];
-  /** Signed 1Y return, formatted ("+26.3%"). */
-  return1Y?: string;
+  /**
+   * The book's latest one-session move, in percent. Deliberately the only
+   * return figure on the row: every trailing figure the list serves is a
+   * back-test of today's holdings (finsharpe-agents#92).
+   */
+  dayPct?: number;
   risk?: string;
   stocks?: number;
+  /** "concentrated" — the detail's tag row (the detail response lacks it). */
+  type?: string;
+  /** The policy field, which the published record does not always keep to. */
+  rebalanceFrequency?: string;
+  /** Date of the current published portfolio (ISO). */
+  asOfDate?: string;
 }
 
 export interface IdeaCategory {
@@ -72,40 +88,10 @@ export interface IdeaCategory {
 export interface DetailStat {
   label: string;
   value: string;
-  accent?: boolean;
-}
-
-export interface DetailRow {
-  label: string;
-  value: string;
-}
-
-export interface AllocationItem {
-  name: string;
-  /** Percent weight; negative for the short side of a long-short book. */
-  pct: number;
-}
-
-export interface HoldingCell {
-  text: string;
-  tone?: "up" | "down";
-  /** Show a trend arrow with the tone (a price change, not a weight). */
-  arrow?: boolean;
-}
-
-export interface HoldingRow {
-  key: string;
-  name: string;
+  /** Small line under the value ("NIFTY 500 -0.29%", "since 16 Oct"). */
   sub?: string;
-  cells: [HoldingCell, HoldingCell, HoldingCell];
-}
-
-export interface ChartSeries {
-  key: string;
-  name: string;
-  color: string;
-  dashed?: boolean;
-  width?: number;
+  /** Tint the value green/rose by its sign. */
+  signed?: boolean;
 }
 
 export interface ExcludedHolding {
@@ -114,10 +100,12 @@ export interface ExcludedHolding {
   reason: string;
 }
 
+export type DetailTabId = "overview" | "holdings" | "quality" | "rebalances";
+
 /**
- * Everything the strategy detail shows. Built from the strategies API for
- * advisor strategies, and from placeholder figures for static baskets, so one
- * view renders both.
+ * Everything the strategy detail shows, after finsharpe-mobile's
+ * `StrategyDetailScreen`: the composition and the point-in-time `snapshot`,
+ * all exact as of the stated dates. Nothing here is a trailing return.
  */
 export interface StrategyDetailModel {
   id: string;
@@ -126,38 +114,14 @@ export interface StrategyDetailModel {
   bannerTitle: string;
   tags: string[];
   risk?: string;
-  stats: [DetailStat, DetailStat, DetailStat];
-  /** Tabs to show; an analysis with no priced holdings only has Holdings. */
-  tabs: ("overview" | "holdings" | "performance" | "analytics")[];
-  overview: {
-    keyMetrics: DetailRow[];
-    sectorLabel: string;
-    sectorAllocation: AllocationItem[];
-    marketCapAllocation: AllocationItem[];
-    /** Long-short books show signed weights. */
-    signed?: boolean;
-    excluded?: ExcludedHolding[];
-  };
-  holdings: {
-    columns: [string, string, string];
-    rows: HoldingRow[];
-  };
-  performance: {
-    label: string;
-    caption?: string;
-    /** Appended to values in the tooltip ("%" for cumulative returns). */
-    unit?: string;
-    xKey: string;
-    data: Record<string, number | string>[];
-    series: ChartSeries[];
-  };
-  analytics: {
-    benchmark: {
-      data: Record<string, number | string>[];
-      series: ChartSeries[];
-    } | null;
-    /** 0–100 scores; `higherIsBetter` false for a risk score. */
-    scores: { label: string; value: number; higherIsBetter: boolean }[];
-    risk: DetailRow[];
-  };
+  /** "Stated cadence monthly · portfolio as of 5 May 2026". */
+  meta?: string;
+  stats: [DetailStat, DetailStat, DetailStat, DetailStat];
+  /** Tabs with nothing behind them are dropped rather than shown empty. */
+  tabs: DetailTabId[];
+  snapshot: StrategySnapshot;
+  industry: Distribution[];
+  size: Distribution[];
+  holdings: AnalysedHolding[];
+  excluded: ExcludedHolding[];
 }

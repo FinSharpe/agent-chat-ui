@@ -65,9 +65,7 @@ export function NewsCard({
         }
       }}
       style={
-        fixedHeight
-          ? { width: CARD_WIDTH, height: CARD_HEIGHT }
-          : undefined
+        fixedHeight ? { width: CARD_WIDTH, height: CARD_HEIGHT } : undefined
       }
       className={`glass-card rounded-card premium-shadow-sm hover-tint flex shrink-0 cursor-pointer flex-col px-5 pt-5 transition-colors ${fixedHeight ? "snap-start" : "w-full"}`}
     >
@@ -97,7 +95,9 @@ export function NewsCard({
         )}
       </div>
 
-      <div className={`border-t border-slate-100 ${fixedHeight ? "mt-2" : "mt-3"}`}>
+      <div
+        className={`border-t border-slate-100 ${fixedHeight ? "mt-2" : "mt-3"}`}
+      >
         <div className="flex h-11 items-center gap-2">
           {meta && link ? (
             <a
@@ -125,13 +125,15 @@ export function NewsCard({
 }
 
 /** A card-shaped wait, in the stacked (news page) proportions. */
-export function NewsCardSkeleton({ fixedHeight = false }: { fixedHeight?: boolean }) {
+export function NewsCardSkeleton({
+  fixedHeight = false,
+}: {
+  fixedHeight?: boolean;
+}) {
   return (
     <div
       style={
-        fixedHeight
-          ? { width: CARD_WIDTH, height: CARD_HEIGHT }
-          : undefined
+        fixedHeight ? { width: CARD_WIDTH, height: CARD_HEIGHT } : undefined
       }
       className={`glass-card rounded-card flex shrink-0 flex-col gap-3 p-5 ${fixedHeight ? "" : "w-full"}`}
     >

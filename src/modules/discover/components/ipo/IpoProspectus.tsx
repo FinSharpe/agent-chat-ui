@@ -1,11 +1,7 @@
 "use client";
 
 import { ExternalLink, FileText, PenLine } from "lucide-react";
-import type {
-  IpoCitation,
-  IpoInsight,
-  IpoInsightClaim,
-} from "../../api/ipo";
+import type { IpoCitation, IpoInsight, IpoInsightClaim } from "../../api/ipo";
 import { shortDate } from "../../utils/relative-time";
 import { Caveat, SkeletonBlock, StatusChip } from "../shared/FeedKit";
 import { Card, CardTitle } from "./IpoInsightCards";
@@ -23,7 +19,8 @@ function CitationChip({
   citation: IpoCitation;
   stageLabel: string;
 }) {
-  const label = citation.page == null ? stageLabel : `${stageLabel} p.${citation.page}`;
+  const label =
+    citation.page == null ? stageLabel : `${stageLabel} p.${citation.page}`;
   const chip = (
     <span className="tone-blue inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium">
       {label}
@@ -58,7 +55,9 @@ function ClaimTile({
   return (
     <div className="space-y-2">
       {claim.isProse ? (
-        <p className="text-[11px] leading-relaxed text-slate-500">{claim.text}</p>
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          {claim.text}
+        </p>
       ) : (
         <div className="flex items-start justify-between gap-3">
           <span className="text-[11px] text-slate-500">{claim.label}</span>
@@ -160,7 +159,9 @@ export function IpoProspectusBlock({ insight }: { insight: IpoInsight }) {
             key={section.title}
             className="py-3 first:pt-0 last:pb-0"
           >
-            <p className="text-[11px] font-medium text-[#0A1F4D]">{section.title}</p>
+            <p className="text-[11px] font-medium text-[#0A1F4D]">
+              {section.title}
+            </p>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
               {section.body}
             </p>

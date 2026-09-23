@@ -40,3 +40,17 @@ export const riskColor = (r?: string) => {
 /** Green for gains, rose for losses — by the formatted sign. */
 export const signTone = (value: string) =>
   value.trim().startsWith("-") ? "text-rose-500" : "text-[#0A9E6E]";
+
+/** "5 May 2026" from an ISO date; the raw string when it will not parse. */
+export const shortDate = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+/** A one-session move: signed, two decimals (+0.56% and +0.64% differ). */
+export const formatDayPct = (pct: number) => formatPct(pct, { digits: 2 });

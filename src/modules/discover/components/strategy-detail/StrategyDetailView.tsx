@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Bookmark, Download, MessageSquare, Share2 } from "lucide-react";
+import { Download, MessageSquare, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import FeatureHeader from "@/components/discover/FeatureHeader";
 import { useInPopup } from "@/components/shared/Popup";
 import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
-import { StrategyDetailModel } from "../../types/discover.types";
+import { DetailTabId, StrategyDetailModel } from "../../types/discover.types";
 import { riskColor, signTone } from "../../utils/format";
-import { DetailTabs, TabId } from "./DetailTabs";
+import { riskLabel } from "../../utils/strategy-detail-model";
+import { DetailTabs } from "./DetailTabs";
 
 const iconBtn =
   "w-8 h-8 rounded-full border border-slate-100 flex items-center justify-center transition-colors";
@@ -25,10 +27,15 @@ interface Props {
   shareId?: string;
 }
 
+const DISCLAIMER =
+  "FinSharpe is a SEBI Registered Investment Adviser. Everything on this page describes the strategy's current published portfolio, not a track record. Not investment advice.";
+
 /**
- * The reference StrategyDetail layout: banner, tag row, a divided stat
- * strip, pill tabs over cardless sections, and a sticky Track / Analyse bar.
- * A popup on desktop, a full screen on mobile.
+ * The reference StrategyDetail layout — banner, tag row, a divided stat
+ * strip, pill tabs over cardless sections, a sticky Analyse bar — carrying
+ * finsharpe-mobile's point-in-time analytics in place of the reference's
+ * trailing-return charts (finsharpe-agents#92). A popup on desktop, a full
+ * screen on mobile.
  */
 export function StrategyDetailView({
   model,
@@ -38,9 +45,8 @@ export function StrategyDetailView({
   onDownload,
   shareId,
 }: Props) {
-  const [tab, setTab] = useState<TabId>(model.tabs[0]);
-  // Tracking is local to the visit — the app has no watchlist API yet.
-  const [tracked, setTracked] = useState(false);
+  const canAnalyse = model.holdings.length > 0;
+  const [tab, setTab] = useState<DetailTabId>(model.tabs[0]);
   const inPopup = useInPopup();
 
   const share = async () => {
@@ -61,16 +67,6 @@ export function StrategyDetailView({
         onBack={onBack}
         right={
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setTracked((t) => !t)}
-              aria-label={tracked ? "Stop tracking" : "Track"}
-              className={`${iconBtn} ${tracked ? "bg-[#063BAA]/8 text-[#063BAA]" : "hover-tint text-slate-400"}`}
-            >
-              <Bookmark
-                size={14}
-                fill={tracked ? "currentColor" : "none"}
-              />
-            </button>
             <button
               onClick={share}
               disabled={!shareId}
@@ -115,24 +111,40 @@ export function StrategyDetailView({
               <span
                 className={`rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wider uppercase ${riskColor(model.risk)}`}
               >
-                {model.risk} Risk
+                {riskLabel(model.risk)}
               </span>
             )}
           </div>
-          <div className="grid grid-cols-3 divide-x divide-slate-100 border-y border-slate-100 dark:divide-slate-800/60 dark:border-slate-800/60">
-            {model.stats.map((s) => (
+          {model.meta && (
+            <p className="-mt-2 text-[10px] text-slate-400">{model.meta}</p>
+          )}
+          {/* 2×2 in a phone column — "NIFTY 500 -0.29%" won't fit a quarter. */}
+          <div
+            className={`grid border-y border-slate-100 dark:border-slate-800/60 ${inPopup ? "grid-cols-4" : "grid-cols-2"}`}
+          >
+            {model.stats.map((s, i) => (
               <div
                 key={s.label}
-                className="px-3 py-3 text-center"
+                className={cn(
+                  "border-slate-100 px-3 py-3 text-center dark:border-slate-800/60",
+                  inPopup
+                    ? i > 0 && "border-l"
+                    : [i % 2 === 0 && "border-r", i < 2 && "border-b"],
+                )}
               >
                 <p className="text-[9px] leading-tight tracking-wider text-slate-400 uppercase">
                   {s.label}
                 </p>
                 <p
-                  className={`font-geist mt-1 text-sm font-medium ${s.accent ? signTone(s.value) : "text-[#0A1F4D] dark:text-white"}`}
+                  className={`font-geist mt-1 text-sm font-medium tabular-nums ${s.signed ? signTone(s.value) : "text-[#0A1F4D] dark:text-white"}`}
                 >
                   {s.value}
                 </p>
+                {s.sub && (
+                  <p className="mt-0.5 truncate text-[9.5px] text-slate-400 tabular-nums">
+                    {s.sub}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -144,20 +156,17 @@ export function StrategyDetailView({
           onTab={setTab}
           inPopup={inPopup}
         />
+        <p className="px-5 pt-2 text-[10px] leading-relaxed text-slate-400">
+          {DISCLAIMER}
+        </p>
       </div>
 
       {/* Sticky footer */}
-      <div className="bg-background/80 mb-[76px] flex shrink-0 gap-2.5 border-t border-slate-100 px-5 py-3 backdrop-blur-md">
-        <button
-          onClick={() => setTracked((t) => !t)}
-          className="flex-1 rounded-full bg-[#DFF9EF] py-3 text-xs font-medium tracking-wide text-[#0A1F4D] uppercase transition-colors"
-        >
-          {tracked ? "Tracking" : "Track"}
-        </button>
+      <div className="bg-background/80 mb-[76px] flex shrink-0 justify-center gap-2.5 border-t border-slate-100 px-5 py-3 backdrop-blur-md">
         <button
           onClick={onAnalyse}
-          disabled={analysing}
-          className="bg-brand-gradient flex flex-1 items-center justify-center gap-1.5 rounded-full py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:opacity-70"
+          disabled={analysing || !canAnalyse}
+          className="bg-brand-gradient flex min-w-40 items-center justify-center gap-1.5 rounded-full px-6 py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:opacity-70"
         >
           <MessageSquare size={14} />{" "}
           {analysing ? "Adding to chat…" : "Analyse in chat"}

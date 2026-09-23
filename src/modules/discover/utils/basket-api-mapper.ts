@@ -1,10 +1,8 @@
 import type {
   CreateCustomPortfolioRequest,
-  MarketCap
+  MarketCap,
 } from "@/api/generated/portfolio-apis/models";
-import type {
-  StockBasketConfig
-} from "../types/basket-builder.types";
+import type { StockBasketConfig } from "../types/basket-builder.types";
 
 /**
  * Transform stock basket configuration to API request format

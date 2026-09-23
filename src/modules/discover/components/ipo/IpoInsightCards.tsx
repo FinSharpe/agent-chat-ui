@@ -33,7 +33,9 @@ export const Card = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const CardTitle = ({ children }: { children: React.ReactNode }) => (
-  <h4 className="font-geist text-[13px] font-medium text-[#0A1F4D]">{children}</h4>
+  <h4 className="font-geist text-[13px] font-medium text-[#0A1F4D]">
+    {children}
+  </h4>
 );
 
 const BADGE_TONES: Record<string, ChipTone> = {
@@ -49,7 +51,13 @@ const AXIS_CAPTIONS: Record<string, string> = {
   structure: "A claim about the offer's structure",
 };
 
-const Multiple = ({ caption, value }: { caption: string; value: number | null }) => (
+const Multiple = ({
+  caption,
+  value,
+}: {
+  caption: string;
+  value: number | null;
+}) => (
   <StatTile
     caption={caption}
     value={multipleLabel(value)}
@@ -279,16 +287,21 @@ export function IpoFinancialsCard({
           crLabel(year.adjEpsInr),
         ])}
         negativeRow={panel.years.map(
-          (year) => (year.profitAfterTaxCr ?? 0) < 0 || (year.adjEpsInr ?? 0) < 0,
+          (year) =>
+            (year.profitAfterTaxCr ?? 0) < 0 || (year.adjEpsInr ?? 0) < 0,
         )}
       />
       {(panel.salesCagr3yPct != null || panel.patCagr3yPct != null) && (
         <div className="mt-3 flex flex-wrap gap-2">
           {panel.salesCagr3yPct != null && (
-            <CountChip label={`Sales 3y  ${signedPctLabel(panel.salesCagr3yPct)}`} />
+            <CountChip
+              label={`Sales 3y  ${signedPctLabel(panel.salesCagr3yPct)}`}
+            />
           )}
           {panel.patCagr3yPct != null && (
-            <CountChip label={`Profit 3y  ${signedPctLabel(panel.patCagr3yPct)}`} />
+            <CountChip
+              label={`Profit 3y  ${signedPctLabel(panel.patCagr3yPct)}`}
+            />
           )}
         </div>
       )}
@@ -307,7 +320,8 @@ export function IpoPeersCard({ panel }: { panel: IpoInsight["peers"] }) {
     return (
       <Card>
         <p className="text-[11px] leading-relaxed text-slate-500">
-          {panel.detail ?? "No listed comparables could be drawn for this issuer."}
+          {panel.detail ??
+            "No listed comparables could be drawn for this issuer."}
         </p>
       </Card>
     );
@@ -368,7 +382,9 @@ export function IpoHeadlinesCard({ panel }: { panel: IpoInsight["news"] }) {
         tone="warning"
       />
       {panel.note && (
-        <p className="mt-3 text-[10px] leading-relaxed text-slate-400">{panel.note}</p>
+        <p className="mt-3 text-[10px] leading-relaxed text-slate-400">
+          {panel.note}
+        </p>
       )}
       <button
         onClick={() => setOpen((v) => !v)}

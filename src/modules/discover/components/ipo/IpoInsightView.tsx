@@ -99,7 +99,9 @@ export function IpoInsightView({
         <section>
           <SectionHead
             title="Listed peers"
-            chip={insight.peers.peers.length ? String(insight.peers.count) : null}
+            chip={
+              insight.peers.peers.length ? String(insight.peers.count) : null
+            }
           />
           <IpoPeersCard panel={insight.peers} />
         </section>

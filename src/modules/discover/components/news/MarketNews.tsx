@@ -9,10 +9,7 @@ import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { type MarketNewsItem, newsAskPrompt } from "../../api/market-news";
 import { useMarketNews } from "../../hooks/useMarketNews";
 import { newsBannerTitle } from "../../utils/banner-titles";
-import {
-  FeatureEmptyState,
-  RetryErrorState,
-} from "../shared/FeatureStates";
+import { FeatureEmptyState, RetryErrorState } from "../shared/FeatureStates";
 import { NewsCard } from "./NewsCard";
 
 /**
@@ -30,7 +27,8 @@ export function MarketNews({ onBack }: { onBack: () => void }) {
   const { createNewChat } = useAppNavigation();
   const { data, isError, isPending, refetch } = useMarketNews();
 
-  const ask = (item: MarketNewsItem) => createNewChat(newsAskPrompt(item.title));
+  const ask = (item: MarketNewsItem) =>
+    createNewChat(newsAskPrompt(item.title));
 
   let body: React.ReactNode;
   if (isError) {

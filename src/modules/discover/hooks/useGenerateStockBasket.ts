@@ -10,7 +10,7 @@ import { mapConfigToApiRequest } from "../utils/basket-api-mapper";
 export function useGenerateStockBasket() {
   return useMutation({
     mutationFn: async (
-      config: StockBasketConfig
+      config: StockBasketConfig,
     ): Promise<CreateCustomPortfolioResponse> => {
       // Transform config to API request format
       const apiRequest = mapConfigToApiRequest(config);
@@ -24,7 +24,7 @@ export function useGenerateStockBasket() {
         throw new Error(
           `Failed to generate basket: ${response.status} ${
             (response.data as any)?.detail || "Unknown error"
-          }`
+          }`,
         );
       }
 

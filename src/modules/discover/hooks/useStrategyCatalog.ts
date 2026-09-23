@@ -2,32 +2,23 @@
 
 import { useMemo } from "react";
 import { useGetAllStrategiesApiStrategiesGet } from "@/api/generated/strategy-apis/strategy-apis/strategy-apis";
-import { StrategyMasterDetail } from "@/api/generated/strategy-apis/models";
 import { comingSoonIdeaCategories } from "../constants/discover-data";
 import { IdeaCategory, IdeaStrategy } from "../types/discover.types";
-import { formatPct } from "../utils/format";
+import { StrategyListRow } from "../types/strategy-api";
 
-/**
- * The list endpoint also returns cached trailing stats per strategy; the
- * generated client predates that field, so it is read as optional here.
- */
-type StrategyListItem = StrategyMasterDetail & {
-  stats?: { ret_1y_pct?: number | null } | null;
-};
-
-const toIdea = (s: StrategyListItem): IdeaStrategy => {
-  const ret = s.stats?.ret_1y_pct;
-  return {
-    id: s.strategy,
-    title: s.display_name || s.strategy,
-    summary: s.category || undefined,
-    description: s.description || undefined,
-    tags: s.category ? [s.category] : [],
-    return1Y: ret === null || ret === undefined ? undefined : formatPct(ret),
-    risk: s.risk_level || undefined,
-    stocks: s.stock_count,
-  };
-};
+const toIdea = (s: StrategyListRow): IdeaStrategy => ({
+  id: s.strategy,
+  title: s.display_name || s.strategy,
+  summary: s.category || undefined,
+  description: s.description || undefined,
+  tags: s.category ? [s.category] : [],
+  dayPct: s.day_move?.pct ?? undefined,
+  risk: s.risk_level || undefined,
+  stocks: s.stock_count,
+  type: s.type || undefined,
+  rebalanceFrequency: s.rebalance_frequency || undefined,
+  asOfDate: s.as_of_date || undefined,
+});
 
 /**
  * Explore Investment Ideas' catalog: the advisor strategies from the
@@ -44,7 +35,7 @@ export function useStrategyCatalog() {
   const advisorsFailed = isError || (!!data && data.status >= 400);
 
   const advisorStrategies = useMemo(() => {
-    const list = (data?.data?.strategies ?? []) as StrategyListItem[];
+    const list = (data?.data?.strategies ?? []) as StrategyListRow[];
     return Array.isArray(list) ? list.map(toIdea) : [];
   }, [data]);
 

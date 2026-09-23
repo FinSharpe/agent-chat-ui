@@ -43,7 +43,9 @@ function inState(issues: IpoIssue[], state: IpoWindowState, now: Date) {
     (issue) => windowStateAt(issue.biddingWindow, now) === state,
   );
   const key = (issue: IpoIssue) =>
-    state === "upcoming" ? issue.biddingWindow.opensAt : issue.biddingWindow.closesAt;
+    state === "upcoming"
+      ? issue.biddingWindow.opensAt
+      : issue.biddingWindow.closesAt;
   return rows.sort((a, b) => {
     const left = key(a);
     const right = key(b);

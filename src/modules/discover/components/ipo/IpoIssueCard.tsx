@@ -1,11 +1,7 @@
 "use client";
 
 import { CalendarDays, ChevronRight, HelpCircle, Info } from "lucide-react";
-import type {
-  IpoApplication,
-  IpoIssue,
-  IpoPriceBand,
-} from "../../api/ipo";
+import type { IpoApplication, IpoIssue, IpoPriceBand } from "../../api/ipo";
 import { formatIndianInt, formatInr } from "../../utils/inr";
 import {
   type IpoWindowState,
@@ -48,7 +44,8 @@ function minApplicationSub(application: IpoApplication): string | null {
   const { minShares: shares, minLots: lots } = application;
   if (shares == null) return null;
   const sharesLabel = `${formatIndianInt(shares)} shares`;
-  if (application.minSharesNotWholeLots || lots == null || lots < 1) return sharesLabel;
+  if (application.minSharesNotWholeLots || lots == null || lots < 1)
+    return sharesLabel;
   return `${lots === 1 ? "1 lot" : `${lots} lots`}  ·  ${sharesLabel}`;
 }
 
@@ -57,12 +54,13 @@ function minApplicationSub(application: IpoApplication): string | null {
  * section headings the calendar groups by, so a heading and a row's own badge
  * are never the same string.
  */
-const WINDOW_CHIPS: Record<IpoWindowState, { label: string; tone: ChipTone }> = {
-  open: { label: "Open", tone: "positive" },
-  upcoming: { label: "Upcoming", tone: "info" },
-  closed: { label: "Closed", tone: "neutral" },
-  unknown: { label: "Dates unconfirmed", tone: "neutral" },
-};
+const WINDOW_CHIPS: Record<IpoWindowState, { label: string; tone: ChipTone }> =
+  {
+    open: { label: "Open", tone: "positive" },
+    upcoming: { label: "Upcoming", tone: "info" },
+    closed: { label: "Closed", tone: "neutral" },
+    unknown: { label: "Dates unconfirmed", tone: "neutral" },
+  };
 
 /** `LUMINO · BSE, NSE` — the symbol a reader will search their broker for. */
 const identityLine = (issue: IpoIssue) =>

@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import { useGetStrategyAnalyticsApiStrategiesStrategyNameGet } from "@/api/generated/strategy-apis/strategy-apis/strategy-apis";
-import { StrategyAnalyticsResponse } from "@/api/generated/strategy-apis/models";
 import FeatureHeader from "@/components/discover/FeatureHeader";
 import SoftLoader from "@/components/SoftLoader";
 import { useImportStrategyMutation } from "../../hooks/useImportStrategyMutation";
 import { IdeaStrategy } from "../../types/discover.types";
+import { StrategyDetailResponse } from "../../types/strategy-api";
 import { downloadHoldingsCsv } from "../../utils/holdings-csv";
 import { advisorDetailModel } from "../../utils/strategy-detail-model";
 import { StrategyDetailView } from "./StrategyDetailView";
@@ -31,12 +31,12 @@ function AdvisorDetail({ strategyId, listItem, onBack }: Props) {
   // analytics is a strategy.
   const status: number | undefined = response?.status;
   const strategy =
-    status === 200 && (response?.data as StrategyAnalyticsResponse)?.analytics
-      ? (response?.data as StrategyAnalyticsResponse)
+    status === 200 && (response?.data as StrategyDetailResponse)?.analytics
+      ? (response?.data as StrategyDetailResponse)
       : null;
   const model = useMemo(
-    () => (strategy ? advisorDetailModel(strategy) : null),
-    [strategy],
+    () => (strategy ? advisorDetailModel(strategy, listItem) : null),
+    [strategy, listItem],
   );
 
   if (!model || !strategy) {

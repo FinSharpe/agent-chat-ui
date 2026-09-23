@@ -9,7 +9,7 @@ export function useMutualFundBasketBuilderContext() {
   const context = useContext(MutualFundBasketBuilderContext);
   if (context === undefined) {
     throw new Error(
-      "useMutualFundBasketBuilderContext must be used within MutualFundBasketBuilderProvider"
+      "useMutualFundBasketBuilderContext must be used within MutualFundBasketBuilderProvider",
     );
   }
   return context;

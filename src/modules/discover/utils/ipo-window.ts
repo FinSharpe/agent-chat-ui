@@ -72,7 +72,11 @@ export function windowCountdownAt(
 ): string | null {
   const state = windowStateAt(window, now);
   const target =
-    state === "upcoming" ? window.opensAt : state === "open" ? window.closesAt : null;
+    state === "upcoming"
+      ? window.opensAt
+      : state === "open"
+        ? window.closesAt
+        : null;
   const verb = state === "upcoming" ? "Opens" : "Closes";
   if (!target) return null;
 
@@ -85,7 +89,9 @@ export function windowCountdownAt(
   if (window.timesAssumed) return `${verb} today`;
   const minutes = Math.floor((target.getTime() - now.getTime()) / 60000);
   if (minutes < 60) {
-    return minutes <= 1 ? `${verb} in under a minute` : `${verb} in ${minutes} min`;
+    return minutes <= 1
+      ? `${verb} in under a minute`
+      : `${verb} in ${minutes} min`;
   }
   return `${verb} today`;
 }

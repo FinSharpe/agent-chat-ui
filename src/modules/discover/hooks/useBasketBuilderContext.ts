@@ -10,7 +10,7 @@ export function useBasketBuilderContext() {
 
   if (context === undefined) {
     throw new Error(
-      "useBasketBuilderContext must be used within BasketBuilderProvider"
+      "useBasketBuilderContext must be used within BasketBuilderProvider",
     );
   }
 

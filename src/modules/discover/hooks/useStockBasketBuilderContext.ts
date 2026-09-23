@@ -9,7 +9,7 @@ export function useStockBasketBuilderContext() {
   const context = useContext(StockBasketBuilderContext);
   if (context === undefined) {
     throw new Error(
-      "useStockBasketBuilderContext must be used within StockBasketBuilderProvider"
+      "useStockBasketBuilderContext must be used within StockBasketBuilderProvider",
     );
   }
   return context;

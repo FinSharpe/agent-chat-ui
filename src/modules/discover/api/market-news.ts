@@ -67,8 +67,12 @@ const toItem = (wire: WireNewsItem): MarketNewsItem => ({
   link: str(wire.link),
 });
 
-export async function fetchMarketNews(signal?: AbortSignal): Promise<MarketNewsItem[]> {
-  const body = await getJson<{ items?: WireNewsItem[] }>("news/market", { signal });
+export async function fetchMarketNews(
+  signal?: AbortSignal,
+): Promise<MarketNewsItem[]> {
+  const body = await getJson<{ items?: WireNewsItem[] }>("news/market", {
+    signal,
+  });
   return (Array.isArray(body.items) ? body.items : []).map(toItem);
 }
 

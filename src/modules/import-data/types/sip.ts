@@ -103,16 +103,6 @@ export interface SIPDisplayData {
 }
 
 /**
- * SIP markdown format for chat import
- */
-export interface SIPMarkdownFormat {
-  "Fund House": string;
-  "Account Number": string;
-  Registrar: string;
-  "Holder Name": string;
-}
-
-/**
  * Column configurations for SIP accounts table (read-only, no action column)
  */
 export const SIP_COLUMNS: readonly ColumnConfig[] = [

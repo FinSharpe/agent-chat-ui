@@ -10,7 +10,7 @@ import {
   MutualFundSearchResponse,
   StockSearchResponse,
 } from "@/types/search-api.types";
-import { QUANTITY_FIELD_MAP, ASSET_TYPE_MAP } from "./holdings-constants";
+import { QUANTITY_FIELD_MAP } from "./holdings-constants";
 
 /**
  * Type for holding with quantity field for form management
@@ -167,48 +167,4 @@ export function transformSearchResultToHolding(
   }
 
   throw new Error("Invalid search result type");
-}
-
-/**
- * Transform holdings to markdown-ready format for import mutation
- */
-export function transformHoldingsToMarkdownFormat(
-  holdings: AnyHolding[],
-  consentType: ConsentType,
-): Record<string, string>[] {
-  return holdings.map((holding) => {
-    if (consentType === ConsentType.EQUITIES) {
-      const equityHolding = holding as EquityHolding;
-      return {
-        "Company Name": equityHolding.issuerName || "",
-        ISIN: equityHolding.isin || "",
-        Units: equityHolding.units || "",
-      } as Record<string, string>;
-    } else if (consentType === ConsentType.MUTUAL_FUNDS) {
-      // Mutual Funds
-      const mfHolding = holding as MutualFundHolding;
-      return {
-        Description: mfHolding.isinDescription || mfHolding.schemeTypes || "",
-        ISIN: mfHolding.isin || "",
-        "Closing Units": mfHolding.closingUnits || "",
-      } as Record<string, string>;
-    } else if (consentType === ConsentType.ETF) {
-      const etfHolding = holding as ETFHolding;
-      return {
-        "ETF Name": etfHolding.isinDescription || "",
-        ISIN: etfHolding.isin || "",
-        Units: etfHolding.units || "",
-        NAV: etfHolding.nav || "",
-      } as Record<string, string>;
-    }
-
-    throw new Error(`Unsupported consent type: ${consentType}`);
-  });
-}
-
-/**
- * Get asset type display name from consent type
- */
-export function getAssetTypeName(consentType: ConsentType): string {
-  return ASSET_TYPE_MAP[consentType];
 }

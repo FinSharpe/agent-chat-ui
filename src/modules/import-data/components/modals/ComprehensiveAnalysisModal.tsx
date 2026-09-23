@@ -2,7 +2,7 @@
  * Comprehensive Analysis Modal — renders the reference "Run Comprehensive
  * Analysis" gradient button and opens a reference analysis popup listing
  * which connected accounts are ready, what the analysis covers, and the run
- * action (which sends every ready account's holdings to chat).
+ * action (which asks chat for the analysis; the agent reads the book itself).
  */
 
 "use client";
@@ -116,12 +116,7 @@ export function ComprehensiveAnalysisModal() {
   const handleAnalyze = () => {
     if (!hasReadyConsents) return;
     handleClose();
-    comprehensiveAnalysisMutation.mutate({
-      consents: ready.map((r) => ({
-        consentID: r.consent!.consentID,
-        type: r.type,
-      })),
-    });
+    comprehensiveAnalysisMutation.mutate({ positions });
   };
 
   return (

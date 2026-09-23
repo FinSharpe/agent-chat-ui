@@ -40,15 +40,6 @@ export interface EquitiesFormData {
 }
 
 /**
- * Equity markdown format for chat import
- */
-export interface EquityMarkdownFormat {
-  "Company Name": string;
-  "ISIN": string;
-  "Units": string;
-}
-
-/**
  * Quantity field name for equities
  */
 export const EQUITY_QUANTITY_FIELD = "units" as const;

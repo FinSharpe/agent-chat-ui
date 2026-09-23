@@ -1,7 +1,8 @@
 "use client";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Loader2, MessageSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useConsentReturn } from "../../hooks/useConsentReturn";
 
 const STEPS = [
@@ -16,10 +17,22 @@ const STEPS = [
  * Mounted on the Import page: `useConsentReturn` only opens it when the AA
  * return params are actually present, so it is inert on a normal visit. Copy
  * and the three-step ladder come from finsharpe-mobile's `FetchProgressSheet`.
+ *
+ * A journey started from a chat's connect card carries that thread; once the
+ * consent has settled either way the modal offers the way back, as mobile's
+ * pushed consent screen does by popping.
  */
 export function FetchingConsentModal() {
-  const { phase, step, error, dismiss } = useConsentReturn();
+  const router = useRouter();
+  const { phase, step, error, returnTo, dismiss } = useConsentReturn();
   const open = phase !== "idle";
+
+  const backToChat = returnTo
+    ? () => {
+        dismiss();
+        router.push(returnTo);
+      }
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && dismiss()}>
@@ -44,6 +57,15 @@ export function FetchingConsentModal() {
               >
                 Close
               </button>
+              {backToChat && (
+                <button
+                  type="button"
+                  onClick={backToChat}
+                  className="hover-tint text-forest-deep h-10 w-full rounded-full border border-slate-100 text-[11px] font-medium dark:border-slate-800 dark:text-white"
+                >
+                  Back to your chat
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -101,6 +123,16 @@ export function FetchingConsentModal() {
                 : "This can take up to two minutes. You can keep using the app; we will finish in the background."}
             </p>
 
+            {phase === "linked" && backToChat && (
+              <button
+                type="button"
+                onClick={backToChat}
+                className="bg-brand-gradient flex h-10 w-full items-center justify-center gap-2 rounded-full text-[11px] font-medium tracking-[0.06em] text-white uppercase hover:brightness-110"
+              >
+                <MessageSquare size={13} />
+                Back to your chat
+              </button>
+            )}
             <button
               type="button"
               onClick={dismiss}

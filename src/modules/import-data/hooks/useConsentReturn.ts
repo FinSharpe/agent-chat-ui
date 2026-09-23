@@ -27,6 +27,9 @@ export interface ConsentReturnState {
   /** 1 consent approved · 2 contacting providers · 3 preparing portfolio. */
   step: 1 | 2 | 3;
   error: string | null;
+  /** The page the journey started from, when it was not Import (a chat
+   *  thread's connect card) — read before the marker is cleared. */
+  returnTo: string | null;
 }
 
 /** Strip the AA return params without adding a history entry. */
@@ -52,11 +55,12 @@ function stripReturnParams() {
 export function useConsentReturn() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [state, setState] = useState<ConsentReturnState>({
+  const [state, setState] = useState<Omit<ConsentReturnState, "returnTo">>({
     phase: "idle",
     step: 1,
     error: null,
   });
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const handledRef = useRef<string | null>(null);
   // Unmount, not a dependency change, ends a journey: stripping the return
   // params re-renders with `ecres` gone, and the journey must outlive that.
@@ -91,6 +95,7 @@ export function useConsentReturn() {
     const journeyKey = `${ecres}:${type}`;
     if (handledRef.current === journeyKey) return;
     handledRef.current = journeyKey;
+    setReturnTo(pending?.returnTo ?? null);
 
     void (async () => {
       setState({ phase: "resolving", step: 1, error: null });
@@ -186,7 +191,7 @@ export function useConsentReturn() {
     })();
   }, [ecres, resdate, fi, typeParam, accountID, queryClient]);
 
-  return { ...state, dismiss };
+  return { ...state, returnTo, dismiss };
 }
 
 /** One-shot, two minutes after linking. Best effort; Sync is the fallback. */

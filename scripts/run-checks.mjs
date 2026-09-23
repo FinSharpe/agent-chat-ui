@@ -8,6 +8,7 @@
  *
  *   pnpm check                      every suite
  *   pnpm check:citations            filings citations (finsharpe-agents#66)
+ *   pnpm check:portfolio-connect    the chat's connect card (#79)
  */
 
 import { build } from "esbuild";
@@ -16,7 +17,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const SUITES = ["citations"];
+const SUITES = ["citations", "portfolio-connect"];
 
 const requested = process.argv.slice(2);
 const unknown = requested.filter((suite) => !SUITES.includes(suite));

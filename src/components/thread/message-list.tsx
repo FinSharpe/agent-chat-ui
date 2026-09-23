@@ -1,12 +1,18 @@
 "use client";
 
 import { Checkpoint } from "@langchain/langgraph-sdk";
+import { useMemo } from "react";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
+import {
+  connectCardMessages,
+  getPortfolioConnect,
+} from "@/lib/portfolio-connect";
 import { DynamicSuggestions } from "@/modules/chat";
 import { useStreamContext } from "@/providers/Stream";
 import { AssistantMessage, AssistantMessageLoading } from "./messages/ai";
 import McpAppToolMessage from "./messages/client-components/mcp-app";
 import { HumanMessage } from "./messages/human";
+import { PortfolioConnectCard } from "./messages/portfolio-connect";
 import {
   StreamErrorState,
   type StreamErrorVariant,
@@ -35,6 +41,9 @@ export function MessageList({
   const messages = stream.messages;
   const isLoading = stream.isLoading;
   const nextPromptSuggestions = stream.values.next_prompt_suggestions ?? [];
+  // Tool results that answer a missing portfolio with a connect card — one
+  // card per distinct invitation per turn.
+  const connectCards = useMemo(() => connectCardMessages(messages), [messages]);
 
   const hasNoAIOrToolMessages = !messages.find(
     (m) => m.type === "ai" || m.type === "tool",
@@ -65,6 +74,14 @@ export function MessageList({
               key={message.id || `${message.type}-${index}`}
               message={message}
               isLoading={isLoading}
+            />
+          ) : message.type === "tool" && connectCards.has(message) ? (
+            // A portfolio tool with nothing to read answers with a card that
+            // connects the missing accounts (#79), whatever hide-tool-calls
+            // says: it is the turn's way forward, not tool detail.
+            <PortfolioConnectCard
+              key={message.id || `${message.type}-${index}`}
+              connect={getPortfolioConnect(message)!}
             />
           ) : message.type === "tool" ? (
             // Render-tool results render as an inline MCP-Apps widget

@@ -32,6 +32,7 @@ pnpm lint         # Run ESLint
 pnpm lint:fix     # Run ESLint with auto-fix
 pnpm format       # Format code with Prettier
 pnpm format:check # Check formatting without changes
+pnpm check        # Behaviour checks (no test runner): scripts/<suite>/*.ts(x), bundled by scripts/run-checks.mjs
 ```
 
 ## Architecture Overview
@@ -83,6 +84,11 @@ The chat itself (`/`) wraps `Thread` in `ArtifactProvider`.
 **Message Visibility Controls**
 1. Hide streaming: Add `langsmith:nostream` tag to chat model config
 2. Permanently hide: Prefix message ID with `do-not-render-` (see `DO_NOT_RENDER_ID_PREFIX` in `src/lib/ensure-tool-responses.ts`)
+
+**Portfolio connect card** (`src/lib/portfolio-connect/`, `messages/portfolio-connect/`)
+- `get_user_portfolio` / `analyze_user_portfolio` (finsharpe-agents ADR-0014) answer "nothing to read" with `additional_kwargs.portfolio_connect = {reason, asset_classes, labels}`. The chat draws a card in place of the tool's payload: one class opens that class's consent form in place, several (or an unknown one) the class picker, `not_signed_in` goes to `/login?next=<thread>`. One card per distinct block per turn; the tool row stays but neither opens nor reads as failed.
+- Copy, casing and routing mirror finsharpe-mobile's `portfolio_connect_card.dart` (#189); change the two together. Checks: `pnpm check:portfolio-connect`.
+- The consent journey records the thread (`returnTo` in the `aa-pending` marker, vetted with `safeReturnPath`), so the return modal on Import offers "Back to your chat".
 
 **Tool Call Handling** (`src/lib/ensure-tool-responses.ts`)
 - Ensures every AI message with tool calls is followed by a tool response

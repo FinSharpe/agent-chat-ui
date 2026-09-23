@@ -32,14 +32,18 @@ export function ConnectAccountDialog({
   open,
   onOpenChange,
   onLinked,
+  returnTo,
 }: {
   type: AaConsentType;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onLinked?: () => void;
+  /** A path in this app the journey started from; once OneMoney's return is
+   *  resolved on Import, the finished modal offers the way back to it. */
+  returnTo?: string;
 }) {
   const { state, submitForm, launch, connectActive, reset } =
-    useConnectConsent(type);
+    useConnectConsent(type, { returnTo });
   const [mobile, setMobile] = useState("");
   const [pan, setPan] = useState("");
 

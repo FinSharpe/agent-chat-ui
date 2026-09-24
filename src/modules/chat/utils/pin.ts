@@ -53,12 +53,13 @@ export function unavailableNotice(
 export type RunPin = { send: true; model: string | null } | { send: false };
 
 /**
- * A readable name for an id the client never saw a label for (a pin made in
- * another build, say): the part after the provider prefix.
+ * The name of a pin the list does not carry and this browser never saw a
+ * label for (pinned under an earlier build, say): its model id, exactly as
+ * stored. A made-up name could not be told from a real one; the id at least
+ * says precisely which model the chat is set to.
  */
 export function fallbackLabel(id: string): string {
-  const name = id.includes(":") ? id.slice(id.indexOf(":") + 1) : id;
-  return name || id;
+  return id;
 }
 
 export function pinState(

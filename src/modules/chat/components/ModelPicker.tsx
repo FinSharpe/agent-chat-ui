@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import {
   Popover,
@@ -10,6 +11,7 @@ import {
 import { useChatModels, usePinState } from "../hooks/useChatModels";
 import { useChatPrefsStore } from "../store/useChatPrefsStore";
 import { useModelChoiceStore } from "../store/useModelChoiceStore";
+import { refreshModels } from "../utils/modelList";
 import { pickerGroups } from "../utils/pin";
 import { ModelChoiceList, ModelPill } from "./ModelPickerParts";
 
@@ -25,7 +27,9 @@ import { ModelChoiceList, ModelPill } from "./ModelPickerParts";
  * unavailable; nothing moves it to Auto (finsharpe-agents#255). A send made
  * on it is held, and this popover opens by itself asking the user to choose;
  * choosing sends it on the choice, closing without choosing sends nothing.
- * When the model comes back, the same pin simply works again.
+ * When the model comes back, the same pin simply works again. Opening the
+ * popover reads the list again, so it never shows a list the server has
+ * since changed.
  *
  * `compact` is the phone pill: smaller, next to the mic.
  */
@@ -35,6 +39,7 @@ export default function ModelPicker({
   compact?: boolean;
 }) {
   const [browsing, setBrowsing] = useState(false);
+  const queryClient = useQueryClient();
   const [threadId] = useQueryState("threadId");
   const model = useChatPrefsStore((s) => s.model);
   const pick = useChatPrefsStore((s) => s.pick);
@@ -55,6 +60,9 @@ export default function ModelPicker({
 
   const onOpenChange = (next: boolean) => {
     setBrowsing(next);
+    // What the list shows is what the server offers now: a pin it has since
+    // dropped moves to "No longer offered" as the popover opens.
+    if (next) void refreshModels(queryClient);
     if (!next && useModelChoiceStore.getState().held) {
       useModelChoiceStore.getState().cancel();
     }

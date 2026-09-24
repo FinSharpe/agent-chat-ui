@@ -91,10 +91,10 @@ eq(
 eq(
   pinState(SONNET, [], {}).kind === "pinned" &&
     (pinState(SONNET, [], {}) as { label: string }).label,
-  "claude-sonnet-5",
-  "an unlisted pin with no remembered label falls back to its model name",
+  SONNET,
+  "an unlisted pin with no remembered label falls back to its raw model id",
 );
-eq(fallbackLabel("plain-id"), "plain-id", "fallback keeps an unprefixed id");
+eq(fallbackLabel("plain-id"), "plain-id", "the fallback is the id as stored");
 eq(
   pinState(SONNET, undefined, { [SONNET]: "Claude Sonnet 5" }),
   {

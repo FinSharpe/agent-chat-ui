@@ -32,7 +32,7 @@ const DISCLAIMER =
 
 /**
  * The reference StrategyDetail layout — banner, tag row, a divided stat
- * strip, pill tabs over cardless sections, a sticky Analyse bar — carrying
+ * strip, pill tabs over cardless sections, an Analyse button at the end — carrying
  * finsharpe-mobile's point-in-time analytics in place of the reference's
  * trailing-return charts (finsharpe-agents#92). A popup on desktop, a full
  * screen on mobile.
@@ -156,21 +156,21 @@ export function StrategyDetailView({
           onTab={setTab}
           inPopup={inPopup}
         />
-        <p className="px-5 pt-2 text-[10px] leading-relaxed text-slate-400">
+        {/* In the flow, not pinned: it closes the page rather than riding
+            over the tab content. */}
+        <div className="flex justify-center px-5 pt-4">
+          <button
+            onClick={onAnalyse}
+            disabled={analysing || !canAnalyse}
+            className="bg-brand-gradient flex min-w-40 items-center justify-center gap-1.5 rounded-full px-6 py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:opacity-70"
+          >
+            <MessageSquare size={14} />{" "}
+            {analysing ? "Adding to chat…" : "Analyse in chat"}
+          </button>
+        </div>
+        <p className="px-5 pt-4 text-[10px] leading-relaxed text-slate-400">
           {DISCLAIMER}
         </p>
-      </div>
-
-      {/* Sticky footer */}
-      <div className="bg-background/80 mb-[76px] flex shrink-0 justify-center gap-2.5 border-t border-slate-100 px-5 py-3 backdrop-blur-md">
-        <button
-          onClick={onAnalyse}
-          disabled={analysing || !canAnalyse}
-          className="bg-brand-gradient flex min-w-40 items-center justify-center gap-1.5 rounded-full px-6 py-3 text-xs font-medium tracking-wide text-white uppercase transition-all hover:brightness-110 active:scale-98 disabled:opacity-70"
-        >
-          <MessageSquare size={14} />{" "}
-          {analysing ? "Adding to chat…" : "Analyse in chat"}
-        </button>
       </div>
     </div>
   );

@@ -1,20 +1,100 @@
-import { useState } from "react";
-import { ChevronRight, Check, Loader2, AlertCircle } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ToolMessage } from "@langchain/langgraph-sdk";
 import { getPortfolioConnect } from "@/lib/portfolio-connect";
+import {
+  stepDone,
+  stepFailed,
+  type ToolActivityStep,
+} from "@/lib/tool-activity";
 import { cn } from "@/lib/utils";
+import { CrestText } from "./crest-text";
 import { JsonViewer } from "./json-viewer";
 import { formatToolName } from "./tool-labels";
 
-type ToolCall = NonNullable<AIMessage["tool_calls"]>[number];
+/**
+ * The run's tool activity and its narration, after finsharpe-mobile's
+ * `tool_activity.dart` (#132, #147); change the two together. Text only: no
+ * status icons and no spinner — the call the run is on lights up (CrestText),
+ * a failed one says so in amber, the rest are quiet words.
+ */
+export type RunPhase =
+  | "thinking"
+  | "running"
+  | "preparing"
+  | "checking"
+  | "stopped"
+  | "failed"
+  | "settled";
 
-export interface ToolCallItem {
-  toolCall: ToolCall;
-  response?: ToolMessage;
+export const isLive = (phase: RunPhase) =>
+  phase === "thinking" ||
+  phase === "running" ||
+  phase === "preparing" ||
+  phase === "checking";
+
+const RUN_LINE: Record<RunPhase, string> = {
+  thinking: "Thinking",
+  running: "Retrieving data",
+  preparing: "Preparing answer",
+  checking: "Checking sources",
+  stopped: "Stopped",
+  failed: "Run failed",
+  settled: "",
+};
+
+function ToolWords({
+  label,
+  moving,
+  warning = false,
+}: {
+  label: string;
+  moving: boolean;
+  warning?: boolean;
+}) {
+  return (
+    <span className="flex min-h-[26px] items-center py-[3px] text-left">
+      {moving ? (
+        <CrestText
+          warning={warning}
+          className="text-[11px] leading-[1.45]"
+        >
+          {label}
+        </CrestText>
+      ) : (
+        <span
+          className={cn(
+            "text-[11px] leading-[1.45]",
+            warning ? "tool-words--warning text-amber-600" : "text-slate-500",
+          )}
+        >
+          {label}
+        </span>
+      )}
+    </span>
+  );
 }
 
-type RunStatus = "running" | "error" | "done";
+/**
+ * The run-level narration, drawn at the end of the turn only when no tool
+ * row is already carrying the active state.
+ */
+export function RunLine({ phase }: { phase: RunPhase }) {
+  if (phase === "settled") return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+    >
+      <ToolWords
+        label={RUN_LINE[phase]}
+        moving={isLive(phase)}
+        warning={phase === "failed"}
+      />
+    </div>
+  );
+}
 
 /**
  * A portfolio tool that found nothing to read answers with a connect card
@@ -22,30 +102,242 @@ type RunStatus = "running" | "error" | "done";
  * the row stays as the record that the tool ran, but neither opens nor reads
  * as failed — a failure beside an invitation reads as a broken run.
  */
-function answeredByCard(response?: ToolMessage): boolean {
-  return !!response && getPortfolioConnect(response) !== null;
+const answeredByCard = (response?: ToolMessage) =>
+  !!response && getPortfolioConnect(response) !== null;
+
+/**
+ * One or two calls stay direct. Three or more form one local disclosure,
+ * closed by default, whose header lights up while it holds the active call.
+ */
+export function ToolCallGroup({
+  steps,
+  phase,
+  activeCallKey,
+}: {
+  steps: ToolActivityStep[];
+  phase: RunPhase;
+  /** The call the run is on, while it is live. */
+  activeCallKey?: string;
+}) {
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [expandedCalls, setExpandedCalls] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const grouped = steps.length > 2;
+
+  // A third arriving call must not hide the payload the reader is inspecting.
+  const wasGrouped = useRef(grouped);
+  useEffect(() => {
+    if (!wasGrouped.current && grouped && expandedCalls.size > 0) {
+      setGroupOpen(true);
+    }
+    wasGrouped.current = grouped;
+  }, [grouped, expandedCalls]);
+
+  const open = !grouped || groupOpen;
+  const ownsActive =
+    isLive(phase) && steps.some((step) => step.key === activeCallKey);
+  const failures = steps.filter(
+    (step) => stepFailed(step) && !answeredByCard(step.result),
+  ).length;
+
+  const toggleCall = (key: string) =>
+    setExpandedCalls((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
+  const rows = steps.map((step) => (
+    <ToolRow
+      key={step.key}
+      step={step}
+      phase={phase}
+      active={ownsActive && open && step.key === activeCallKey}
+      open={expandedCalls.has(step.key)}
+      onToggle={() => toggleCall(step.key)}
+    />
+  ));
+
+  return (
+    <div className="flex w-full max-w-[92%] flex-col">
+      {grouped && (
+        <button
+          type="button"
+          onClick={() => setGroupOpen((o) => !o)}
+          aria-expanded={open}
+          className="w-fit cursor-pointer rounded-sm focus-visible:ring-2 focus-visible:ring-[#063BAA]/30 focus-visible:outline-none"
+        >
+          <ToolWords
+            label={`Retrieving data${failures ? ` · ${failures} failed` : ""}`}
+            moving={ownsActive && !open}
+            warning={failures > 0}
+          />
+        </button>
+      )}
+      {open &&
+        (grouped ? (
+          <div className="max-h-[240px] overflow-y-auto border-l border-slate-200 pl-2">
+            {rows}
+          </div>
+        ) : (
+          rows
+        ))}
+    </div>
+  );
 }
 
-function statusOf(response?: ToolMessage): RunStatus {
-  if (!response) return "running";
-  if (answeredByCard(response)) return "done";
-  if (response.status === "error") return "error";
-  return "done";
+function ToolRow({
+  step,
+  phase,
+  active,
+  open: expanded,
+  onToggle,
+}: {
+  step: ToolActivityStep;
+  phase: RunPhase;
+  active: boolean;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const answered = answeredByCard(step.result);
+  const open = !answered && expanded;
+  const done = stepDone(step);
+  const unfinished = !done && !isLive(phase);
+  const failed = stepFailed(step) && !answered;
+  const status = failed
+    ? "failed"
+    : done
+      ? "completed"
+      : unfinished
+        ? "unfinished"
+        : active
+          ? "running"
+          : "pending";
+  const suffix = failed ? " · failed" : unfinished ? " · unfinished" : "";
+  const label = formatToolName(step.call.name, { active }) + suffix;
+  const missing = done
+    ? undefined
+    : phase === "stopped"
+      ? "Stopped before a response arrived."
+      : phase === "failed"
+        ? "Run failed before a response arrived."
+        : phase === "settled"
+          ? "No response was recorded."
+          : "No response yet.";
+  const words = (
+    <ToolWords
+      label={label}
+      moving={active}
+      warning={failed}
+    />
+  );
+
+  return (
+    <div className="flex flex-col">
+      {answered ? (
+        <div aria-label={`${label}, ${status}`}>{words}</div>
+      ) : (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-label={`${label}, ${status}`}
+          className="w-full cursor-pointer rounded-sm text-left focus-visible:ring-2 focus-visible:ring-[#063BAA]/30 focus-visible:outline-none"
+        >
+          {words}
+        </button>
+      )}
+      {open && (
+        <div className="pt-0.5 pb-1">
+          <ToolPayloadView
+            request={step.call.args}
+            response={step.result?.content}
+            missingResponse={missing}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
-function aggregateStatus(items: ToolCallItem[]): RunStatus {
-  if (items.some((i) => statusOf(i.response) === "running")) return "running";
-  if (items.some((i) => statusOf(i.response) === "error")) return "error";
-  return "done";
+/** Request and response, each in its own quiet block, one scroll between
+ *  them. After mobile's `tool_payload_view.dart`. */
+function ToolPayloadView({
+  request,
+  response,
+  missingResponse,
+}: {
+  request: unknown;
+  response: ToolMessage["content"] | undefined;
+  missingResponse?: string;
+}) {
+  return (
+    <div className="flex max-h-[184px] flex-col gap-1.5 overflow-y-auto">
+      <PayloadBlock
+        title="Request parameters"
+        payload={parsePayload(request)}
+      />
+      <PayloadBlock
+        title="Response"
+        payload={
+          missingResponse !== undefined
+            ? { value: missingResponse, literal: true }
+            : parsePayload(response)
+        }
+      />
+    </div>
+  );
 }
 
-/** MCP tool results arrive as content blocks: [{ type: "text", text }, …].
- *  Concatenate the text parts, or null if `value` isn't that shape. */
-function extractTextBlocks(value: unknown): string | null {
+function PayloadBlock({
+  title,
+  payload,
+}: {
+  title: string;
+  payload: { value: unknown; literal: boolean };
+}) {
+  const tree =
+    !payload.literal &&
+    payload.value !== null &&
+    typeof payload.value === "object";
+  return (
+    <div className="shrink-0 rounded-[6px] border border-slate-100 bg-slate-50 px-[9px] py-2">
+      <div className="pb-1.5 text-[10px] leading-[1.5] font-medium text-[#0A1F4D]">
+        {title}
+      </div>
+      {tree ? (
+        <JsonViewer
+          value={payload.value}
+          defaultExpandDepth={1}
+          maxHeight="none"
+          className="p-0 text-[10.5px]"
+          bare
+        />
+      ) : (
+        <pre className="font-mono text-[10.5px] leading-[1.65] break-words whitespace-pre-wrap text-slate-500">
+          {payload.literal
+            ? String(payload.value)
+            : JSON.stringify(payload.value)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+/**
+ * LangChain can wrap textual tool results in standard content blocks; join
+ * those, then read JSON when the text is JSON. Mixed or non-text blocks stay
+ * data rather than being silently dropped.
+ */
+export function parsePayload(payload: unknown): {
+  value: unknown;
+  literal: boolean;
+} {
   if (
-    Array.isArray(value) &&
-    value.length > 0 &&
-    value.every(
+    Array.isArray(payload) &&
+    payload.length > 0 &&
+    payload.every(
       (b) =>
         b !== null &&
         typeof b === "object" &&
@@ -53,282 +345,17 @@ function extractTextBlocks(value: unknown): string | null {
         typeof (b as Record<string, unknown>).text === "string",
     )
   ) {
-    return value
-      .map((b) => (b as Record<string, string>).text)
-      .join("");
+    payload = payload.map((b) => (b as { text: string }).text).join("");
   }
-  return null;
-}
-
-function tryParseObject(text: string): unknown | null {
-  try {
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed) || (typeof parsed === "object" && parsed !== null)) {
-      return parsed;
-    }
-  } catch {
-    // not JSON
-  }
-  return null;
-}
-
-function parseResponseContent(content: ToolMessage["content"]): {
-  structured: unknown | null;
-  text: string;
-} {
-  // First pass: turn content into a parsed value + a raw string form.
-  let raw: string;
-  let parsed: unknown = null;
-  if (typeof content === "string") {
-    raw = content;
+  if (typeof payload === "string") {
     try {
-      parsed = JSON.parse(content);
+      return { value: JSON.parse(payload), literal: false };
     } catch {
-      parsed = null;
+      return {
+        value: payload === "" ? "(empty text)" : payload,
+        literal: true,
+      };
     }
-  } else {
-    parsed = content;
-    raw = JSON.stringify(content);
   }
-
-  // Unwrap MCP text blocks, then re-parse the inner payload — that inner text is
-  // usually itself stringified JSON (the real result the user cares about).
-  const inner = extractTextBlocks(parsed);
-  if (inner !== null) {
-    const innerStructured = tryParseObject(inner);
-    return innerStructured !== null
-      ? { structured: innerStructured, text: inner }
-      : { structured: null, text: inner };
-  }
-
-  if (parsed !== null && (Array.isArray(parsed) || typeof parsed === "object")) {
-    return { structured: parsed, text: raw };
-  }
-  return { structured: null, text: raw };
-}
-
-function TextFallback({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = text.split("\n");
-  const tooLong = lines.length > 4 || text.length > 500;
-  const display =
-    tooLong && !expanded
-      ? text.length > 500
-        ? text.slice(0, 500) + "…"
-        : lines.slice(0, 4).join("\n") + "\n…"
-      : text;
-
-  return (
-    <>
-      <pre className="max-h-[60vh] overflow-auto p-3 font-mono text-[11px] break-words whitespace-pre-wrap text-[#0A1F4D]">
-        {display}
-      </pre>
-      {tooLong && (
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          className="hover-tint flex w-full cursor-pointer items-center justify-center border-t border-slate-100 py-1.5 text-[11px] font-medium text-slate-500 hover:text-[#063BAA]"
-        >
-          {expanded ? "Show less" : "Show more"}
-        </button>
-      )}
-    </>
-  );
-}
-
-/**
- * The status as a small round tile: blue spinner while running, rose on an
- * error, mint check when done.
- */
-function StatusTile({
-  status,
-  size = "md",
-}: {
-  status: RunStatus;
-  size?: "sm" | "md";
-}) {
-  const box = size === "sm" ? "h-4 w-4" : "h-6 w-6";
-  const icon = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3";
-  if (status === "running") {
-    return (
-      <span
-        className={cn(
-          "flex shrink-0 items-center justify-center rounded-full bg-[#063BAA]/8 text-[#063BAA]",
-          box,
-        )}
-      >
-        <Loader2 className={cn(icon, "animate-spin")} />
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className={cn(
-          "chat-error-tile flex shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600",
-          box,
-        )}
-      >
-        <AlertCircle className={icon} />
-      </span>
-    );
-  }
-  return (
-    <span
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-full bg-[#97edcc]/25 text-[#0A9E6E]",
-        box,
-      )}
-    >
-      <Check
-        className={icon}
-        strokeWidth={3}
-      />
-    </span>
-  );
-}
-
-function Panel({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: "auto", opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      className="overflow-hidden"
-    >
-      <div className="pt-1 pb-1.5">{children}</div>
-    </motion.div>
-  );
-}
-
-/** A single tool: click the title to disclose its request and response. */
-function ToolRow({ toolCall, response }: ToolCallItem) {
-  const [open, setOpen] = useState(false);
-  const hasArgs = Object.keys(toolCall.args ?? {}).length > 0;
-  const parsed = response ? parseResponseContent(response.content) : null;
-  const expandable = !answeredByCard(response) && (hasArgs || parsed !== null);
-
-  return (
-    <div className="flex flex-col">
-      <button
-        onClick={() => expandable && setOpen((o) => !o)}
-        className={cn(
-          "flex w-full items-center gap-2 rounded-tile px-2 py-1.5 text-left transition-colors",
-          expandable ? "hover-tint cursor-pointer" : "cursor-default",
-        )}
-        aria-expanded={open}
-        disabled={!expandable}
-      >
-        <StatusTile
-          status={statusOf(response)}
-          size="sm"
-        />
-        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[#0A1F4D]">
-          {formatToolName(toolCall.name)}
-        </span>
-        {expandable && (
-          <ChevronRight
-            className={cn(
-              "h-3 w-3 shrink-0 text-slate-400 transition-transform",
-              open && "rotate-90",
-            )}
-          />
-        )}
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && expandable && (
-          <Panel>
-            <div className="ml-6 max-h-[240px] overflow-auto rounded-nested border border-slate-100 bg-white">
-              {hasArgs && (
-                <JsonViewer
-                  value={toolCall.args}
-                  defaultExpandDepth={2}
-                  bare
-                />
-              )}
-              {parsed && (
-                <div className={cn(hasArgs && "border-t border-slate-100")}>
-                  <div className="px-3 pt-2 pb-0.5">
-                    <span className="text-[9px] font-medium tracking-wider text-slate-400 uppercase">
-                      Response
-                    </span>
-                  </div>
-                  {parsed.structured !== null ? (
-                    <JsonViewer
-                      value={parsed.structured}
-                      defaultExpandDepth={1}
-                      bare
-                    />
-                  ) : (
-                    <TextFallback text={parsed.text} />
-                  )}
-                </div>
-              )}
-            </div>
-          </Panel>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/**
- * Groups every tool call from one AI message into one quiet row: a status
- * tile and what the agent did. Open it for the individual tools, then a tool
- * for its request and response.
- */
-export function ToolCallGroup({ items }: { items: ToolCallItem[] }) {
-  const [open, setOpen] = useState(false);
-
-  if (items.length === 0) return null;
-
-  const status = aggregateStatus(items);
-  const single = items.length === 1;
-  const label = single
-    ? formatToolName(items[0].toolCall.name)
-    : `Used ${items.length} tools`;
-
-  return (
-    <div className="w-full">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="group/header hover-tint -ml-1 inline-flex max-w-full items-center gap-2 rounded-full py-1 pr-3 pl-1 text-left transition-colors"
-        aria-expanded={open}
-      >
-        <StatusTile status={status} />
-        <span className="truncate text-[11px] font-medium text-slate-500 transition-colors group-hover/header:text-[#0A1F4D]">
-          {label}
-        </span>
-        <ChevronRight
-          className={cn(
-            "h-3 w-3 shrink-0 text-slate-400 transition-transform",
-            open && "rotate-90",
-          )}
-        />
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="body"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="mt-1.5 flex max-w-[92%] flex-col gap-0.5 rounded-nested border border-slate-100 bg-slate-50/60 p-1.5">
-              {items.map((item, idx) => (
-                <ToolRow
-                  key={item.toolCall.id ?? idx}
-                  {...item}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  return { value: payload ?? null, literal: false };
 }

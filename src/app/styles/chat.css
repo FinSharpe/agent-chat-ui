@@ -95,3 +95,74 @@
 .dark [data-app-mode] .chat-thread :is(.text-gray-600, .text-gray-500) {
   color: var(--text-muted);
 }
+
+/* The crest: a run's label that lights up (CrestText, after finsharpe-mobile's
+   FsCrestText). The painted band is three times the label's width, so every
+   glyph has ink under it at every point of the sweep; the sweep ends at 66%
+   of the cycle and the rest holds still — a gapless loop reads as a progress
+   bar, a loop that rests reads as thought. Mint is never text ink, so the
+   crest peaks at the interactive blue. */
+[data-app-mode] .crest-text {
+  --crest-base: var(--color-slate-500);
+  --crest-peak: #063baa;
+  --crest-rest: #0a1f4d;
+  --crest-shoulder: color-mix(
+    in srgb,
+    var(--crest-base) 40%,
+    var(--crest-peak)
+  );
+  background-image: linear-gradient(
+    90deg,
+    var(--crest-base) 0%,
+    var(--crest-base) 45%,
+    var(--crest-shoulder) 47.5%,
+    var(--crest-peak) 50%,
+    var(--crest-shoulder) 52.5%,
+    var(--crest-base) 55%,
+    var(--crest-base) 100%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: crest-sweep 2800ms infinite;
+}
+[data-app-mode] .crest-text--warning {
+  --crest-base: #d97706;
+  --crest-peak: color-mix(in srgb, #d97706 65%, white);
+  --crest-rest: #d97706;
+}
+:is(.dark [data-app-mode], [data-app-mode].dark) .crest-text {
+  --crest-base: var(--text-muted);
+  --crest-peak: var(--tone-blue-fg);
+  --crest-rest: var(--text-color);
+}
+:is(.dark [data-app-mode], [data-app-mode].dark) .crest-text--warning {
+  --crest-base: #fbbf24;
+  --crest-peak: color-mix(in srgb, #fbbf24 65%, white);
+  --crest-rest: #fbbf24;
+}
+@keyframes crest-sweep {
+  0% {
+    background-position: 100% 0;
+    animation-timing-function: cubic-bezier(0.35, 0, 0.25, 1);
+  }
+  66%,
+  100% {
+    background-position: 0% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-app-mode] .crest-text {
+    animation: none;
+    background-image: none;
+    color: var(--crest-rest);
+  }
+}
+
+/* A failed or unfinished tool row, and a run line that did not end well:
+   amber, which the design system does not remap for dark. */
+:is(.dark [data-app-mode], [data-app-mode].dark) .tool-words--warning {
+  color: #fbbf24;
+}

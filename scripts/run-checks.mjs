@@ -23,6 +23,7 @@ import { join } from "node:path";
 const SUITES = [
   "chat-handoffs",
   "citations",
+  "model-pin",
   "portfolio-connect",
   "smart-alerts",
   "tool-activity",

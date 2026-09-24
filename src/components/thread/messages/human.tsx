@@ -3,7 +3,7 @@ import { MultimodalPreview } from "@/components/thread/MultimodalPreview";
 import { TodoList } from "@/components/thread/TodoList";
 import { getTodosForMessage } from "@/lib/extract-todos";
 import { isBase64ContentBlock } from "@/lib/multimodal-utils";
-import { usePinnedModel } from "@/modules/chat/hooks/useChatModels";
+import { useModelGate } from "@/modules/chat/hooks/useChatModels";
 import { runConfigurable } from "@/modules/chat/store/useChatPrefsStore";
 import { useStreamContext } from "@/providers/Stream";
 import type { Base64ContentBlock } from "@langchain/core/messages";
@@ -135,7 +135,7 @@ export function HumanMessage({
   isLoading: boolean;
 }) {
   const thread = useStreamContext();
-  const model = usePinnedModel();
+  const gate = useModelGate();
   const meta = thread.getMessagesMetadata(message);
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
 
@@ -148,29 +148,32 @@ export function HumanMessage({
     ? getTodosForMessage(thread.messages, message.id)
     : undefined;
 
-  const handleSubmitEdit = () => {
-    setIsEditing(false);
+  // An edited question runs on the model picked now, like a new one — and,
+  // like a new one, waits for the user to choose when that pin cannot run
+  // (finsharpe-agents#255). The editor stays open until it goes out.
+  const handleSubmitEdit = () =>
+    gate((model) => {
+      setIsEditing(false);
 
-    const newMessage: Message = { type: "human", content: value };
-    thread.submit(
-      { messages: [newMessage] },
-      {
-        checkpoint: parentCheckpoint,
-        streamMode: ["values"],
-        // An edited question runs on the model picked now, like a new one.
-        config: { configurable: runConfigurable(model) },
-        optimisticValues: (prev) => {
-          const values = meta?.firstSeenState?.values;
-          if (!values) return prev;
+      const newMessage: Message = { type: "human", content: value };
+      thread.submit(
+        { messages: [newMessage] },
+        {
+          checkpoint: parentCheckpoint,
+          streamMode: ["values"],
+          config: { configurable: runConfigurable(model) },
+          optimisticValues: (prev) => {
+            const values = meta?.firstSeenState?.values;
+            if (!values) return prev;
 
-          return {
-            ...values,
-            messages: [...(values.messages ?? []), newMessage],
-          };
+            return {
+              ...values,
+              messages: [...(values.messages ?? []), newMessage],
+            };
+          },
         },
-      },
-    );
-  };
+      );
+    });
 
   const attachments = Array.isArray(message.content)
     ? (message.content.filter((block) =>

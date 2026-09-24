@@ -2,6 +2,7 @@
 import { FiDataResponse } from "@/modules/import-data/types/moneyone-raw";
 import type { NormalizedFi } from "@/modules/import-data/types/aa";
 import { toast } from "sonner";
+import { RotateCcw } from "lucide-react";
 import {
   DataPanel,
   FooterButton,
@@ -71,6 +72,14 @@ export function HoldingsPreviewForm({
     fields,
     handleAddSearchResult,
     handleRemoveHolding,
+    pendingRemovals,
+    handleUndoRemove,
+    removedHoldings,
+    handleRestoreHolding,
+    originOf,
+    keptHoldings,
+    isEdited,
+    resetHoldings,
   } = useHoldingsForm(defaultValues, consentType);
 
   const fallbackValue =
@@ -89,7 +98,7 @@ export function HoldingsPreviewForm({
     }
 
     const convertedHoldings = transformFormDataToHoldings(
-      data.holdings,
+      keptHoldings(data.holdings),
       consentType,
     );
 
@@ -121,7 +130,9 @@ export function HoldingsPreviewForm({
     onSubmit(modifiedFiData);
   };
 
-  const count = fields.length;
+  // Rows waiting out their Undo are on their way out: not counted, so a
+  // ledger of only those can't be imported as an empty book.
+  const count = fields.length - pendingRemovals.size;
 
   return (
     <form
@@ -165,7 +176,28 @@ export function HoldingsPreviewForm({
 
           <DataPanel
             title="Edit before importing"
-            addon={`${count} ${holdingNoun(consentType, count)}`}
+            addon={
+              <span className="flex items-center gap-3">
+                {/* Back to the book the FIP reported; a single removal
+                    also has Undo in its row (a reported one until
+                    import, an added one for a few seconds). */}
+                {isEdited && (
+                  <button
+                    type="button"
+                    onClick={resetHoldings}
+                    disabled={isImporting}
+                    className="flex items-center gap-1 font-medium text-[#063BAA] hover:underline disabled:opacity-50 dark:text-[#8FB4FF]"
+                  >
+                    <RotateCcw
+                      size={11}
+                      aria-hidden
+                    />
+                    Reset
+                  </button>
+                )}
+                <span>{`${count} ${holdingNoun(consentType, count)}`}</span>
+              </span>
+            }
             bodyClassName="space-y-4"
           >
             <HoldingsSearch
@@ -176,15 +208,23 @@ export function HoldingsPreviewForm({
               fields={fields}
               control={control}
               consentType={consentType}
+              pendingRemovals={pendingRemovals}
               onRemove={handleRemoveHolding}
+              onUndoRemove={handleUndoRemove}
+              removed={removedHoldings}
+              onRestore={handleRestoreHolding}
+              originOf={originOf}
             />
           </DataPanel>
 
           {/* Last in the flow, as mobile's class analytics: the hand-off
               closes the page rather than riding pinned over it. Hidden
               while an edit re-runs the analysis, so it never hands off a
-              book the analysis on screen doesn't describe. */}
-          {(!analysis.isBusy || isImporting) && (
+              book the analysis on screen doesn't describe — nor while a
+              removed row waits out its Undo, since the analysis still
+              counts it and the import would not. */}
+          {((!analysis.isBusy && pendingRemovals.size === 0) ||
+            isImporting) && (
             <FooterButton
               type="submit"
               className="w-full"

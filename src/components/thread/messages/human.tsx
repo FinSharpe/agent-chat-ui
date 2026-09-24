@@ -8,7 +8,8 @@ import { runConfigurable } from "@/modules/chat/store/useChatPrefsStore";
 import { useStreamContext } from "@/providers/Stream";
 import type { Base64ContentBlock } from "@langchain/core/messages";
 import { Message } from "@langchain/langgraph-sdk";
-import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { getContentString } from "../utils";
 import { BranchSwitcher, CommandBar } from "./shared";
 
@@ -35,14 +36,96 @@ function EditableContent({
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={handleKeyDown}
       aria-label="Edit message"
-      className="glass-card field-sizing-content min-h-[76px] w-full resize-none rounded-nested rounded-tr-xs p-3.5 text-[13px] leading-relaxed text-[#0A1F4D] focus:border-[#063BAA]/40 focus:outline-none"
+      className="glass-card rounded-nested field-sizing-content min-h-[76px] w-full resize-none rounded-tr-xs p-3.5 text-[13px] leading-relaxed text-[#0A1F4D] focus:border-[#063BAA]/40 focus:outline-none"
     />
+  );
+}
+
+// A long user message shows its first ~7 lines under a fade, with a toggle
+// to read the rest. Messages that would hide only a line or two stay whole.
+const COLLAPSED_HEIGHT = 160; // ~7 lines of 13px text at leading-relaxed
+const COLLAPSE_AT = 240; // ~11 lines
+
+function CollapsibleText({ children }: { children: React.ReactNode }) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
+  const [fullHeight, setFullHeight] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+
+  // Measure the unclipped text, and again whenever it reflows (a narrower
+  // window, a font load).
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const measure = () => setFullHeight(body.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, []);
+
+  const collapsible = fullHeight > COLLAPSE_AT;
+  const clipped = collapsible && !expanded;
+
+  const toggle = () => {
+    setExpanded((was) => !was);
+    // Collapsing a message read to its end would leave the reader below
+    // it; bring its top back into view.
+    if (expanded) {
+      requestAnimationFrame(() =>
+        clipRef.current?.scrollIntoView({ block: "nearest" }),
+      );
+    }
+  };
+
+  return (
+    <>
+      <div
+        ref={clipRef}
+        id={id}
+        style={
+          collapsible
+            ? { maxHeight: expanded ? fullHeight : COLLAPSED_HEIGHT }
+            : undefined
+        }
+        className={
+          collapsible
+            ? `overflow-hidden transition-[max-height] duration-300 ease-out motion-reduce:transition-none ${
+                clipped
+                  ? "[mask-image:linear-gradient(to_bottom,#000_55%,transparent)]"
+                  : ""
+              }`
+            : undefined
+        }
+      >
+        <div ref={bodyRef}>{children}</div>
+      </div>
+      {collapsible && (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-controls={id}
+          className="mt-1.5 -mb-1 ml-auto flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold opacity-80 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current/30 focus-visible:outline-none"
+        >
+          {expanded ? "Show less" : "Show more"}
+          <ChevronDown
+            aria-hidden
+            className={`size-3.5 transition-transform duration-200 ${
+              expanded ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      )}
+    </>
   );
 }
 
 /**
  * The user's turn: attachments, then a blue bubble (the reference's user
- * message), with copy / edit / version controls under it on hover.
+ * message), with copy / edit / version controls under it on hover. A long
+ * message collapses to its opening lines behind a Show more toggle.
  */
 export function HumanMessage({
   message,
@@ -150,9 +233,11 @@ export function HumanMessage({
               // bubble is tapped — chat.css.
               <div
                 tabIndex={-1}
-                className="chat-msg relative max-w-[85%] rounded-nested rounded-tr-xs bg-[#063BAA]/8 p-3.5 text-[13px] leading-relaxed font-medium text-[#063BAA] outline-none"
+                className="chat-msg rounded-nested relative flex max-w-[85%] flex-col rounded-tr-xs bg-[#063BAA]/8 p-3.5 text-[13px] leading-relaxed font-medium text-[#063BAA] outline-none"
               >
-                <MarkdownText variant="chat">{contentString}</MarkdownText>
+                <CollapsibleText>
+                  <MarkdownText variant="chat">{contentString}</MarkdownText>
+                </CollapsibleText>
                 <div className="chat-msg-actions chat-msg-actions--start">
                   {actions}
                 </div>

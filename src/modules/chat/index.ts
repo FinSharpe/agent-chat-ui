@@ -7,7 +7,8 @@ export { default as ModelPicker } from "./components/ModelPicker";
 export {
   useChatModels,
   useChatModelSync,
-  usePinnedModel,
+  useModelGate,
+  usePinState,
 } from "./hooks/useChatModels";
 export { useChatSubmit } from "./hooks/useChatSubmit";
 export { usePendingPromptHandoff } from "./hooks/usePendingPromptHandoff";

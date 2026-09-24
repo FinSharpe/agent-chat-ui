@@ -152,12 +152,16 @@ export function Thread() {
     if (looksBlank) void recheck();
   }, [looksBlank, recheck]);
 
+  // The box empties only when the message goes out: a send waiting for a
+  // model choice leaves it as typed, and a cancelled choice loses nothing.
   const sendTyped = () => {
     if (isLoading) return;
-    if (submitMessage(input, contentBlocks)) {
-      setInput("");
-      setContentBlocks([]);
-    }
+    submitMessage(input, contentBlocks, {
+      onSent: () => {
+        setInput("");
+        setContentBlocks([]);
+      },
+    });
   };
 
   const sendPrompt = (prompt: string) => {
@@ -165,8 +169,14 @@ export function Thread() {
     submitMessage(prompt);
   };
 
+  // A handed-over prompt has already left the store; if the user closes the
+  // model choice instead of choosing, it lands in the composer, not nowhere.
   const sendHandedOffPrompt = useCallback(
-    (prompt: string) => submitMessage(prompt, [], { fresh: true }),
+    (prompt: string) =>
+      submitMessage(prompt, [], {
+        fresh: true,
+        onCancel: () => setInput(prompt),
+      }),
     [submitMessage],
   );
   usePendingPromptHandoff({

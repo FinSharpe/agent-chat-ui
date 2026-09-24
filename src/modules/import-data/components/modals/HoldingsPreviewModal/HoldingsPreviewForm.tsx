@@ -6,7 +6,6 @@ import {
   DataPanel,
   FooterButton,
   OverlayBody,
-  OverlayFooter,
 } from "@/modules/import-data/components/shared/ui";
 import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import { ClassAnalysisView } from "./components/ClassAnalysisView";
@@ -50,8 +49,8 @@ type HoldingsPreviewFormProps = {
  * request: the analysis starts as soon as the holdings land, laid out in
  * finsharpe-mobile's order (summary tiles, then the analysis sections), with
  * the editable ledger (search to add, edit units, remove) below — an edit
- * re-runs the analysis. Import to Chat is pinned below; the header's close
- * button leaves. Asset differences live in `config`.
+ * re-runs the analysis. Import to Chat closes the page, in the flow rather
+ * than pinned; the header's close button leaves. Asset differences live in `config`.
  */
 export function HoldingsPreviewForm({
   config,
@@ -180,19 +179,20 @@ export function HoldingsPreviewForm({
               onRemove={handleRemoveHolding}
             />
           </DataPanel>
+
+          {/* Last in the flow, as mobile's class analytics: the hand-off
+              closes the page rather than riding pinned over it. */}
+          <FooterButton
+            type="submit"
+            className="w-full"
+            disabled={isLoading || count === 0 || isImporting}
+            busy={isImporting}
+            busyLabel="Importing…"
+          >
+            Import to Chat
+          </FooterButton>
         </OverlayBody>
       </PageLoaderSwitch>
-
-      <OverlayFooter>
-        <FooterButton
-          type="submit"
-          disabled={isLoading || count === 0 || isImporting}
-          busy={isImporting}
-          busyLabel="Importing…"
-        >
-          Import to Chat
-        </FooterButton>
-      </OverlayFooter>
     </form>
   );
 }

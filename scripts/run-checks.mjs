@@ -11,6 +11,7 @@
  *   pnpm check:citations            filings citations (finsharpe-agents#66)
  *   pnpm check:portfolio-connect    the chat's connect card (#79)
  *   pnpm check:smart-alerts         Import Smart Alerts by class (#86)
+ *   pnpm check:tool-activity        chat tool rows, after finsharpe-mobile
  */
 
 import { build } from "esbuild";
@@ -25,6 +26,7 @@ const SUITES = [
   "model-pin",
   "portfolio-connect",
   "smart-alerts",
+  "tool-activity",
 ];
 
 const requested = process.argv.slice(2);

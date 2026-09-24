@@ -23,6 +23,7 @@
     "check:model-pin": "node scripts/run-checks.mjs model-pin",
     "check:portfolio-connect": "node scripts/run-checks.mjs portfolio-connect",
     "check:smart-alerts": "node scripts/run-checks.mjs smart-alerts",
+    "check:tool-activity": "node scripts/run-checks.mjs tool-activity",
     "generate:api": "node scripts/filter-openapi-spec.mjs && orval --config ./orval.config.ts"
   },
   "dependencies": {

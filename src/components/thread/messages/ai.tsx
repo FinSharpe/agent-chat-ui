@@ -2,10 +2,7 @@ import { useHideToolCalls } from "@/hooks/useDefaultApiValues";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
 import { stripCitationMarkers } from "@/lib/citations";
 import { isScannerApprovalInterrupt } from "@/lib/scanner-approval-interrupt";
-import {
-  PipelineSummaryCardView,
-  readSummaryCard,
-} from "@/modules/pipelines";
+import { PipelineSummaryCardView, readSummaryCard } from "@/modules/pipelines";
 import { useStreamContext } from "@/providers/Stream";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { parsePartialJson } from "@langchain/core/output_parsers";
@@ -31,8 +28,6 @@ import { getMcpAppPayload } from "./client-components/mcp-app";
 import { GenericInterruptView } from "./generic-interrupt";
 import { ScannerApprovalInterruptView } from "./scanner-approval-interrupt";
 import { BranchSwitcher, CommandBar } from "./shared";
-import { ToolCalls } from "./tool-calls";
-import { ThinkingLoader } from "./thinking-loader";
 import { HearOutputCard } from "@/modules/chat";
 
 function CustomComponent({
@@ -80,7 +75,9 @@ function CustomComponent({
   );
 }
 
-function parseAnthropicStreamedToolCalls(
+/** Tool calls an Anthropic model is still streaming, read from its content
+ *  blocks before `tool_calls` is filled in. */
+export function parseAnthropicStreamedToolCalls(
   content: MessageContentComplex[],
 ): AIMessage["tool_calls"] {
   const toolCallContents = content.filter((c) => c.type === "tool_use" && c.id);
@@ -149,7 +146,7 @@ function AnswerCard({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="chat-msg glass-card relative max-w-[92%] min-w-0 rounded-nested rounded-tl-xs p-4.5 text-[13px] text-[#0A1F4D]">
+    <div className="chat-msg glass-card rounded-nested relative max-w-[92%] min-w-0 rounded-tl-xs p-4.5 text-[13px] text-[#0A1F4D]">
       {children}
       {actions && (
         <div className="chat-msg-actions chat-msg-actions--end">{actions}</div>
@@ -182,21 +179,12 @@ export function AssistantMessage({
   const threadInterrupt = thread.interrupt;
 
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
-  const anthropicStreamedToolCalls = Array.isArray(content)
-    ? parseAnthropicStreamedToolCalls(content)
-    : undefined;
 
   const hasToolCalls =
     message &&
     "tool_calls" in message &&
     message.tool_calls &&
     message.tool_calls.length > 0;
-  const toolCallsHaveContents =
-    hasToolCalls &&
-    message.tool_calls?.some(
-      (tc) => tc.args && Object.keys(tc.args).length > 0,
-    );
-  const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
   const isToolResult = message?.type === "tool";
 
   // Tool results in this thread, by call id — used to detect tool calls whose
@@ -324,17 +312,10 @@ export function AssistantMessage({
   if (hasToolCalls && !hideToolCalls) {
     return (
       <CitationProvider>
-        <div className="animate-fade-in flex w-full flex-col gap-3">
+        <div className="animate-fade-in flex w-full flex-col gap-3 empty:hidden">
           {answerCard}
-
-          {(hasToolCalls && toolCallsHaveContents && (
-            <ToolCalls toolCalls={message.tool_calls} />
-          )) ||
-            (hasAnthropicToolCalls && (
-              <ToolCalls toolCalls={anthropicStreamedToolCalls} />
-            )) ||
-            (hasToolCalls && <ToolCalls toolCalls={message.tool_calls} />)}
-
+          {/* The calls themselves are drawn by the turn (MessageList), which
+              groups consecutive tool rounds into one ToolCallGroup. */}
           {interrupt}
           {customComponents}
           {/* No actions on messages with tool calls: the copy/regenerate
@@ -346,7 +327,7 @@ export function AssistantMessage({
 
   return (
     <CitationProvider>
-      <div className="animate-fade-in flex w-full flex-col gap-3">
+      <div className="animate-fade-in flex w-full flex-col gap-3 empty:hidden">
         {answerCard}
         {customComponents}
         {interrupt}
@@ -355,17 +336,5 @@ export function AssistantMessage({
         )}
       </div>
     </CitationProvider>
-  );
-}
-
-export function AssistantMessageLoading({
-  phase = "thinking",
-}: {
-  phase?: "thinking" | "finishing";
-}) {
-  return (
-    <div className="flex w-full items-start">
-      <ThinkingLoader phase={phase} />
-    </div>
   );
 }

@@ -128,15 +128,17 @@ function card(raw: Record<string, unknown>) {
 {
   const html = renderToStaticMarkup(
     <ToolCallGroup
-      items={[
+      phase="settled"
+      steps={[
         {
-          toolCall: {
+          key: "call-1",
+          call: {
             name: "analyze_user_portfolio",
             id: "call-1",
             args: { asset_class: "ETF" },
             type: "tool_call",
           },
-          response: {
+          result: {
             type: "tool",
             id: "tool-1",
             tool_call_id: "call-1",
@@ -156,15 +158,16 @@ function card(raw: Record<string, unknown>) {
     />,
   );
   check(
-    html.includes("Analysing your portfolio"),
+    html.includes("Analyze your portfolio"),
     "tool row: labelled for the reader",
     html,
   );
   check(
-    !html.includes("chat-error-tile"),
+    !html.includes("failed") && !html.includes("tool-words--warning"),
     "tool row: not drawn as failed",
     html,
   );
+  check(!html.includes("<button"), "tool row: does not open", html);
 }
 
 // The thread a journey carries back through sessionStorage is vetted on read.

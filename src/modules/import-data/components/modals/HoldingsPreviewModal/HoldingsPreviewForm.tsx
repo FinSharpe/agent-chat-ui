@@ -181,16 +181,20 @@ export function HoldingsPreviewForm({
           </DataPanel>
 
           {/* Last in the flow, as mobile's class analytics: the hand-off
-              closes the page rather than riding pinned over it. */}
-          <FooterButton
-            type="submit"
-            className="w-full"
-            disabled={isLoading || count === 0 || isImporting}
-            busy={isImporting}
-            busyLabel="Importing…"
-          >
-            Import to Chat
-          </FooterButton>
+              closes the page rather than riding pinned over it. Hidden
+              while an edit re-runs the analysis, so it never hands off a
+              book the analysis on screen doesn't describe. */}
+          {(!analysis.isBusy || isImporting) && (
+            <FooterButton
+              type="submit"
+              className="w-full"
+              disabled={isLoading || count === 0 || isImporting}
+              busy={isImporting}
+              busyLabel="Importing…"
+            >
+              Import to Chat
+            </FooterButton>
+          )}
         </OverlayBody>
       </PageLoaderSwitch>
     </form>

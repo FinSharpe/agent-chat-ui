@@ -91,6 +91,9 @@ export function useClassAnalysis(
     analysis: query.data ?? null,
     isLoading: query.isPending && query.fetchStatus !== "idle",
     isRefreshing: query.isFetching && query.isPlaceholderData,
+    /** An answer is on its way — fetching, or an edit waiting out the
+     * debounce — so what is on screen may not match the ledger yet. */
+    isBusy: query.isFetching || body !== sent.body,
     isError: query.isError,
     error: query.error as AnalysisError | null,
     retry: () => void query.refetch(),

@@ -6,8 +6,10 @@ import { getJson } from "@/modules/discover/api/client";
  * with Auto implicit: Auto is the absence of a pin and never a row.
  *
  * `available` is false while the backend cannot reach that provider's account
- * (no key, no credit); such a row is not offered, and a thread pinned to it
- * goes back to Auto.
+ * (no key, no credit); such a row is not offered for a new pick. A thread
+ * already pinned to it keeps the pin, marked unavailable, and waits for the
+ * user to choose before sending (finsharpe-agents#255) — it never goes back
+ * to Auto on its own.
  */
 export interface ChatModelOption {
   id: string;

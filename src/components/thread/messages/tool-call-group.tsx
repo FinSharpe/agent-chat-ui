@@ -106,6 +106,17 @@ const answeredByCard = (response?: ToolMessage) =>
   !!response && getPortfolioConnect(response) !== null;
 
 /**
+ * The closed group's header. A failure count alone ("2 failed") reads as the
+ * number of calls made, so it is given against the total — a deliberate
+ * departure from mobile's `· N failed`.
+ */
+export function groupLabel(total: number, failures: number): string {
+  return failures > 0
+    ? `Retrieving data · ${failures} of ${total} failed`
+    : "Retrieving data";
+}
+
+/**
  * One or two calls stay direct. Three or more form one local disclosure,
  * closed by default, whose header lights up while it holds the active call.
  */
@@ -160,7 +171,7 @@ export function ToolCallGroup({
   ));
 
   return (
-    <div className="flex w-full max-w-[92%] flex-col">
+    <div className="-my-1 flex w-full max-w-[92%] flex-col">
       {grouped && (
         <button
           type="button"
@@ -169,7 +180,7 @@ export function ToolCallGroup({
           className="w-fit cursor-pointer rounded-sm focus-visible:ring-2 focus-visible:ring-[#063BAA]/30 focus-visible:outline-none"
         >
           <ToolWords
-            label={`Retrieving data${failures ? ` · ${failures} failed` : ""}`}
+            label={groupLabel(steps.length, failures)}
             moving={ownsActive && !open}
             warning={failures > 0}
           />

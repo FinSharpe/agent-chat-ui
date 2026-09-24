@@ -3,6 +3,7 @@
  * `tool_labels.dart`): how a turn's calls group, and what each row is called.
  */
 import type { Message } from "@langchain/langgraph-sdk";
+import { groupLabel } from "@/components/thread/messages/tool-call-group";
 import { formatToolName } from "@/components/thread/messages/tool-labels";
 import { currentStep, projectTurn, splitTurns } from "@/lib/tool-activity";
 
@@ -126,6 +127,12 @@ eq(
   "uncurated render_ tool",
 );
 eq(formatToolName("  "), "Retrieve data", "nameless call");
+eq(groupLabel(4, 0), "Retrieving data", "group header: no failures");
+eq(
+  groupLabel(4, 2),
+  "Retrieving data · 2 of 4 failed",
+  "group header: failures read against the total, not as the call count",
+);
 
 if (failures > 0) {
   console.log(`\n${failures} failed`);

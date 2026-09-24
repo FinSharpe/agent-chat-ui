@@ -312,7 +312,7 @@ export function AssistantMessage({
   if (hasToolCalls && !hideToolCalls) {
     return (
       <CitationProvider>
-        <div className="animate-fade-in flex w-full flex-col gap-3">
+        <div className="animate-fade-in flex w-full flex-col gap-3 empty:hidden">
           {answerCard}
           {/* The calls themselves are drawn by the turn (MessageList), which
               groups consecutive tool rounds into one ToolCallGroup. */}
@@ -327,7 +327,7 @@ export function AssistantMessage({
 
   return (
     <CitationProvider>
-      <div className="animate-fade-in flex w-full flex-col gap-3">
+      <div className="animate-fade-in flex w-full flex-col gap-3 empty:hidden">
         {answerCard}
         {customComponents}
         {interrupt}

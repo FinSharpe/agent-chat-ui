@@ -171,7 +171,7 @@ export function ToolCallGroup({
   ));
 
   return (
-    <div className="-my-1 flex w-full max-w-[92%] flex-col">
+    <div className="mb-2 flex w-full max-w-[92%] flex-col">
       {grouped && (
         <button
           type="button"

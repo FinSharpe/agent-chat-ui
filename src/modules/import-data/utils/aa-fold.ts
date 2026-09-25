@@ -90,6 +90,12 @@ export interface ClassPosition {
   state: AccountRowState;
   /** The consent the row names, and the one a renew has to fix. */
   brokenConsent: ConsentRecord | null;
+  /**
+   * Consents still on a first sync that can make progress on their own. Per
+   * consent, unlike `state`: there an expired sibling outranks a demat still
+   * syncing, but the net-worth total still waits for it.
+   */
+  syncingConsents: number;
   /** Rupee value of the class; null for SIP (a commitment is not a balance). */
   value: number | null;
   count: number;
@@ -214,6 +220,12 @@ export function buildPosition(
     state: foldState(consents, blobs, trouble),
     brokenConsent:
       consents.find((c) => isConsentBroken(c, trouble)) ?? null,
+    syncingConsents: consents.filter(
+      (c) =>
+        !blobs.some((b) => b.consentID === c.consentID) &&
+        !isConsentBroken(c, trouble) &&
+        !trouble.failed.has(c.consentID),
+    ).length,
     value: foldValue(type, blobs),
     count: foldCount(type, blobs),
     hasData: blobs.length > 0,

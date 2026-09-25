@@ -67,6 +67,9 @@ export interface NetworthData {
   connectedCount: number;
   readyCount: number;
   syncingCount: number;
+  /** Accounts (consents) behind net worth, and how many are still syncing. */
+  accountCount: number;
+  syncingAccountCount: number;
   latestUpdate?: string;
   /** The invested book's move over the latest session. */
   dayMove: DayMoveState;
@@ -89,10 +92,14 @@ export function useNetworthData(): NetworthData {
   const sipCount = byType.get("SIP")?.count ?? 0;
 
   let latestUpdate: string | undefined;
+  let accountCount = 0;
+  let syncingAccountCount = 0;
 
   const classes: NetworthClass[] = CLASS_ORDER.map((key) => {
     const position = byType.get(key);
     if (!position || position.consents.length === 0) return null;
+    accountCount += position.consents.length;
+    syncingAccountCount += position.syncingConsents;
 
     if (position.updatedAt && (!latestUpdate || position.updatedAt > latestUpdate)) {
       latestUpdate = position.updatedAt;
@@ -126,13 +133,23 @@ export function useNetworthData(): NetworthData {
     connectedCount,
     readyCount,
     syncingCount: connectedCount - readyCount,
+    accountCount,
+    syncingAccountCount,
     latestUpdate,
     dayMove,
     // A failed consent list is NOT an empty portfolio — saying "connect an
     // account" to someone who has five would be a lie. The accounts section
     // below owns the error and the retry; the card just stays quiet.
     isEmpty: !isLoading && !isError && connectedCount === 0 && !hasConnections,
+    // No figure until every account behind it has landed: a partial sum
+    // reads as the whole book, and ₹0 before the first one reads as broke.
+    // A consent that gave up or expired is not waited on — it will not
+    // arrive on its own, and its row already says so. finsharpe-mobile's
+    // `PortfolioSnapshot.netWorthSync` — change the two together.
     isInitialLoading:
-      isLoading || isError || (connectedCount > 0 && readyCount === 0),
+      isLoading ||
+      isError ||
+      syncingAccountCount > 0 ||
+      (connectedCount > 0 && readyCount === 0),
   };
 }

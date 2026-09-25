@@ -66,7 +66,10 @@ export function NetworthGraph({ onConnect }: { onConnect?: () => void }) {
       </div>
       <div className="bg-brand-gradient premium-shadow-sm card-hover rounded-card relative overflow-hidden p-6">
         {nw.isInitialLoading ? (
-          <NetworthSkeleton />
+          <NetworthSkeleton
+            syncing={nw.syncingAccountCount}
+            total={nw.accountCount}
+          />
         ) : nw.isEmpty ? (
           <NetworthEmpty onConnect={onConnect} />
         ) : (
@@ -269,19 +272,48 @@ function NetworthEmpty({ onConnect }: { onConnect?: () => void }) {
   );
 }
 
-function NetworthSkeleton() {
+/**
+ * While the consent list loads, or any account behind the total is still on
+ * its first sync. Once the accounts are known the label turns real and the
+ * sub-line says how many are left — finsharpe-mobile's `_SummarySkeleton`.
+ */
+function NetworthSkeleton({
+  syncing,
+  total,
+}: {
+  syncing: number;
+  total: number;
+}) {
   const bar =
     "block animate-pulse rounded bg-white/15 motion-reduce:animate-none";
+  const status =
+    syncing === 0
+      ? null
+      : total === 1
+        ? "Syncing your account"
+        : `Syncing ${syncing} of ${total} accounts`;
   return (
     <div
       className="relative space-y-4"
       aria-busy="true"
-      aria-label="Loading portfolio value"
+      aria-label={status ?? "Loading portfolio value"}
     >
       <div className="space-y-2">
-        <span className={`${bar} h-3 w-36`} />
+        {status ? (
+          <p className="text-[10px] font-normal tracking-[0.07em] text-white/60 uppercase">
+            Total Portfolio Value
+          </p>
+        ) : (
+          <span className={`${bar} h-3 w-36`} />
+        )}
         <span className={`${bar} h-9 w-40`} />
-        <span className={`${bar} h-3 w-44`} />
+        {status ? (
+          <p className="text-[11px] font-medium text-white/60 tabular-nums">
+            {status}
+          </p>
+        ) : (
+          <span className={`${bar} h-3 w-44`} />
+        )}
       </div>
       <span className={`${bar} h-1.5 w-full rounded-full`} />
       <div className="grid grid-cols-3 gap-2 border-t border-white/15 pt-3">

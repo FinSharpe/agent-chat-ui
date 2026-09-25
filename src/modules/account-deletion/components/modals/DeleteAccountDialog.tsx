@@ -63,10 +63,10 @@ export default function DeleteAccountDialog({
           <DialogHeader>
             <DialogTitle>Delete your account?</DialogTitle>
             <DialogDescription>
-              This permanently deletes your FinSharpe account, your chats, your
-              imported portfolio and its MoneyOne consents, and your reports and
-              their share links. Unused credits are lost. This can&apos;t be
-              undone.
+              This permanently deletes your FinSharpe account, your chats, and
+              your imported portfolio and its MoneyOne consents. Your reports
+              are removed from your account and their share links stop working.
+              Unused credits are lost. This can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
 

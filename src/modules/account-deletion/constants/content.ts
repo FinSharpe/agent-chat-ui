@@ -71,7 +71,7 @@ export const DELETED_DATA: DeletedDataRow[] = [
   {
     data: "Your financial data",
     outcome:
-      "We keep no separate copy on our servers. Holdings saved with a chat go with the chat. The copy in the app on your phone is removed when the app deletes your account. A copy a web browser keeps is not: clear this site's data in that browser",
+      "We keep no separate copy on our servers. Holdings saved with a chat go with the chat. The copy in the app on your phone is removed when the app deletes your account. A copy that an earlier version of the web app saved in a browser is not: clear this site's data in that browser",
   },
   {
     data: "Notification registrations",
@@ -83,7 +83,8 @@ export const DELETED_DATA: DeletedDataRow[] = [
   },
   {
     data: "Access you gave other AI apps to your FinSharpe account, if any",
-    outcome: "Revoked and deleted",
+    outcome:
+      "Revoked and deleted. An app that was already connected loses access within an hour",
   },
 ];
 

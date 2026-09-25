@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { clearPersistedQueryCache } from "@/lib/query-persistence";
+import { clearBrowserCopies } from "@/lib/browser-copies";
 import { extractApiError } from "@/modules/auth/utils/extract-api-error";
 import { DELETE_ACCOUNT_PATH, SUPPORT_EMAIL } from "../constants/content";
 
@@ -55,15 +55,16 @@ async function deleteAccount(): Promise<void> {
 }
 
 /**
- * This browser's copy of connected financial data goes whatever the request
- * did, so a deletion that fails part-way, or whose answer never arrives,
- * still leaves none behind here.
+ * What this browser kept about the user's connections — the copy of connected
+ * financial data and the old consent records — goes whatever the request did,
+ * so a deletion that fails part-way, or whose answer never arrives, still
+ * leaves none of it behind here.
  */
-async function deleteAccountAndClearCache(): Promise<void> {
+async function deleteAccountAndClearCopies(): Promise<void> {
   try {
     await deleteAccount();
   } finally {
-    await clearPersistedQueryCache();
+    await clearBrowserCopies();
   }
 }
 
@@ -83,13 +84,14 @@ function clearBrowserStorage() {
 
 /**
  * Deletes the signed-in account through the BFF, which also clears the session
- * cookies. The persisted query cache is cleared on every outcome; on success
- * local and session storage are cleared too and the page reloads into its
- * "deleted" state, so no in-memory user or query cache outlives the account.
+ * cookies. The persisted query cache and the old consent records are cleared
+ * on every outcome; on success local and session storage are cleared too and
+ * the page reloads into its "deleted" state, so no in-memory user or query
+ * cache outlives the account.
  */
 export function useDeleteAccountMutation() {
   return useMutation<void, DeleteAccountError>({
-    mutationFn: deleteAccountAndClearCache,
+    mutationFn: deleteAccountAndClearCopies,
     onSuccess: () => {
       clearBrowserStorage();
       window.location.replace(`${DELETE_ACCOUNT_PATH}?deleted=1`);

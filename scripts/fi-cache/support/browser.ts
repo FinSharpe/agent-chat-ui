@@ -10,9 +10,13 @@
  */
 import { QueryClient } from "@tanstack/react-query";
 import { persistQueryClientSave } from "@tanstack/react-query-persist-client";
-import { keys, set } from "idb-keyval";
+import { get, keys, set } from "idb-keyval";
 import { USER_INFO_COOKIE } from "@/lib/auth/user-info";
-import { createQueryPersister, QUERY_CACHE_KEY } from "@/lib/query-persistence";
+import {
+  createQueryPersister,
+  persistedFiDataKey,
+  QUERY_CACHE_KEY,
+} from "@/lib/query-persistence";
 
 export class MemoryStorage implements Storage {
   private data = new Map<string, string>();
@@ -106,21 +110,25 @@ export const status = (code: number, body?: unknown) => () =>
         }),
   );
 
-/** What a browser holding connected financial data has in IndexedDB. */
-export const FI_BLOB = {
-  consentID: "consent-1",
+/** What a browser holding one connection's financial data has in IndexedDB. */
+export const fiBlob = (consentID: string) => ({
+  consentID,
   holdings: [{ isin: "INE002A01018", units: 12, value: 36_000 }],
-};
+});
+
+export const FI_BLOB = fiBlob("consent-1");
 
 /**
  * The copy as the app writes it: the persister `QueryProvider` uses, saving a
- * successful `["fi-data", consentID]` query. `save()` resolves once that save
- * has run — for one inside the persister's 1s throttle, once the throttle has
- * let it.
+ * successful `["fi-data", consentID]` query per connection. `save()`
+ * resolves once that save has run — for one inside the persister's 1s
+ * throttle, once the throttle has let it.
  */
-export function appPersistence() {
+export function appPersistence(consentIDs: string[] = [FI_BLOB.consentID]) {
   const queryClient = new QueryClient();
-  queryClient.setQueryData(["fi-data", FI_BLOB.consentID], FI_BLOB);
+  for (const id of consentIDs) {
+    queryClient.setQueryData(persistedFiDataKey(id), fiBlob(id));
+  }
   const persister = createQueryPersister();
   const save = () =>
     persistQueryClientSave({
@@ -135,12 +143,15 @@ export function appPersistence() {
 
 /**
  * The app holding a copy, with one more save queued behind the persister's
- * throttle — what a cache change just before signing out or deleting leaves.
- * `queued` resolves once that save has run; `queuedRan()` says whether yet.
+ * throttle — what a cache change just before signing out, deleting or
+ * revoking leaves. `queued` resolves once that save has run; `queuedRan()`
+ * says whether yet.
  */
-export async function appWithQueuedSave() {
-  await seedCopy();
-  const app = appPersistence();
+export async function appWithQueuedSave(
+  consentIDs: string[] = [FI_BLOB.consentID],
+) {
+  await seedCopy(consentIDs);
+  const app = appPersistence(consentIDs);
   await app.save(); // runs at once
   let ran = false;
   const queued = app.save().then(() => {
@@ -150,7 +161,7 @@ export async function appWithQueuedSave() {
 }
 
 /** Put a copy straight into IndexedDB, as an earlier page (or tab) left it. */
-export async function seedCopy() {
+export async function seedCopy(consentIDs: string[] = [FI_BLOB.consentID]) {
   await set(
     QUERY_CACHE_KEY,
     JSON.stringify({
@@ -158,13 +169,11 @@ export async function seedCopy() {
       timestamp: Date.now(),
       clientState: {
         mutations: [],
-        queries: [
-          {
-            queryKey: ["fi-data", FI_BLOB.consentID],
-            queryHash: `["fi-data","${FI_BLOB.consentID}"]`,
-            state: { data: FI_BLOB, status: "success" },
-          },
-        ],
+        queries: consentIDs.map((id) => ({
+          queryKey: persistedFiDataKey(id),
+          queryHash: JSON.stringify(persistedFiDataKey(id)),
+          state: { data: fiBlob(id), status: "success" },
+        })),
       },
     }),
   );
@@ -173,6 +182,71 @@ export async function seedCopy() {
 /** Every key in the persister's IndexedDB store. */
 export async function storedKeys(): Promise<string[]> {
   return (await keys()).map(String);
+}
+
+/**
+ * The connections whose data the persisted copy holds, or `null` when there
+ * is no copy at all.
+ */
+export async function storedConsents(): Promise<string[] | null> {
+  const stored = await get<string>(QUERY_CACHE_KEY);
+  if (stored === undefined) return null;
+  const copy = JSON.parse(stored) as {
+    clientState: { queries: { queryKey: unknown[] }[] };
+  };
+  return copy.clientState.queries.map(({ queryKey }) => String(queryKey[1]));
+}
+
+/**
+ * The old web build's consent records, as it left them in localStorage
+ * (`moneyone.storage.ts`, removed in ce57174): one record per consent, the
+ * index of their IDs, a journey that was started and never finished, and the
+ * browser's own ID.
+ */
+export function seedLegacyRecords(consentIDs: string[]) {
+  const browserID = "browser-1";
+  localStore.setItem("moneyone:userId", browserID);
+  for (const id of consentIDs) {
+    localStore.setItem(
+      `moneyone:consent:${id}`,
+      JSON.stringify({
+        consentID: id,
+        type: "EQUITIES",
+        userId: browserID,
+        name: "Asha",
+        mobileNo: "9999999999",
+      }),
+    );
+  }
+  localStore.setItem(
+    `moneyone:user:${browserID}:consents`,
+    JSON.stringify(consentIDs),
+  );
+  localStore.setItem(
+    "moneyone:pending-consent:handle-1",
+    JSON.stringify({ consentHandle: "handle-1", mobileNo: "9999999999" }),
+  );
+}
+
+/** Every `moneyone:` key in local storage, sorted. */
+export function legacyKeys(): string[] {
+  const found: string[] = [];
+  for (let i = 0; i < localStore.length; i++) {
+    const key = localStore.key(i);
+    if (key?.startsWith("moneyone:")) found.push(key);
+  }
+  return found.sort();
+}
+
+/** The local storage keys whose name or value mentions `text`. */
+export function localKeysNaming(text: string): string[] {
+  const found: string[] = [];
+  for (let i = 0; i < localStore.length; i++) {
+    const key = localStore.key(i);
+    if (key && (key.includes(text) || localStore.getItem(key)?.includes(text)))
+      found.push(key);
+  }
+  return found;
 }
 
 let failures = 0;

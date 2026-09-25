@@ -2,7 +2,10 @@
  * The persisted query cache has one writer, so one clear is enough: nothing
  * in `src/` but `lib/query-persistence.ts` may reach IndexedDB or build a
  * persister, and `QueryProvider` persists through it. A second writer would
- * keep a copy that signing out and deleting the account never clear.
+ * keep a copy that signing out, deleting the account and revoking a
+ * connection never clear. Likewise the old web build's consent records: only
+ * `lib/legacy-consent-store.ts` names a `moneyone:` key, so the purge there
+ * reaches every one of them.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -11,6 +14,7 @@ import { eq, finish } from "./support/browser";
 
 const SRC = join(process.cwd(), "src");
 const OWNER = "src/lib/query-persistence.ts";
+const LEGACY_OWNER = "src/lib/legacy-consent-store.ts";
 const PROVIDER = "src/providers/QueryProvider.tsx";
 
 function sources(dir: string): string[] {
@@ -55,6 +59,16 @@ eq(
   ),
   true,
   "and it persists through the persistence module",
+);
+
+// A `moneyone:` key in a string, or in a template that builds one.
+const LEGACY_KEY = [/["']moneyone:/, /`moneyone:[^`]*\$\{/];
+eq(
+  files
+    .filter(({ text }) => LEGACY_KEY.some((pattern) => pattern.test(text)))
+    .map(({ name }) => name),
+  [LEGACY_OWNER],
+  "only the legacy store module names an old consent record's key",
 );
 
 finish();

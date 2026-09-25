@@ -1,6 +1,11 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import {
+  LEGACY_CONSENT_PREFIX,
+  LEGACY_USER_ID_KEY,
+  purgeLegacyConsentStore,
+} from "@/lib/legacy-consent-store";
 import { AaError, resolveConsent } from "../api/aa-client";
 import { isAaConsentType, type AaConsentType } from "../types/aa";
 import { AA_CONSENTS_KEY } from "./useAaPortfolio";
@@ -20,15 +25,9 @@ import { AA_CONSENTS_KEY } from "./useAaPortfolio";
  * Keys are deleted as they are adopted — and a consent the backend refuses
  * outright is deleted too, because retrying it on every page load would never
  * do anything different. Their absence is the "migration done" flag, so no
- * marker of our own is left in browser storage.
+ * marker of our own is left in browser storage. The keys, and what else
+ * removes them, are in `lib/legacy-consent-store.ts`.
  */
-const CONSENT_KEY_PREFIX = "moneyone:consent:";
-const LEGACY_KEY_PREFIXES = [
-  CONSENT_KEY_PREFIX,
-  "moneyone:pending-consent:",
-  "moneyone:user:",
-];
-const LEGACY_USER_ID_KEY = "moneyone:userId";
 
 interface LegacyConsent {
   consentID: string;
@@ -45,7 +44,7 @@ function readLegacyConsents(): LegacyConsent[] {
 
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (!key?.startsWith(CONSENT_KEY_PREFIX)) continue;
+    if (!key?.startsWith(LEGACY_CONSENT_PREFIX)) continue;
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
@@ -71,20 +70,6 @@ function readLegacyConsents(): LegacyConsent[] {
   return found;
 }
 
-/** Remove every trace of the old localStorage consent store. */
-function purgeLegacyStore() {
-  if (typeof window === "undefined") return;
-  const doomed: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key) continue;
-    if (key === LEGACY_USER_ID_KEY || LEGACY_KEY_PREFIXES.some((p) => key.startsWith(p))) {
-      doomed.push(key);
-    }
-  }
-  doomed.forEach((key) => localStorage.removeItem(key));
-}
-
 export function useLegacyConsentAdoption(enabled: boolean) {
   const queryClient = useQueryClient();
   const ranRef = useRef(false);
@@ -96,7 +81,7 @@ export function useLegacyConsentAdoption(enabled: boolean) {
     const legacy = readLegacyConsents();
     if (legacy.length === 0) {
       // Nothing to adopt, but sweep any orphaned index/pending keys away.
-      purgeLegacyStore();
+      purgeLegacyConsentStore();
       return;
     }
 
@@ -133,7 +118,7 @@ export function useLegacyConsentAdoption(enabled: boolean) {
         }
       }
 
-      if (!transientFailure) purgeLegacyStore();
+      if (!transientFailure) purgeLegacyConsentStore();
       if (adopted > 0 && !cancelled) {
         queryClient.invalidateQueries({ queryKey: AA_CONSENTS_KEY });
       }

@@ -13,7 +13,7 @@ import {
 import type { UserResponse } from "@/api/generated/auth-apis/models";
 import { isPublicPage } from "@/lib/auth/public-paths";
 import { readUserInfoCookie, writeUserInfoCookie } from "@/lib/auth/user-info";
-import { clearPersistedQueryCache } from "@/lib/query-persistence";
+import { clearBrowserCopies } from "@/lib/browser-copies";
 import { AUTH_ROUTES } from "@/modules/auth/constants/routes";
 
 /**
@@ -247,9 +247,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      // This browser's copy of connected financial data goes whatever the
-      // request did, so a sign-out that fails part-way leaves none behind.
-      await clearPersistedQueryCache();
+      // What this browser kept about the user's connections goes whatever
+      // the request did — the copy of connected financial data and the old
+      // consent records — so a sign-out that fails part-way leaves none.
+      await clearBrowserCopies();
     }
     setUser(null);
     setStatus("signed-out");

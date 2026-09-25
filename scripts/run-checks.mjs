@@ -13,7 +13,7 @@
  *   pnpm check:credits              Balance, History, the quote (agents#280)
  *                                   and credits in chat (agents#282)
  *   pnpm check:day-move             the net-worth card's day move, after mobile
- *   pnpm check:fi-cache             sign-out and deletion clear the FI copy (agents#283)
+ *   pnpm check:fi-cache             sign-out, deletion, revoke clear the FI copy (agents#283)
  *   pnpm check:portfolio-connect    the chat's connect card (#79)
  *   pnpm check:smart-alerts         Import Smart Alerts by class (#86)
  *   pnpm check:tool-activity        chat tool rows, after finsharpe-mobile

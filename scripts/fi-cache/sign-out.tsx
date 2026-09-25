@@ -1,9 +1,12 @@
 /**
  * Signing out leaves no copy of connected financial data in this browser
- * (finsharpe-agents#283, decision D10). The real `logout` from `AuthProvider`
- * runs against a spec IndexedDB, with a persister save queued a moment before
- * each sign-out, and after every outcome the persister's store is empty — and
- * stays empty once that queued save has run:
+ * (finsharpe-agents#283, decision D10), and none of the old web build's
+ * consent records (`moneyone:*` in local storage, decision W2). The real
+ * `logout` from `AuthProvider` runs against a spec IndexedDB, with a
+ * persister save queued a moment before each sign-out, and after every
+ * outcome the persister's store is empty — and stays empty once that queued
+ * save has run — and no `moneyone:` key is left, while the rest of local
+ * storage is kept:
  *
  * - the request succeeds: the copy is gone and the page leaves for Welcome;
  * - the request never reaches the server: the copy is gone all the same, and
@@ -27,8 +30,11 @@ import {
   fetchCalls,
   finish,
   installWindow,
+  legacyKeys,
+  localStore,
   location,
   networkDown,
+  seedLegacyRecords,
   signIn,
   status,
   storedKeys,
@@ -52,13 +58,17 @@ function renderLogout(): Auth["logout"] {
 }
 
 const START = "http://localhost/import";
+const WATCHLIST = "finsharpe.import.watchlist";
 
 /** Sign out against `reply`; whether `logout` rejected. */
 async function signOut(label: string, reply: () => Promise<Response>) {
   signIn();
   location.href = START;
+  localStore.setItem(WATCHLIST, '{"state":{"groups":{}}}');
+  seedLegacyRecords(["consent-1", "consent-2"]);
   const app = await appWithQueuedSave();
   eq(await storedKeys(), [QUERY_CACHE_KEY], `${label}: setup, a copy is kept`);
+  eq(legacyKeys().length, 5, `${label}: setup, old consent records are kept`);
 
   answerFetch(reply);
   let rejected = false;
@@ -70,6 +80,8 @@ async function signOut(label: string, reply: () => Promise<Response>) {
 
   eq(fetchCalls.at(-1), "POST /api/auth/logout", `${label}: asks the server`);
   eq(await storedKeys(), [], `${label}: the copy is gone`);
+  eq(legacyKeys(), [], `${label}: no old consent record is left`);
+  eq(localStore.getItem(WATCHLIST) !== null, true, `${label}: settings stay`);
   eq(app.queuedRan(), false, `${label}: a save queued before is still waiting`);
   await app.queued;
   eq(await storedKeys(), [], `${label}: once run, it did not put it back`);

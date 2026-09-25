@@ -1,17 +1,21 @@
 /**
  * Deleting the account on the web leaves no copy of connected financial data
- * in this browser (finsharpe-agents#283, decision D10). The real
- * `useDeleteAccountMutation` runs against a spec IndexedDB, with a persister
- * save queued a moment before each attempt, and after every outcome the
- * persister's store is empty — and stays empty once that queued save has run:
+ * in this browser (finsharpe-agents#283, decision D10), and none of the old
+ * web build's consent records (`moneyone:*` in local storage, decision W2).
+ * The real `useDeleteAccountMutation` runs against a spec IndexedDB, with a
+ * persister save queued a moment before each attempt, and after every outcome
+ * the persister's store is empty — and stays empty once that queued save has
+ * run — and no `moneyone:` key is left:
  *
- * - the server fails part-way (`503`: the account still exists): the copy is
- *   gone, while the account's settings stay and the dialog keeps the reason;
+ * - the server fails part-way (`503`, or `502` when MoneyOne's teardown
+ *   failed: the account still exists): the copy is gone, while the account's
+ *   settings stay and the dialog keeps the reason;
  * - no answer at all (a deletion that may or may not have happened): the copy
  *   is gone;
  * - `204`: the copy is gone, local and session storage are cleared and the
  *   page reloads into its "deleted" state;
- * - `204` with local storage blocked: the copy is gone and the page leaves.
+ * - `204` with local storage refusing to be cleared: the copy and the old
+ *   consent records are gone all the same, and the page leaves.
  */
 import "./support/indexeddb";
 
@@ -33,9 +37,11 @@ import {
   fetchCalls,
   finish,
   installWindow,
+  legacyKeys,
   localStore,
   location,
   networkDown,
+  seedLegacyRecords,
   sessionStore,
   signIn,
   status,
@@ -68,9 +74,11 @@ async function deleteAccount(label: string, reply: () => Promise<Response>) {
   signIn();
   localStore.setItem(WATCHLIST, '{"state":{"groups":{}}}');
   sessionStore.setItem("fs:aa:pending", '{"type":"EQUITIES"}');
+  seedLegacyRecords(["consent-1", "consent-2"]);
   location.href = HERE;
   const app = await appWithQueuedSave();
   eq(await storedKeys(), [QUERY_CACHE_KEY], `${label}: setup, a copy is kept`);
+  eq(legacyKeys().length, 5, `${label}: setup, old consent records are kept`);
 
   answerFetch(reply);
   let error: DeleteAccountError | null = null;
@@ -82,6 +90,7 @@ async function deleteAccount(label: string, reply: () => Promise<Response>) {
 
   eq(fetchCalls.at(-1), "DELETE /api/auth/me", `${label}: asks the server`);
   eq(await storedKeys(), [], `${label}: the copy is gone`);
+  eq(legacyKeys(), [], `${label}: no old consent record is left`);
   eq(app.queuedRan(), false, `${label}: a save queued before is still waiting`);
   await app.queued;
   eq(await storedKeys(), [], `${label}: once run, it did not put it back`);
@@ -100,6 +109,14 @@ async function deleteAccount(label: string, reply: () => Promise<Response>) {
   eq(partWay?.status, 503, "503: reported as not deleted");
   eq(localStore.getItem(WATCHLIST) !== null, true, "503: settings are kept");
   eq(location.href, HERE, "503: the page stays, with the reason");
+
+  // MoneyOne's consent teardown failed: the account still exists.
+  const moneyOne = await deleteAccount(
+    "502",
+    status(502, { detail: "Your account was not deleted; try again." }),
+  );
+  eq(moneyOne?.status, 502, "502: reported as not deleted");
+  eq(localStore.getItem(WATCHLIST) !== null, true, "502: settings are kept");
 
   const lost = await deleteAccount("no answer", networkDown);
   eq(lost?.status, null, "no answer: reported as not reaching FinSharpe");

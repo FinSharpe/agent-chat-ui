@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion, type PanInfo } from "framer-motion";
 import {
   ChevronRight,
+  Coins,
   LogIn,
   Moon,
   Sun,
@@ -16,12 +17,18 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { CreditsFigure } from "@/modules/credits/components/CreditsFigure";
+import { CREDITS_TITLE } from "@/modules/credits/constants/copy";
 import { useAccountActions } from "../hooks/useAccountActions";
 
 /**
  * The mobile header avatar's account sheet — finsharpe-mobile's
  * `account_sheet.dart`, drawn on the web: drag handle, the identity row
- * (opens Profile, the web's "Your account"), Appearance and Sign out.
+ * (opens Profile, the web's "Your account"), the Credits row directly under
+ * it — "Credits", the Balance trailing, no state words (#231 decision 1) —
+ * then Appearance and Sign out. The sheet's content mounts on open, so each
+ * opening reads the Balance afresh.
  *
  * MCP Access and Delete account are on the Profile page, one tap away via
  * the identity row, rather than in this sheet.
@@ -46,6 +53,7 @@ export default function MobileAccountMenu() {
     themeMode,
     setThemeMode,
     openProfile,
+    openCredits,
     openLogin,
     logout,
   } = useAccountActions();
@@ -124,7 +132,7 @@ export default function MobileAccountMenu() {
             >
               <SheetTitle className="sr-only">Account</SheetTitle>
               <SheetDescription className="sr-only">
-                Your profile, appearance and sign out
+                Your profile, credits, appearance and sign out
               </SheetDescription>
 
               <SheetRow
@@ -132,6 +140,15 @@ export default function MobileAccountMenu() {
                 title={name || "Signed in"}
                 subtitle={email}
                 onClick={run(openProfile)}
+              />
+
+              <SheetRow
+                icon={Coins}
+                title={CREDITS_TITLE}
+                trailing={
+                  <CreditsFigure className="text-[14px] font-medium text-slate-500 dark:text-slate-400" />
+                }
+                onClick={run(openCredits)}
               />
 
               <p className="mt-3.5 text-[10px] font-semibold tracking-[0.07em] text-slate-400 uppercase">
@@ -162,11 +179,14 @@ function SheetRow({
   icon: Icon,
   title,
   subtitle,
+  trailing,
   onClick,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle?: string | null;
+  /** A value drawn before the arrow — the Credits row's Balance. */
+  trailing?: React.ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -187,6 +207,7 @@ function SheetRow({
           </span>
         )}
       </span>
+      {trailing}
       <ChevronRight
         size={18}
         className="shrink-0 text-slate-400"

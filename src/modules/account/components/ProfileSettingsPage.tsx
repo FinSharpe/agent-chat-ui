@@ -6,13 +6,13 @@ import OverlayColumn from "@/components/shared/OverlayColumn";
 import { useAccountUser } from "../hooks/useAccountUser";
 import { InfoRow, MintBadge, SignOutButton } from "./shared/AccountKit";
 import {
+  AccountDestinationsSection,
   DeleteAccountSection,
-  McpAccessSection,
 } from "./shared/AccountActionRows";
 
 /**
- * The only account screen left (T-02): who is signed in, MCP Access, sign
- * out and — last, drawn destructive but quiet — Delete account.
+ * The only account screen left (T-02): who is signed in, Credits and MCP
+ * Access, sign out and — last, drawn destructive but quiet — Delete account.
  *
  * Everything the old Account Settings modal showed beside this — usage,
  * billing, security, token and subscription figures — was invented, so it was
@@ -92,7 +92,7 @@ export default function ProfileSettingsPage({
             />
           </div>
 
-          <McpAccessSection onLeave={onClose} />
+          <AccountDestinationsSection onLeave={onClose} />
 
           <SignOutButton
             onClick={signOut}

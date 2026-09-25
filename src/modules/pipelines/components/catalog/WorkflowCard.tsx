@@ -2,7 +2,9 @@
 
 import { Play, Workflow } from "lucide-react";
 
-import { creditsLabel, pipelineKindLabel } from "../../constants/presentation";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { priceLabel } from "@/modules/credits/utils/format";
+import { pipelineKindLabel } from "../../constants/presentation";
 import type { CatalogEntry } from "../../types/pipelines.types";
 import { stepsAreOrdered } from "../../utils/target";
 import { Chip } from "../shared/kit";
@@ -29,7 +31,7 @@ export function WorkflowCard({
     <div className="space-y-2.5 p-4.5">
       <div className="flex items-center gap-1.5">
         <Chip tone="blue">{pipelineKindLabel(entry.target_kind)}</Chip>
-        <Chip tone="amber">{creditsLabel(entry.price_credits)}</Chip>
+        <Chip tone="amber">{priceLabel(entry.price_minor)}</Chip>
       </div>
       <div className="space-y-1">
         <h3 className="font-geist text-[13px] leading-snug font-medium text-[#0A1F4D] dark:text-white">

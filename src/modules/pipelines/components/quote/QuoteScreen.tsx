@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import FeatureHeader from "@/components/discover/FeatureHeader";
 import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { balanceLabel, priceLabel } from "@/modules/credits/utils/format";
 import { PipelineApiError } from "../../api/pipelines-client";
-import { creditsLabel, pipelineKindLabel } from "../../constants/presentation";
+import { pipelineKindLabel } from "../../constants/presentation";
 import { researchRoutes } from "../../constants/routes";
 import {
   usePipelineCatalog,
@@ -17,6 +19,7 @@ import {
   usePurchasePipeline,
 } from "../../hooks/usePipelineQueries";
 import { quoteErrorCopy, workflowErrorCopy } from "../../utils/errors";
+import { purchaseRefusalOf } from "../../utils/purchase-refusal";
 import {
   isMarketTarget,
   needsSymbol,
@@ -51,6 +54,12 @@ import { TargetField } from "./TargetField";
  * A market Pipeline arrives with no symbol and quotes anyway; what the screen
  * shows keys off the *resolved* target the quote came back with, since the
  * server decided what this Run is about.
+ *
+ * Money is in hundredths on the wire (#251): the price prints whole, the
+ * Balance to two decimals and in rose when it does not cover the price, and
+ * affordability is the server's `can_afford` / `shortfall_minor`. The purchase
+ * repeats the quoted price, and each structured refusal re-draws this screen
+ * rather than raising a toast (#280) — see `utils/purchase-refusal.ts`.
  */
 export function QuoteScreen({
   pipelineId,
@@ -81,10 +90,18 @@ export function QuoteScreen({
   });
 
   const data = quote.data;
-  const price = data?.price_credits ?? entry?.price_credits ?? 0;
-  const balance = data?.balance_credits ?? 0;
-  const shortfall = Math.max(0, price - balance);
-  const canAfford = !!data && shortfall === 0;
+  // The quote's price once it is in — after a 409 it is the new one, while
+  // the catalog may still hold the old — and the catalog's until then.
+  const priceMinor = data?.price_minor ?? entry?.price_minor;
+  const canAfford = !!data && data.can_afford;
+  // The last purchase's refusal, only while it is about the quote on screen:
+  // picking another stock keeps this screen mounted, and a refusal for the
+  // old one must not be said about the new one.
+  const refused =
+    purchase.variables?.pipelineId === pipelineId &&
+    purchase.variables?.symbol === symbol
+      ? purchaseRefusalOf(purchase.error)
+      : null;
   // Server truth, not the route: the quote came back with the target the Run
   // will actually use, and a market one carries no symbol at all.
   const label = targetLabel(data?.target);
@@ -109,11 +126,13 @@ export function QuoteScreen({
   const close = () => router.push(researchRoutes.catalog);
 
   async function onPurchase() {
+    if (!data) return;
     try {
       const receipt = await purchase.purchaseOnce({
         pipelineId,
         symbol,
         threadId,
+        priceMinor: data.price_minor,
       });
       if (!receipt) return; // a second click; the first one navigates
       // Replaced, not pushed: going back from the run should not land on a
@@ -124,6 +143,10 @@ export function QuoteScreen({
           : researchRoutes.run(receipt.run_id, label),
       );
     } catch (error) {
+      // A structured refusal is drawn on the screen: the quote re-drawn
+      // short or at its new price, or the unavailable line. Only what the
+      // server did not explain is a toast.
+      if (purchaseRefusalOf(error)) return;
       toast.error(
         error instanceof PipelineApiError
           ? error.message
@@ -132,9 +155,10 @@ export function QuoteScreen({
     }
   }
 
-  const subtitle = entry
-    ? `${pipelineKindLabel(entry.target_kind)} · ${creditsLabel(entry.price_credits)}`
-    : undefined;
+  const subtitle =
+    entry && priceMinor !== undefined
+      ? `${pipelineKindLabel(entry.target_kind)} · ${priceLabel(priceMinor)}`
+      : undefined;
 
   const workflowCopy = workflowErrorCopy(catalogError ?? undefined);
   const quoteCopy = quoteErrorCopy(quote.error, symbol);
@@ -216,8 +240,15 @@ export function QuoteScreen({
               {data && (
                 <StatStrip
                   stats={[
-                    { label: "Price", value: creditsLabel(price) },
-                    { label: "Your Balance", value: creditsLabel(balance) },
+                    { label: "Price", value: priceLabel(data.price_minor) },
+                    {
+                      label: "Your Balance",
+                      // As it is, below zero included — never floored.
+                      value: balanceLabel(data.balance_minor),
+                      // Rose whenever it does not cover the price, as #231
+                      // frame 8 draws it: 3.40 against 10 as well as −13.10.
+                      negative: !data.can_afford,
+                    },
                     // A stock report's subject is already on the field above,
                     // so its slot says how much of the report will run instead.
                     isMarket
@@ -251,7 +282,7 @@ export function QuoteScreen({
                 <QuoteDetails
                   quote={data}
                   subject={isMarket ? "market" : "stock"}
-                  shortfall={shortfall}
+                  refusal={refused?.kind ?? null}
                 />
               )}
             </>

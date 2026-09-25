@@ -7,8 +7,17 @@
 
 /**
  * The receipt: which Purchase, which Run, what it cost.
+
+`balance_minor` is the Balance after this Purchase, and `can_afford` /
+`shortfall_minor` judge *that* Balance against the price — whether the
+same report could be bought again.
  */
 export interface PurchaseResponse {
+  price_minor: number;
+  balance_minor: number;
+  charged_minor: number;
+  can_afford: boolean;
+  shortfall_minor: number;
   purchase_id: string;
   run_id: string;
   run_status: string;

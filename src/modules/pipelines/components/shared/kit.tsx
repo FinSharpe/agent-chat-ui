@@ -54,7 +54,14 @@ export function Label({
 export function StatStrip({
   stats,
 }: {
-  stats: { label: string; value: ReactNode; accent?: boolean }[];
+  stats: {
+    label: string;
+    value: ReactNode;
+    accent?: boolean;
+    /** Drawn in rose: a figure that stands against the reader — the quote's
+     *  Balance when it does not cover the price. */
+    negative?: boolean;
+  }[];
 }) {
   return (
     <div className="grid grid-cols-3 divide-x divide-slate-100 border-y border-slate-100 dark:divide-slate-800/60 dark:border-slate-800/60">
@@ -66,7 +73,11 @@ export function StatStrip({
           <p
             className={cn(
               "font-geist truncate text-sm font-medium",
-              stat.accent ? "text-[#0A9E6E]" : "text-[#0A1F4D] dark:text-white",
+              stat.negative
+                ? "text-rose-500 dark:text-rose-400"
+                : stat.accent
+                  ? "text-[#0A9E6E]"
+                  : "text-[#0A1F4D] dark:text-white",
             )}
           >
             {stat.value}

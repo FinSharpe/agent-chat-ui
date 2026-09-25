@@ -12,6 +12,8 @@ import {
   useChatSubmit,
   usePendingPromptHandoff,
 } from "@/modules/chat";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { useRefreshCreditsOnCarrier } from "@/modules/credits/hooks/useCredits";
 import { useChatConnection, useStreamContext } from "@/providers/Stream";
 import { ArrowDown, Paperclip } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -107,6 +109,10 @@ export function Thread() {
   const messages = stream.messages;
   const isLoading = stream.isLoading;
   const isEmpty = !threadId && messages.length === 0;
+
+  // A turn's Charge (or a refusal) lands as a `credits` carrier on its
+  // answer; the Balance on the account surfaces is read again when it does.
+  useRefreshCreditsOnCarrier(messages);
 
   // The thread itself carries the failure and the Retry; this toast only makes
   // sure it is noticed when the user has scrolled away from it. Deliberately

@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
-import { LogIn, LogOut, Moon, Sun, User } from "lucide-react";
+import { Coins, LogIn, LogOut, Moon, Sun, User } from "lucide-react";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { CreditsFigure } from "@/modules/credits/components/CreditsFigure";
+import { CREDITS_TITLE } from "@/modules/credits/constants/copy";
 import { useAccountActions } from "../hooks/useAccountActions";
 
 /**
@@ -9,6 +12,10 @@ import { useAccountActions } from "../hooks/useAccountActions";
  * screen: the theme switch sits on its own row, and the identity row carries
  * the name (opens Profile) plus a logout button of its own. MCP Access and
  * Delete account live on the Profile page.
+ *
+ * Signed in, a Credits row leads the block — "Credits", the Balance trailing,
+ * opening the Credits page (#231 decision 8, finsharpe-agents#280). The
+ * collapsed rail keeps it as an icon.
  *
  * Signed out, the identity row becomes a Login button.
  */
@@ -67,6 +74,7 @@ export default function SidebarAccountFooter({
     themeMode,
     toggleThemeMode,
     openProfile,
+    openCredits,
     openLogin,
     logout,
   } = useAccountActions();
@@ -76,6 +84,16 @@ export default function SidebarAccountFooter({
   if (collapsed) {
     return (
       <div className="w-full shrink-0 space-y-1 px-2 pb-2">
+        {signedIn && (
+          <button
+            onClick={openCredits}
+            title={CREDITS_TITLE}
+            aria-label={CREDITS_TITLE}
+            className="rounded-tile hover-tint flex h-10 w-full items-center justify-center text-slate-400 transition-colors hover:text-[#063BAA]"
+          >
+            <Coins size={19} />
+          </button>
+        )}
         <button
           onClick={toggleThemeMode}
           title={dark ? "Switch to light mode" : "Switch to dark mode"}
@@ -119,6 +137,22 @@ export default function SidebarAccountFooter({
 
   return (
     <div className="shrink-0 space-y-0.5 p-2">
+      {signedIn && (
+        <button
+          onClick={openCredits}
+          className={`${ROW} h-10 text-[#0A1F4D] dark:text-slate-300`}
+        >
+          <Coins
+            size={20}
+            strokeWidth={2}
+          />
+          <span className="flex-1 text-[13.5px] font-medium">
+            {CREDITS_TITLE}
+          </span>
+          <CreditsFigure className="text-[13px] font-medium text-slate-500 dark:text-slate-400" />
+        </button>
+      )}
+
       <button
         onClick={toggleThemeMode}
         aria-pressed={dark}

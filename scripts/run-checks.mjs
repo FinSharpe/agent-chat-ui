@@ -9,6 +9,7 @@
  *   pnpm check                      every suite
  *   pnpm check:chat-handoffs        Import hand-offs send the request (#85)
  *   pnpm check:citations            filings citations (finsharpe-agents#66)
+ *   pnpm check:credits              Balance, History and the quote (agents#280)
  *   pnpm check:day-move             the net-worth card's day move, after mobile
  *   pnpm check:portfolio-connect    the chat's connect card (#79)
  *   pnpm check:smart-alerts         Import Smart Alerts by class (#86)
@@ -24,6 +25,7 @@ import { join } from "node:path";
 const SUITES = [
   "chat-handoffs",
   "citations",
+  "credits",
   "day-move",
   "model-pin",
   "portfolio-connect",

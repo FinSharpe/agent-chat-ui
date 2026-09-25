@@ -149,6 +149,25 @@ export default defineConfig({
       },
     },
   },
+  "credits-apis": {
+    input: {
+      target: "./openapi-credits.json",
+    },
+    output: {
+      mode: "tags-split",
+      target: "./src/api/generated/credits-apis",
+      schemas: "./src/api/generated/credits-apis/models",
+      client: "react-query",
+      httpClient: "fetch",
+      mock: false,
+      clean: true,
+      prettier: true,
+      baseUrl: "/api/utilities",
+      override: {
+        useDates: false,
+      },
+    },
+  },
   "mcp-apis": {
     input: {
       target: "./openapi-mcp.json",

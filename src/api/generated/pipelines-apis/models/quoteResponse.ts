@@ -12,6 +12,11 @@ import type { CoverageGapNotice } from "./coverageGapNotice";
  * Everything a user sees before paying.
  */
 export interface QuoteResponse {
+  price_minor: number;
+  balance_minor: number;
+  charged_minor: number;
+  can_afford: boolean;
+  shortfall_minor: number;
   pipeline_id: string;
   pipeline_version: number;
   target: QuoteResponseTarget;

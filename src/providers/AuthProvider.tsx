@@ -13,6 +13,7 @@ import {
 import type { UserResponse } from "@/api/generated/auth-apis/models";
 import { isPublicPage } from "@/lib/auth/public-paths";
 import { readUserInfoCookie, writeUserInfoCookie } from "@/lib/auth/user-info";
+import { clearPersistedQueryCache } from "@/lib/query-persistence";
 import { AUTH_ROUTES } from "@/modules/auth/constants/routes";
 
 /**
@@ -243,7 +244,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      // This browser's copy of connected financial data goes whatever the
+      // request did, so a sign-out that fails part-way leaves none behind.
+      await clearPersistedQueryCache();
+    }
     setUser(null);
     setStatus("signed-out");
     // Signing out returns to the Welcome screen, as in the reference flow.

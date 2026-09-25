@@ -1,11 +1,10 @@
 "use client";
 
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { del, get, set } from 'idb-keyval';
 import { useState } from 'react';
+import { createQueryPersister } from '@/lib/query-persistence';
 
 type QueryProviderProps = {
     children: React.ReactNode;
@@ -63,16 +62,9 @@ export function QueryProvider({ children }: QueryProviderProps) {
         return client;
     });
 
-    const [persister] = useState(() =>
-        createAsyncStoragePersister({
-            storage: {
-                getItem: async (key) => await get(key),
-                setItem: async (key, value) => await set(key, value),
-                removeItem: async (key) => await del(key),
-            },
-            throttleTime: 1000, // Throttle persistence writes to once per second
-        })
-    );
+    // IndexedDB, through the one module that can also clear it: signing out
+    // and deleting the account must leave no financial data behind.
+    const [persister] = useState(createQueryPersister);
 
     return (
         <PersistQueryClientProvider

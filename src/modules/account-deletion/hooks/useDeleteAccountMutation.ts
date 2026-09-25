@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import { clearPersistedQueryCache } from "@/lib/query-persistence";
 import { extractApiError } from "@/modules/auth/utils/extract-api-error";
 import { DELETE_ACCOUNT_PATH, SUPPORT_EMAIL } from "../constants/content";
 
@@ -53,6 +54,19 @@ async function deleteAccount(): Promise<void> {
   );
 }
 
+/**
+ * This browser's copy of connected financial data goes whatever the request
+ * did, so a deletion that fails part-way, or whose answer never arrives,
+ * still leaves none behind here.
+ */
+async function deleteAccountAndClearCache(): Promise<void> {
+  try {
+    await deleteAccount();
+  } finally {
+    await clearPersistedQueryCache();
+  }
+}
+
 /** Forget what this browser kept for the account. Storage may be blocked. */
 function clearBrowserStorage() {
   try {
@@ -69,12 +83,13 @@ function clearBrowserStorage() {
 
 /**
  * Deletes the signed-in account through the BFF, which also clears the session
- * cookies. On success the page reloads into its "deleted" state, so no
- * in-memory user or query cache outlives the account.
+ * cookies. The persisted query cache is cleared on every outcome; on success
+ * local and session storage are cleared too and the page reloads into its
+ * "deleted" state, so no in-memory user or query cache outlives the account.
  */
 export function useDeleteAccountMutation() {
   return useMutation<void, DeleteAccountError>({
-    mutationFn: deleteAccount,
+    mutationFn: deleteAccountAndClearCache,
     onSuccess: () => {
       clearBrowserStorage();
       window.location.replace(`${DELETE_ACCOUNT_PATH}?deleted=1`);

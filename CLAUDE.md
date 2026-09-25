@@ -141,6 +141,7 @@ src/modules/
 
 - The policy copy lives in `constants/content.ts` and mirrors finsharpe-mobile `docs/legal/delete-account.md`; change the two together. Play checks the page names the app and developer, gives the deletion steps, and says what is deleted and what is kept for how long.
 - `DeleteAccountPanel` adds the web deletion path for a signed-in visitor: type DELETE to confirm, then `useDeleteAccountMutation` calls `DELETE /api/auth/me`, which proxies to the backend's `DELETE /auth/me` (finsharpe-agents#210) and clears the auth cookies on `204`. Every other status leaves the account and the session untouched, so the dialog stays open with the reason.
+- Deleting the account, and signing out (`AuthProvider`'s `logout`), clear the persisted query cache — the IndexedDB copy of connected financial data — once the request settles, whatever its outcome (finsharpe-agents#283). The copy is kept only while the `user_info` cookie says someone is signed in: another open tab cannot write it back, and a page that starts signed out removes any copy it finds. `src/lib/query-persistence.ts` builds the persister and clears it, and is the only module that may reach IndexedDB. Checks: `pnpm check:fi-cache`.
 
 ### shell module
 `src/modules/shell/` is the signed-in frame: `AppViewport`, `AppShell`, the desktop `WebSidebar` (nav, New chat, chat history with search/rename/delete; collapsible to an icon rail) and the mobile `ChatHistoryDrawer`.

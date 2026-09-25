@@ -3,6 +3,7 @@ import Link from "next/link";
 import WelcomeFooter from "@/modules/welcome/components/shared/WelcomeFooter";
 import GradientBackground from "@/modules/welcome/components/shared/GradientBackground";
 import {
+  AI_PROVIDERS_NOTE,
   APP_NAME,
   BACKUP_ROLLOVER_PERIOD,
   DELETION_EMAIL_SUBJECT,
@@ -120,10 +121,7 @@ export default function DeleteAccountPage({
             id="kept"
             title="What we keep, and for how long"
           >
-            <p>
-              We keep only what the law requires us to keep, and use it for
-              nothing else:
-            </p>
+            <p>Some records outlive your account:</p>
             <ul className="list-disc space-y-2 pl-5">
               {KEPT_RECORDS.map((record) => (
                 <li key={record}>{record}</li>
@@ -135,6 +133,7 @@ export default function DeleteAccountPage({
                 {BACKUP_ROLLOVER_PERIOD}.
               </p>
             )}
+            <p>{AI_PROVIDERS_NOTE}</p>
           </PolicySection>
 
           <PolicySection

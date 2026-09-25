@@ -38,7 +38,7 @@ const NO_FORECAST =
   "carries no price target and no listing-gain estimate. Not investment " +
   "advice.";
 
-const FALLBACK_TITLE = "Issue analysis";
+const FALLBACK_TITLE = "IPO analysis";
 
 export function IpoInsightView({
   fincode,

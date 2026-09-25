@@ -1,16 +1,25 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, Plug, Trash2, type LucideIcon } from "lucide-react";
+import {
+  ChevronRight,
+  Coins,
+  Plug,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { CREDITS_TITLE } from "@/modules/credits/constants/copy";
 // By file path, not "@/modules/shell": the shell's index re-exports AppShell,
 // which imports the Profile overlay — a cycle.
 import { useAccountActions } from "@/modules/shell/hooks/useAccountActions";
 
 /**
- * The two account destinations that used to sit in the shell's nav: MCP
- * Access, and Delete account at the page's foot, destructive but quiet. Both
- * leave the Profile overlay, so it is closed first — otherwise its store flag
- * would still be set and reopen it on the way back.
+ * The account destinations that used to sit in the shell's nav: Credits and
+ * MCP Access side by side (Credits above, as #231 placed it), and Delete
+ * account at the page's foot, destructive but quiet. Each leaves the Profile
+ * overlay, so it is closed first — otherwise its store flag would still be
+ * set and reopen it on the way back.
  */
 function useLeave(onLeave: () => void) {
   return (action: () => void) => () => {
@@ -27,13 +36,32 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function McpAccessSection({ onLeave }: { onLeave: () => void }) {
-  const { openMcpAccess } = useAccountActions();
+/**
+ * Credits beside MCP Access, in one card. The label reads "Account" now that
+ * the card holds more than a connection (it read "Connections" when MCP
+ * Access was its only row).
+ *
+ * The Credits row is a link to the Credits page and carries no figure: the
+ * Balance shows in the sidebar footer and the phone account sheet only
+ * (owner, 2026-09-25).
+ */
+export function AccountDestinationsSection({
+  onLeave,
+}: {
+  onLeave: () => void;
+}) {
+  const { openCredits, openMcpAccess } = useAccountActions();
   const leave = useLeave(onLeave);
   return (
     <section>
-      <SectionLabel>Connections</SectionLabel>
+      <SectionLabel>Account</SectionLabel>
       <div className="glass-card rounded-card px-2 py-1">
+        <ActionRow
+          icon={Coins}
+          title={CREDITS_TITLE}
+          subtitle="Your balance, history and requests"
+          onClick={leave(openCredits)}
+        />
         <ActionRow
           icon={Plug}
           title="MCP Access"

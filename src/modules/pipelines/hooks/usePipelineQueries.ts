@@ -7,7 +7,12 @@
  * or a share change refreshes every list that could have gone stale.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -22,9 +27,15 @@ import {
   purchasePipeline,
   revokeShare,
 } from "../api/pipelines-client";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { refreshCredits } from "@/modules/credits/hooks/useCredits";
 import { searchStocks } from "../api/stock-search";
-import { isRunTerminal } from "../types/pipelines.types";
+import { isRunTerminal, type QuoteResponse } from "../types/pipelines.types";
 import { isAnswered } from "../utils/errors";
+import {
+  purchaseRefusalOf,
+  quoteAfterRefusal,
+} from "../utils/purchase-refusal";
 
 /**
  * Retry only what could plausibly come good on its own: a network error or a
@@ -41,6 +52,8 @@ function retryTransient(failureCount: number, error: unknown): boolean {
 export const pipelineKeys = {
   all: ["pipelines"] as const,
   catalog: () => ["pipelines", "catalog"] as const,
+  quote: (pipelineId: string, symbol: string | null) =>
+    ["pipelines", "quote", pipelineId, symbol] as const,
   run: (runId: string) => ["pipelines", "run", runId] as const,
   report: (runId: string) => ["pipelines", "report", runId] as const,
   purchases: () => ["pipelines", "purchases"] as const,
@@ -111,7 +124,7 @@ export function usePipelineQuote(
   { enabled }: { enabled: boolean },
 ) {
   return useQuery({
-    queryKey: ["pipelines", "quote", pipelineId, symbol] as const,
+    queryKey: pipelineKeys.quote(pipelineId, symbol),
     queryFn: () => fetchQuote(pipelineId, symbol),
     enabled,
     // A quote carries a live balance and a live vintage; never serve a stale
@@ -124,10 +137,41 @@ export function usePipelineQuote(
   });
 }
 
-interface PurchaseVars {
+export interface PurchaseVars {
   pipelineId: string;
   symbol: string | null;
   threadId?: string | null;
+  /** The quoted price, repeated so a moved price is refused (R19). */
+  priceMinor?: number | null;
+}
+
+/**
+ * A refusal re-draws the quote from what the refusal carries: the Balance a
+ * 402 read, or the fresh quote a 409 sent. When it carries nothing to draw
+ * from, the quote is asked again instead. A 503 changes nothing — the quote
+ * on screen is still true; purchases are just off for now.
+ *
+ * Returns the refusal it applied, or null for an error that is not one.
+ */
+export function applyPurchaseRefusal(
+  queryClient: QueryClient,
+  vars: Pick<PurchaseVars, "pipelineId" | "symbol">,
+  error: unknown,
+) {
+  const refusal = purchaseRefusalOf(error);
+  if (!refusal || refusal.kind === "unavailable") return refusal;
+  const key = pipelineKeys.quote(vars.pipelineId, vars.symbol);
+  const next = quoteAfterRefusal(
+    queryClient.getQueryData<QuoteResponse>(key),
+    refusal,
+  );
+  if (next) queryClient.setQueryData(key, next);
+  else void queryClient.invalidateQueries({ queryKey: key });
+  // The catalog prices every card; a moved price has moved there too.
+  if (refusal.kind === "price_changed") {
+    void queryClient.invalidateQueries({ queryKey: pipelineKeys.catalog() });
+  }
+  return refusal;
 }
 
 export function usePurchasePipeline() {
@@ -139,9 +183,23 @@ export function usePurchasePipeline() {
 
   const mutation = useMutation({
     mutationFn: (vars: PurchaseVars) =>
-      purchasePipeline(vars.pipelineId, vars.symbol, vars.threadId),
+      purchasePipeline(
+        vars.pipelineId,
+        vars.symbol,
+        vars.threadId,
+        vars.priceMinor,
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pipelineKeys.purchases() });
+    },
+    onError: (error, vars) => {
+      applyPurchaseRefusal(queryClient, vars, error);
+    },
+    // Whatever the answer, the Balance on the account surfaces may have
+    // moved (a debit, or the starting grant a first read lands), so it is
+    // read again. Only a mounted figure refetches.
+    onSettled: () => {
+      void refreshCredits(queryClient);
     },
   });
 

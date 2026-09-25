@@ -3,6 +3,7 @@
 import { useFileUpload } from "@/hooks/use-file-upload";
 import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { PageLoaderSwitch } from "@/components/shared/PageLoader";
+import { streamErrorToast } from "@/lib/stream-error";
 import { cn } from "@/lib/utils";
 import {
   ChatComposer,
@@ -12,6 +13,8 @@ import {
   useChatSubmit,
   usePendingPromptHandoff,
 } from "@/modules/chat";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { useRefreshCreditsOnCarrier } from "@/modules/credits/hooks/useCredits";
 import { useChatConnection, useStreamContext } from "@/providers/Stream";
 import { ArrowDown, Paperclip } from "lucide-react";
 import { useQueryState } from "nuqs";
@@ -108,10 +111,15 @@ export function Thread() {
   const isLoading = stream.isLoading;
   const isEmpty = !threadId && messages.length === 0;
 
+  // A turn's Charge (or a refusal) lands as a `credits` carrier on its
+  // answer; the Balance on the account surfaces is read again when it does.
+  useRefreshCreditsOnCarrier(messages);
+
   // The thread itself carries the failure and the Retry; this toast only makes
   // sure it is noticed when the user has scrolled away from it. Deliberately
   // no status code, no error text and no deployment URL — the raw error is
-  // logged for developers in StreamSession's onError.
+  // logged for developers in StreamSession's onError. A guardrail outage or
+  // the credits pause says so, in the same words as the thread (#282).
   const lastError = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!stream.error) {
@@ -123,9 +131,9 @@ export function Thread() {
       String(stream.error);
     if (lastError.current === signature) return;
     lastError.current = signature;
-    toast.error("FinSharpe GPT couldn't answer that", {
-      description:
-        "The connection dropped before the answer came through. Use Retry in the chat to send it again.",
+    const { title, description } = streamErrorToast(stream.error);
+    toast.error(title, {
+      description,
       richColors: true,
       closeButton: true,
     });

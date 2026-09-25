@@ -4,6 +4,7 @@ import { AIMessage, Checkpoint, Message } from "@langchain/langgraph-sdk";
 import { Fragment, useMemo } from "react";
 import { useHideToolCalls } from "@/hooks/useDefaultApiValues";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/lib/ensure-tool-responses";
+import { streamErrorVariant } from "@/lib/stream-error";
 import {
   connectCardMessages,
   getPortfolioConnect,
@@ -111,13 +112,14 @@ export function MessageList({
     (m) => m.type === "ai" || m.type === "tool",
   );
   const last = messages[messages.length - 1];
-  // Which failure the user is looking at: nothing came back at all, an answer
-  // was cut off part-way, or the conversation never loaded.
-  const errorVariant: StreamErrorVariant = !last
-    ? "load"
-    : last.type === "human"
-      ? "send"
-      : "interrupted";
+  // Which failure the user is looking at: the agents could not take the turn
+  // just now (a guardrail outage or the credits pause, read off the error's
+  // class name, finsharpe-agents#282), nothing came back at all, an answer was
+  // cut off part-way, or the conversation never loaded.
+  const errorVariant: StreamErrorVariant = streamErrorVariant(
+    stream.error,
+    last,
+  );
   const renderPart = (part: TurnPart) => {
     if (part.kind === "tools") return null;
     const message = part.message;

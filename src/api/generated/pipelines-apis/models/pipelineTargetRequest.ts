@@ -6,6 +6,7 @@
  */
 import type { PipelineTargetRequestSymbol } from "./pipelineTargetRequestSymbol";
 import type { PipelineTargetRequestThreadId } from "./pipelineTargetRequestThreadId";
+import type { PipelineTargetRequestPriceMinor } from "./pipelineTargetRequestPriceMinor";
 
 /**
  * Body of quote and purchase: the target the user is asking about.
@@ -17,4 +18,5 @@ with anything beyond the symbol.
 export interface PipelineTargetRequest {
   symbol?: PipelineTargetRequestSymbol;
   thread_id?: PipelineTargetRequestThreadId;
+  price_minor?: PipelineTargetRequestPriceMinor;
 }

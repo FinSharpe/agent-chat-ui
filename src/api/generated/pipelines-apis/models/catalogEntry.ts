@@ -8,9 +8,14 @@ import type { PipelineTargetKind } from "./pipelineTargetKind";
 import type { CatalogStep } from "./catalogStep";
 
 /**
- * One Pipeline as the catalog presents it.
+ * One Pipeline as the catalog presents it, priced against the caller.
  */
 export interface CatalogEntry {
+  price_minor: number;
+  balance_minor: number;
+  charged_minor: number;
+  can_afford: boolean;
+  shortfall_minor: number;
   id: string;
   version: number;
   name: string;

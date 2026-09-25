@@ -7,7 +7,8 @@ import FeatureHeader from "@/components/discover/FeatureHeader";
 import { PageLoaderSwitch } from "@/components/shared/PageLoader";
 import SectionErrorState from "@/components/shared/SectionErrorState";
 import { BANNER_WAVE, SectionBanner } from "@/components/shared/SectionKit";
-import { creditsLabel } from "../../constants/presentation";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { priceLabel } from "@/modules/credits/utils/format";
 import { researchRoutes } from "../../constants/routes";
 import { usePipelineCatalog } from "../../hooks/usePipelineQueries";
 import type { CatalogEntry } from "../../types/pipelines.types";
@@ -20,7 +21,7 @@ import { WorkflowCard } from "./WorkflowCard";
 function catalogStats(catalog: CatalogEntry[] | undefined) {
   const entries = catalog ?? [];
   const steps = entries.map((entry) => entry.steps?.length ?? 0);
-  const prices = entries.map((entry) => entry.price_credits);
+  const prices = entries.map((entry) => entry.price_minor);
   const avgSteps = steps.length
     ? Math.round(steps.reduce((sum, n) => sum + n, 0) / steps.length)
     : 0;
@@ -28,7 +29,7 @@ function catalogStats(catalog: CatalogEntry[] | undefined) {
     { label: "Pipelines", value: catalog ? `${entries.length}` : "—" },
     {
       label: "Starting At",
-      value: prices.length ? creditsLabel(Math.min(...prices)) : "—",
+      value: prices.length ? priceLabel(Math.min(...prices)) : "—",
     },
     { label: "Avg Steps", value: catalog ? `${avgSteps}` : "—" },
   ];

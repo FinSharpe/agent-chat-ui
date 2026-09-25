@@ -1,6 +1,13 @@
 "use client";
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import {
+  BRIEFLY_UNAVAILABLE_BODY,
+  BRIEFLY_UNAVAILABLE_HEADING,
+  type StreamErrorVariant,
+} from "@/lib/stream-error";
+
+export type { StreamErrorVariant } from "@/lib/stream-error";
 
 /**
  * What the thread shows when a run fails (T-10 item 5).
@@ -12,16 +19,17 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
  * Treatment follows `@/components/shared/SectionErrorState` — amber mark,
  * heading, one supporting line, one retry — shaped like an assistant bubble so
  * it reads as the turn that did not arrive.
+ *
+ * The variant is chosen by `streamErrorVariant` (`@/lib/stream-error`): from
+ * the error's class name when the agents named an outage or the credits pause
+ * ("unavailable", finsharpe-agents#282), otherwise from where the thread
+ * stopped. The server's message is never shown.
  */
-export type StreamErrorVariant =
-  /** The message never reached the assistant: nothing came back at all. */
-  | "send"
-  /** An answer had started and the connection dropped part-way through. */
-  | "interrupted"
-  /** The conversation itself could not be loaded. */
-  | "load";
-
 const COPY: Record<StreamErrorVariant, { heading: string; body: string }> = {
+  unavailable: {
+    heading: BRIEFLY_UNAVAILABLE_HEADING,
+    body: BRIEFLY_UNAVAILABLE_BODY,
+  },
   send: {
     heading: "Your message didn't get through",
     body: "We couldn't reach FinSharpe GPT just now. Nothing was lost — send it again in a moment.",
@@ -48,6 +56,7 @@ export function StreamErrorState({
   return (
     <div
       role="alert"
+      data-stream-error={variant}
       className="font-funnel animate-fade-in flex w-full items-start"
     >
       <div className="rounded-nested max-w-[92%] min-w-0 rounded-tl-xs border border-amber-100 bg-amber-50/80 p-4.5 dark:border-amber-500/20 dark:bg-amber-500/10">

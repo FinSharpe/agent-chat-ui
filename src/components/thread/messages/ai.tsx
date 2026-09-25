@@ -29,6 +29,8 @@ import { GenericInterruptView } from "./generic-interrupt";
 import { ScannerApprovalInterruptView } from "./scanner-approval-interrupt";
 import { BranchSwitcher, CommandBar } from "./shared";
 import { HearOutputCard } from "@/modules/chat";
+// By file path, not "@/modules/credits": the barrel carries the Credits page.
+import { TurnCredits } from "@/modules/credits/components/TurnCredits";
 
 function CustomComponent({
   message,
@@ -329,6 +331,10 @@ export function AssistantMessage({
     <CitationProvider>
       <div className="animate-fade-in flex w-full flex-col gap-3 empty:hidden">
         {answerCard}
+        {/* The answer's `credits` carrier (#282): the charge label, or the
+            Short Balance notice beside a refusal — under the card, outside
+            the bubble, never in the hover-only CommandBar. */}
+        {message && <TurnCredits message={message} />}
         {customComponents}
         {interrupt}
         {showHearOutput && (

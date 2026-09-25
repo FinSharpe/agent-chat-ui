@@ -18,6 +18,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "node scripts/run-checks.mjs",
+    "check:chat-errors": "node scripts/run-checks.mjs chat-errors",
     "check:chat-handoffs": "node scripts/run-checks.mjs chat-handoffs",
     "check:citations": "node scripts/run-checks.mjs citations",
     "check:credits": "node scripts/run-checks.mjs credits",

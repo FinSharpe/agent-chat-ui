@@ -84,6 +84,18 @@ export const HISTORY_ERROR_TITLE = "Couldn't load your history";
 export const OLDER_ERROR_TITLE = "Couldn't load older entries";
 
 /* -------------------------------------------------------------------------- */
+/* In chat (finsharpe-agents#282)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The charge label's accessible name: what the figure under an answer is,
+ * for a screen reader's links list. It contains the visible label.
+ */
+export function chargeLabelName(label: string): string {
+  return `This answer used ${label}`;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The Pipeline quote (#229 copy, web)                                         */
 /* -------------------------------------------------------------------------- */
 

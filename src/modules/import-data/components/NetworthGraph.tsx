@@ -2,6 +2,8 @@
 import { ArrowRight } from "lucide-react";
 import { formatINRShort } from "../utils/inr";
 import { formatLastUpdated } from "../utils/date-formatting";
+import { dayMoveLine, dayMovePill } from "../utils/day-move";
+import { shortDate } from "./modals/HoldingsPreviewModal/components/analysis/format";
 import { ConsentType } from "@/modules/import-data/types/consent-type";
 import {
   useNetworthData,
@@ -42,9 +44,8 @@ const SYNCING_HATCH =
 /**
  * "My net worth" — finsharpe-mobile's portfolio summary card
  * (`portfolio_tab.dart` `_SummaryCard`), driven by the live MoneyOne data
- * aggregated in useNetworthData. Where mobile shows today's move we show the
- * unrealised gain on the accounts that report a cost basis: there is no day
- * move on the web yet.
+ * aggregated in useNetworthData: the total, today's move of the invested book
+ * (`utils/day-move.ts`) and the split by class.
  */
 export function NetworthGraph({ onConnect }: { onConnect?: () => void }) {
   const nw = useNetworthData();
@@ -78,26 +79,29 @@ export function NetworthGraph({ onConnect }: { onConnect?: () => void }) {
 
 function NetworthSummary({ nw }: { nw: NetworthData }) {
   const syncing = nw.syncingCount > 0;
-  const gain = nw.invested > 0 ? nw.investedCurrent - nw.invested : null;
-  const gainPct = gain != null ? (gain / nw.invested) * 100 : null;
+  // Only once every class is in: a move over part of the book would be quoted
+  // as the whole of it.
+  const move = syncing ? null : nw.dayMove;
+  const moving = move?.status === "loading";
+  const moved = move?.status === "ready" ? move : null;
 
   const subline = syncing
     ? `${nw.readyCount} of ${nw.connectedCount} account types synced`
-    : gain != null
-      ? `${gain >= 0 ? "+" : "-"}${formatINRShort(Math.abs(gain))} unrealised ${gain >= 0 ? "gain" : "loss"}`
+    : moved
+      ? dayMoveLine(moved.delta)
       : null;
+  // Mint for a gain, rose for a loss; zero reads as a gain, as its `+` does.
   const sublineInk =
-    syncing || gain == null
+    syncing || !moved
       ? "rgba(255,255,255,0.6)"
-      : gain >= 0
+      : moved.delta >= 0
         ? GAIN_INK
         : LOSS_INK;
 
-  const pill = syncing
-    ? "Updating…"
-    : gainPct != null
-      ? `${gainPct >= 0 ? "+" : ""}${gainPct.toFixed(2)}% returns`
-      : null;
+  const pill = syncing ? "Updating…" : moved ? dayMovePill(moved.pct) : null;
+  const pillTitle = moved
+    ? `Your holdings' move over the latest session${moved.asOf ? `, to the close of ${shortDate(moved.asOf)}` : ""}`
+    : undefined;
 
   const valued = nw.classes.filter((c) => (c.value ?? 0) > 0);
   // Like mobile, a class worth nothing is left out of the legend; one still
@@ -124,14 +128,29 @@ function NetworthSummary({ nw }: { nw: NetworthData }) {
               {subline}
             </p>
           )}
+          {moving && (
+            <span
+              className="mt-1.5 block h-3 w-24 animate-pulse rounded bg-white/15 motion-reduce:animate-none"
+              aria-hidden
+            />
+          )}
         </div>
         {pill && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold whitespace-nowrap text-white tabular-nums">
+          <span
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold whitespace-nowrap text-white tabular-nums"
+            title={pillTitle}
+          >
             {syncing && (
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white motion-reduce:animate-none" />
             )}
             {pill}
           </span>
+        )}
+        {moving && (
+          <span
+            className="h-6 w-24 shrink-0 animate-pulse rounded-full bg-white/15 motion-reduce:animate-none"
+            aria-hidden
+          />
         )}
       </div>
 

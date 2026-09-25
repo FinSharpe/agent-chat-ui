@@ -1,7 +1,7 @@
 "use client";
 import { ConsentType } from "@/modules/import-data/types/consent-type";
-import { isInvestments } from "../types/aa";
 import { useAaPortfolio } from "./useAaPortfolio";
+import { useDayMove, type DayMoveState } from "./useDayMove";
 
 /** Asset classes that carry a rupee value toward net worth (SIP is excluded). */
 export type NetworthClassKey =
@@ -68,14 +68,8 @@ export interface NetworthData {
   readyCount: number;
   syncingCount: number;
   latestUpdate?: string;
-  /**
-   * Cost basis of the ready investment accounts that report one, and those same
-   * accounts' current value — the pair behind the unrealised gain. The gain is
-   * always `investedCurrent - invested`, never `total - invested`: only the
-   * accounts that reported a cost may be compared against it.
-   */
-  invested: number;
-  investedCurrent: number;
+  /** The invested book's move over the latest session. */
+  dayMove: DayMoveState;
   isEmpty: boolean;
   isInitialLoading: boolean;
 }
@@ -89,13 +83,12 @@ export interface NetworthData {
  */
 export function useNetworthData(): NetworthData {
   const { positions, isLoading, isError, hasConnections } = useAaPortfolio();
+  const dayMove = useDayMove(positions);
 
   const byType = new Map(positions.map((p) => [p.type, p]));
   const sipCount = byType.get("SIP")?.count ?? 0;
 
   let latestUpdate: string | undefined;
-  let invested = 0;
-  let investedCurrent = 0;
 
   const classes: NetworthClass[] = CLASS_ORDER.map((key) => {
     const position = byType.get(key);
@@ -103,16 +96,6 @@ export function useNetworthData(): NetworthData {
 
     if (position.updatedAt && (!latestUpdate || position.updatedAt > latestUpdate)) {
       latestUpdate = position.updatedAt;
-    }
-
-    // Only accounts that report both a cost and the matching covered value
-    // count toward the gain.
-    for (const blob of position.blobs) {
-      const n = blob.normalized;
-      if (!isInvestments(n)) continue;
-      if (n.costValue == null || n.costBasisValue == null) continue;
-      invested += n.costValue;
-      investedCurrent += n.costBasisValue;
     }
 
     const meta = CLASS_META[key];
@@ -144,8 +127,7 @@ export function useNetworthData(): NetworthData {
     readyCount,
     syncingCount: connectedCount - readyCount,
     latestUpdate,
-    invested,
-    investedCurrent,
+    dayMove,
     // A failed consent list is NOT an empty portfolio — saying "connect an
     // account" to someone who has five would be a lie. The accounts section
     // below owns the error and the retry; the card just stays quiet.

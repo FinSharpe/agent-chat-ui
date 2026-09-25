@@ -24,6 +24,9 @@ export function analysisKind(consentType: ConsentType): AnalysisKind {
   return "mutualFunds";
 }
 
+/** All a request reads off a holding; the ledger's rows carry more. */
+export type AnalysisItem = Pick<HoldingWithQuantity, "isin" | "quantity">;
+
 /**
  * The endpoint and body for one class's analysis. No `duration`: it only ever
  * shaped the returns window, which this view does not draw (finsharpe-agents#92).
@@ -32,7 +35,7 @@ export function analysisKind(consentType: ConsentType): AnalysisKind {
  */
 export function analysisRequest(
   kind: AnalysisKind,
-  holdings: HoldingWithQuantity[],
+  holdings: AnalysisItem[],
 ): { url: string; body: Json; itemCount: number } {
   if (kind === "equities") {
     const items = transformEquitiesToPortfolioItems(

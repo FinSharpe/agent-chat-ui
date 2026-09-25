@@ -3,43 +3,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { type Control, useWatch } from "react-hook-form";
 import type { AnalysisKind } from "@/modules/import-data/types/holdings-analysis";
+import {
+  type AnalysisError,
+  HOLDINGS_ANALYSIS_CACHE,
+  fetchHoldingsAnalysis,
+  holdingsAnalysisKey,
+} from "@/modules/import-data/api/holdings-analysis";
 import { analysisRequest, toClassAnalysis } from "../utils/class-analysis";
 import type { HoldingWithQuantity } from "../utils/holdings-transformer";
 import type { HoldingFormData } from "./useHoldingsForm";
 
 /** Quiet period after a ledger edit before the analysis re-runs. */
 const EDIT_DEBOUNCE_MS = 700;
-
-class AnalysisError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-  }
-}
-
-async function fetchAnalysis(url: string, body: string) {
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    });
-  } catch {
-    throw new AnalysisError("The analysis service could not be reached.");
-  }
-  if (!res.ok) {
-    throw new AnalysisError(
-      res.status >= 500
-        ? "The analysis service did not respond."
-        : "The analysis service could not read these holdings.",
-      res.status,
-    );
-  }
-  return (await res.json()) as Record<string, unknown>;
-}
 
 /**
  * The class's analysis, fetched as soon as the holdings are there — opening
@@ -77,12 +52,11 @@ export function useClassAnalysis(
   }, [body, request.itemCount, sent]);
 
   const query = useQuery({
-    queryKey: ["holdings-analysis", request.url, sent.body],
-    queryFn: () => fetchAnalysis(request.url, sent.body),
+    queryKey: holdingsAnalysisKey(request.url, sent.body),
+    queryFn: () => fetchHoldingsAnalysis(request.url, sent.body),
     enabled: enabled && sent.count > 0,
     select: (json) => toClassAnalysis(kind, json),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    ...HOLDINGS_ANALYSIS_CACHE,
     // Keep the last answer on screen while an edit re-runs it.
     placeholderData: (previous) => previous,
   });

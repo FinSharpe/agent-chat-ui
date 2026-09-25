@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUiStore } from "@/store/useUiStore";
 import { AUTH_ROUTES } from "@/modules/auth/constants/routes";
+import { CREDITS_ROUTE } from "@/modules/credits/constants/routes";
 import { getInitials } from "../utils/initials";
 
 /**
@@ -14,6 +15,9 @@ import { getInitials } from "../utils/initials";
  *
  * There is no Account Settings screen any more: the only two real destinations
  * it used to host — MCP Access and Delete Account — are rows on Profile.
+ * Credits is on every account surface (finsharpe-agents#280): the sidebar
+ * footer and the phone account sheet with the Balance trailing, and Profile
+ * beside MCP Access as a link without it.
  */
 export function useAccountActions() {
   const router = useRouter();
@@ -34,6 +38,7 @@ export function useAccountActions() {
     () => setProfileSettingsOpen(true),
     [setProfileSettingsOpen],
   );
+  const openCredits = useCallback(() => router.push(CREDITS_ROUTE), [router]);
   const openMcpAccess = useCallback(
     () => router.push("/settings/mcp"),
     [router],
@@ -61,6 +66,7 @@ export function useAccountActions() {
     toggleThemeMode,
     setThemeMode,
     openProfile,
+    openCredits,
     openMcpAccess,
     openDeleteAccount,
     openLogin,

@@ -23,9 +23,12 @@ import type {
 import type {
   CatalogEntry,
   HTTPValidationError,
+  InsufficientCreditsError,
   OwnedPurchase,
   PipelineTargetRequest,
+  PriceChangedError,
   PurchaseResponse,
+  PurchasesUnavailableError,
   QuoteResponse,
   ReportResponse,
   RunStatusResponse,
@@ -34,6 +37,8 @@ import type {
 
 /**
  * Serve the catalog — the registry of code-defined manifests, verbatim.
+
+Each entry is priced against the caller's Balance, read once.
  * @summary Get Catalog
  */
 export type getCatalogApiPipelinesGetResponse200 = {
@@ -368,6 +373,17 @@ export const useQuotePipelineApiPipelinesPipelineIdQuotePost = <
 
 Target, gaps and price are resolved server-side from the same inputs the
 quote used, so quote and purchase cannot disagree.
+
+Before anything is resolved, the purchases switch is read (R20): off
+answers 503 and touches nothing. So does a missing cohort snapshot
+(#272): until it exists no starting Balance can be granted. A repeated
+`price_minor` that is not the current price answers 409 with a fresh
+quote before any debit (R19); an omitted one is taken at the current
+price, as every pre-#251 build is.
+
+No transaction is held open across a network probe: the snapshot
+marker's read is ended before the coverage probes, and
+`purchase_pipeline` probes the vintage before it touches the session.
  * @summary Purchase
  */
 export type purchaseApiPipelinesPipelineIdPurchasePostResponse200 = {
@@ -375,19 +391,38 @@ export type purchaseApiPipelinesPipelineIdPurchasePostResponse200 = {
   status: 200;
 };
 
+export type purchaseApiPipelinesPipelineIdPurchasePostResponse402 = {
+  data: InsufficientCreditsError;
+  status: 402;
+};
+
+export type purchaseApiPipelinesPipelineIdPurchasePostResponse409 = {
+  data: PriceChangedError;
+  status: 409;
+};
+
 export type purchaseApiPipelinesPipelineIdPurchasePostResponse422 = {
   data: HTTPValidationError;
   status: 422;
+};
+
+export type purchaseApiPipelinesPipelineIdPurchasePostResponse503 = {
+  data: PurchasesUnavailableError;
+  status: 503;
 };
 
 export type purchaseApiPipelinesPipelineIdPurchasePostResponseSuccess =
   purchaseApiPipelinesPipelineIdPurchasePostResponse200 & {
     headers: Headers;
   };
-export type purchaseApiPipelinesPipelineIdPurchasePostResponseError =
-  purchaseApiPipelinesPipelineIdPurchasePostResponse422 & {
-    headers: Headers;
-  };
+export type purchaseApiPipelinesPipelineIdPurchasePostResponseError = (
+  | purchaseApiPipelinesPipelineIdPurchasePostResponse402
+  | purchaseApiPipelinesPipelineIdPurchasePostResponse409
+  | purchaseApiPipelinesPipelineIdPurchasePostResponse422
+  | purchaseApiPipelinesPipelineIdPurchasePostResponse503
+) & {
+  headers: Headers;
+};
 
 export type purchaseApiPipelinesPipelineIdPurchasePostResponse =
   | purchaseApiPipelinesPipelineIdPurchasePostResponseSuccess
@@ -427,7 +462,11 @@ export const purchaseApiPipelinesPipelineIdPurchasePost = async (
 };
 
 export const getPurchaseApiPipelinesPipelineIdPurchasePostMutationOptions = <
-  TError = HTTPValidationError,
+  TError =
+    | InsufficientCreditsError
+    | PriceChangedError
+    | HTTPValidationError
+    | PurchasesUnavailableError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -475,13 +514,20 @@ export type PurchaseApiPipelinesPipelineIdPurchasePostMutationResult =
 export type PurchaseApiPipelinesPipelineIdPurchasePostMutationBody =
   PipelineTargetRequest;
 export type PurchaseApiPipelinesPipelineIdPurchasePostMutationError =
-  HTTPValidationError;
+  | InsufficientCreditsError
+  | PriceChangedError
+  | HTTPValidationError
+  | PurchasesUnavailableError;
 
 /**
  * @summary Purchase
  */
 export const usePurchaseApiPipelinesPipelineIdPurchasePost = <
-  TError = HTTPValidationError,
+  TError =
+    | InsufficientCreditsError
+    | PriceChangedError
+    | HTTPValidationError
+    | PurchasesUnavailableError,
   TContext = unknown,
 >(
   options?: {

@@ -6,6 +6,11 @@
  * a successful query. Everything here unwraps the `{data, status}` envelope
  * and throws `PipelineApiError` on a non-2xx, which is what the screens branch
  * on (402 short balance, 404 gone, 409 not published yet).
+ *
+ * The error keeps the parsed body beside the status: the purchase's refusals
+ * (#251) are structured — 402 `insufficient_credits` with the Balance it read,
+ * 409 `price_changed` with a fresh quote, 503 `purchases_unavailable` — and
+ * the quote screen draws each from its body (`utils/purchase-refusal.ts`).
  */
 
 import {
@@ -34,9 +39,17 @@ export class PipelineApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** The parsed response body, or null when there was none to read. */
+    readonly body: unknown = null,
   ) {
     super(message);
     this.name = "PipelineApiError";
+  }
+
+  /** The body's stable `error` code (`price_changed`, …), when it has one. */
+  get code(): string | undefined {
+    const code = (this.body as { error?: unknown } | null)?.error;
+    return typeof code === "string" ? code : undefined;
   }
 
   /** The payment boundary's refusal: the balance will not cover the price. */
@@ -65,7 +78,7 @@ function unwrap<T>(envelope: Envelope<T>): T {
       : Array.isArray(detail) && detail.length
         ? String((detail[0] as { msg?: string })?.msg ?? "Invalid request")
         : `Request failed (${envelope.status})`;
-  throw new PipelineApiError(envelope.status, message);
+  throw new PipelineApiError(envelope.status, message, envelope.data ?? null);
 }
 
 export async function fetchCatalog(signal?: AbortSignal) {
@@ -87,6 +100,7 @@ export async function purchasePipeline(
   pipelineId: string,
   symbol: string | null,
   threadId?: string | null,
+  priceMinor?: number | null,
 ) {
   return unwrap<PurchaseResponse>(
     await purchaseApiPipelinesPipelineIdPurchasePost(pipelineId, {
@@ -94,6 +108,11 @@ export async function purchasePipeline(
       // The thread the purchase was made from: publish delivers the Summary
       // Card there. Omitted outside chat, which skips delivery by design.
       thread_id: threadId ?? null,
+      // The price the screen showed, repeated (R19): a price that moved since
+      // the quote is refused with 409 `price_changed` and nothing is debited,
+      // so nobody pays a figure they were never shown. Null takes the current
+      // price, as every build before #251 does.
+      price_minor: priceMinor ?? null,
     }),
   );
 }

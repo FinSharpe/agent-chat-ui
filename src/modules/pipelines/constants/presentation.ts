@@ -220,7 +220,6 @@ export function formatTimestamp(value: string | null | undefined): string {
   })} IST`;
 }
 
-/** "50 credits" / "1 credit" — the price never renders as a currency. */
-export function creditsLabel(count: number): string {
-  return `${count} ${count === 1 ? "credit" : "credits"}`;
-}
+// Prices and Balances are hundredths on the wire since #251; they are
+// labelled by `priceLabel` / `balanceLabel` in `@/modules/credits/utils/format`,
+// the one place credits are put into words.

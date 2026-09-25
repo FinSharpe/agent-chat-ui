@@ -46,6 +46,13 @@ const API_GROUPS = [
     outputPath: path.join(__dirname, "../openapi-mcp.json"),
   },
   {
+    // The signed-in user's Balance and History (finsharpe-agents#269). Only
+    // the user's own tag: the admin Credits routes are `mcp-admin`.
+    name: "Credits APIs",
+    tags: ["me-credits"],
+    outputPath: path.join(__dirname, "../openapi-credits.json"),
+  },
+  {
     name: "Pipeline APIs",
     tags: ["Pipeline APIs"],
     outputPath: path.join(__dirname, "../openapi-pipelines.json"),

@@ -24,11 +24,12 @@ export const REGISTERED_ADDRESS =
   "506 Seasons Business Square, Aundh, Pune 411007";
 
 /**
- * How long server backups holding a deleted account survive. Unset until the
- * owner reads the RDS backup retention setting; the sentence is left off the
- * page rather than published with a guess.
+ * How long server backups holding a deleted account survive: RDS automated
+ * backups keep 1 day (read 2026-09-17), so the snapshot taken before a
+ * deletion can outlive it by up to about 2 days. Re-check if a manual
+ * snapshot or an AWS Backup plan is ever added.
  */
-export const BACKUP_ROLLOVER_PERIOD: string | null = null;
+export const BACKUP_ROLLOVER_PERIOD: string | null = "2 days";
 
 /**
  * The path as the app actually draws it (finsharpe-mobile#163, built
@@ -59,7 +60,7 @@ export const DELETED_DATA: DeletedDataRow[] = [
     outcome: "Ended and deleted",
   },
   {
-    data: "Chat conversations and their history",
+    data: "Chat conversations, including any portfolio holdings saved with them",
     outcome: "Deleted",
   },
   {
@@ -70,7 +71,7 @@ export const DELETED_DATA: DeletedDataRow[] = [
   {
     data: "Your financial data",
     outcome:
-      "We never store it on our servers. The copy in the app on your phone is removed when the app deletes your account",
+      "We keep no separate copy on our servers. Holdings saved with a chat go with the chat. The copy in the app on your phone is removed when the app deletes your account. A copy that an earlier version of the web app saved in a browser is not: clear this site's data in that browser",
   },
   {
     data: "Notification registrations",
@@ -78,10 +79,35 @@ export const DELETED_DATA: DeletedDataRow[] = [
   },
   {
     data: "Reports you ran, and their share links",
-    outcome: "Deleted; share links stop working",
+    outcome: "Removed from your account; share links stop working",
+  },
+  {
+    data: "Access you gave other AI apps to your FinSharpe account, if any",
+    outcome:
+      "Revoked and deleted. An app that was already connected loses access within an hour",
   },
 ];
 
+/**
+ * What outlives a deleted account, as `services/account_deletion.py` in
+ * finsharpe-agents leaves it (checked at 2aac9e8, 2026-09-25), plus the
+ * copies our providers keep (LangSmith traces; OpenAI's abuse-monitoring
+ * logs for the data tools' search embeddings). No SEBI record is kept: the
+ * backend deletes consent records and keeps no advice record (owner,
+ * 2026-09-17; counsel to confirm).
+ */
 export const KEPT_RECORDS = [
-  "Records we must keep as a SEBI-registered Investment Adviser (consent records and records of the advice given) — for the period the SEBI (Investment Advisers) Regulations, 2013 require, under that law.",
+  "Records of data-tool calls: the inputs sent to our data tools, which can include holdings. Calls made while answering your chats never carried your account ID. Calls made by other AI apps you connected did, and we remove your account ID from them. We keep both, with the usage totals for those apps.",
+  "Your credit history: the record of what your chat turns and reports cost in credits, and of the credits we added to your account. We remove your account ID from it and keep it, as our record of what answering you cost us.",
+  "AI monitoring records of how your chat answers were produced (LangSmith), which can include your messages and any holdings fetched for them, until they expire, within 180 days.",
+  "Search text our data tools sent to OpenAI to search filings and data sources, which OpenAI may keep for up to 30 days. It is not linked to your account.",
+  "Server logs, which can contain your user ID and IP address, for no more than 90 days.",
 ];
+
+/**
+ * True while every chat model call is routed on zero-data-retention
+ * endpoints and the OpenRouter account keeps no logs. The data tools'
+ * search embeddings bypass OpenRouter; KEPT_RECORDS names them.
+ */
+export const AI_PROVIDERS_NOTE =
+  "Our AI routing provider (OpenRouter) and the services that run the AI models for chat keep no copy of your chats, so there is nothing of yours to delete there.";

@@ -1,4 +1,5 @@
 export { ImportDataPage } from "./components/ImportDataPage";
+export { HoldingsNewsPage } from "./components/nudges/HoldingsNewsPage";
 export * from "./types/import-data.types";
 
 // The consent flow, for surfaces outside Import that start a connection in

@@ -19,6 +19,20 @@ type NudgeQueryHook<TData> = (
   refetch: () => unknown;
 };
 
+/** The body every nudge feed takes — one shape, so a list that re-sends the
+ *  News row's body (Holdings news) hits the same cache entry. */
+export const nudgeRequestBody = (
+  holdings: PortfolioHolding[],
+): NudgeRequest => ({
+  holdings: holdings.map((h) => ({
+    type: h.type,
+    isin: h.isin,
+    name: h.name,
+    value: h.value,
+  })),
+  refresh: false,
+});
+
 /**
  * Lazy, refreshable wrapper over a generated nudge query hook: it only fetches
  * once `enabled` (its row is near the viewport) and the user has holdings.
@@ -34,18 +48,7 @@ export function useNudge<TData>(
 
   // Stable body — `refresh` is NOT in the query key, so the lazy read and the
   // manual refresh share one cache entry (no key churn, no skeleton flash).
-  const body = useMemo<NudgeRequest>(
-    () => ({
-      holdings: holdings.map((h) => ({
-        type: h.type,
-        isin: h.isin,
-        name: h.name,
-        value: h.value,
-      })),
-      refresh: false,
-    }),
-    [holdings],
-  );
+  const body = useMemo(() => nudgeRequestBody(holdings), [holdings]);
 
   const query = hook(body, {
     query: { enabled: enabled && holdings.length > 0 },
@@ -77,5 +80,6 @@ export function useNudge<TData>(
     isFetching: query.isFetching || isRefreshing,
     triggerRefresh,
     retry: () => query.refetch(),
+    body,
   };
 }

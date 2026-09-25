@@ -59,3 +59,75 @@ export function comprehensiveAnalysisMessage(
     ? "Give me a comprehensive analysis of my portfolio."
     : null;
 }
+
+/** What a Technical or Fundamental card carries into its `Ask AI`. */
+export interface SignalCardFacts {
+  /** The holding as the card names it: symbol, else name, else ISIN. */
+  symbol: string;
+  /** The served verdict badge's label, when the feed graded the holding. */
+  badge?: string | null;
+  /** The served one-line reading. */
+  line?: string | null;
+}
+
+/**
+ * How a Deep Dive card names its holding — `holding.symbol ?? name ?? isin`,
+ * as mobile's `NudgeCard.fromJson` does. A fund card's "symbol" is the scheme
+ * name the feed echoed, which the portfolio tool matches as a name fragment.
+ */
+export const signalSymbol = (h: {
+  symbol?: string | null;
+  name?: string | null;
+  isin?: string | null;
+}) => h.symbol ?? h.name ?? h.isin ?? "-";
+
+/** A served line that does not end in a full stop would run into the question. */
+const sentence = (s: string) => {
+  const trimmed = s.trim();
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+/**
+ * `{verdict} — {line}` from what the card really carries, either or both.
+ * Nothing is invented: an ungraded card gets no verdict, one with no line
+ * gets no line.
+ */
+function signalClause(card: SignalCardFacts): string | null {
+  const parts = [card.badge?.trim() ?? "", card.line?.trim() ?? ""].filter(
+    (p) => p !== "",
+  );
+  return parts.length === 0 ? null : sentence(parts.join(" — "));
+}
+
+function signalMessage(kind: string, card: SignalCardFacts, question: string) {
+  const lead = `Explain this ${kind} on ${card.symbol}`;
+  const clause = signalClause(card);
+  return clause == null
+    ? `${lead}. ${question}`
+    : `${lead}: ${clause} ${question}`;
+}
+
+/**
+ * The Technical row's `Ask AI`: the symbol, the served verdict and line, then
+ * the question — naming the holding again so the agent looks that position
+ * up with `get_user_portfolio(symbols: [...])`. No figures of its own; pasted
+ * numbers would disagree with the tool as soon as either side refreshed.
+ *
+ *     Explain this technical signal on TCS: Bullish — Golden Cross formed,
+ *     RSI at 62. What does it mean for my TCS position, and what should I
+ *     watch next?
+ */
+export const technicalSignalMessage = (card: SignalCardFacts) =>
+  signalMessage(
+    "technical signal",
+    card,
+    `What does it mean for my ${card.symbol} position, and what should I watch next?`,
+  );
+
+/** The Fundamental row's `Ask AI`, on the same anatomy with the peer question. */
+export const fundamentalSignalMessage = (card: SignalCardFacts) =>
+  signalMessage(
+    "fundamental signal",
+    card,
+    `How does it compare with peers, and what does it mean for my ${card.symbol} holding?`,
+  );

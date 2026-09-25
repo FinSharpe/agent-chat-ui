@@ -1,6 +1,7 @@
 "use client";
 
 import { SectionLabel } from "@/components/shared/SectionKit";
+import { SeeAllLink } from "@/components/shared/SeeAllLink";
 import { newsAskPrompt } from "@/modules/discover/api/market-news";
 import {
   NewsCard,
@@ -17,15 +18,30 @@ import { useMarketNews } from "@/modules/discover/hooks/useMarketNews";
  * failure or an empty page hides the section rather than showing an error the
  * reader can do nothing about. The news page, where the feed *is* the subject,
  * says both out loud instead.
+ *
+ * See all opens that page (#174): Home keeps its eight, 1 per company, and
+ * the paged list has the rest.
  */
-export function MarketNewsRow({ onAsk }: { onAsk: (prompt: string) => void }) {
+export function MarketNewsRow({
+  onAsk,
+  onSeeAll,
+}: {
+  onAsk: (prompt: string) => void;
+  onSeeAll: () => void;
+}) {
   const { data, isError } = useMarketNews();
 
   if (isError || data?.length === 0) return null;
 
   return (
     <section className="space-y-3 select-none">
-      <SectionLabel className="pl-1">Latest Market News</SectionLabel>
+      <div className="flex items-center justify-between pl-1">
+        <SectionLabel>Latest Market News</SectionLabel>
+        <SeeAllLink
+          label="See all market news"
+          onClick={onSeeAll}
+        />
+      </div>
       <div className="scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
         {data
           ? data.map((item) => (

@@ -89,8 +89,16 @@ export function usePortfolioHoldings() {
     ];
   }, [holdings, sipBook.sips.length]);
 
+  // The Deep Dive feeds keep the equity + MF holdings they always had; only
+  // the alerts endpoint takes `etf` (finsharpe-agents#241).
+  const deepDiveHoldings = useMemo(
+    () => holdings.filter((h) => h.type !== "etf"),
+    [holdings],
+  );
+
   return {
     holdings,
+    deepDiveHoldings,
     isLoading,
     hasHoldings: holdings.length > 0,
     hasEquity: holdings.some((h) => h.type === "equity"),

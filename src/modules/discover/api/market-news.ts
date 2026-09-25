@@ -89,3 +89,29 @@ export const canOpenLink = (link: string | null): link is string => {
     return false;
   }
 };
+
+/**
+ * One page of Discover's Market news list (`GET /api/news/market/list`,
+ * finsharpe-agents#242): the same tape as Home's eight, at most 2 per company
+ * per page. A live tape shifts between requests, so a row can come back on
+ * two pages, and a page can come back empty while `nextPage` is still set.
+ */
+export interface MarketNewsPage {
+  items: MarketNewsItem[];
+  /** Null on the last page. */
+  nextPage: number | null;
+}
+
+export async function fetchMarketNewsPage(
+  page: number,
+  signal?: AbortSignal,
+): Promise<MarketNewsPage> {
+  const body = await getJson<{ items?: WireNewsItem[]; nextPage?: unknown }>(
+    `news/market/list?page=${page}`,
+    { signal },
+  );
+  return {
+    items: (Array.isArray(body.items) ? body.items : []).map(toItem),
+    nextPage: typeof body.nextPage === "number" ? body.nextPage : null,
+  };
+}

@@ -6,12 +6,22 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { NewsArticle } from "./newsArticle";
+import type { NewsNudgeResponseNextCursor } from "./newsNudgeResponseNextCursor";
+import type { HoldingRef } from "./holdingRef";
 
 /**
- * Flat, recency-sorted article list across the selected equity holdings.
+ * One page of news across the selected equity holdings, newest first.
+
+A page takes turns across the holdings, largest first, with at most two
+articles from any one holding (finsharpe-mobile#174), so a single noisy
+holding cannot fill it.
  */
 export interface NewsNudgeResponse {
   articles?: NewsArticle[];
   /** Equity holdings considered for selection. */
   totalHoldings?: number;
+  /** Send as `cursor` for the next page; null when there is none. */
+  nextCursor?: NewsNudgeResponseNextCursor;
+  /** Selected holdings with no article in the window, largest first. The same on every page; the list names them at its end. A holding that could not be checked (unresolved, provider fault) is not listed. */
+  quietHoldings?: HoldingRef[];
 }

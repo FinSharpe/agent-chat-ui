@@ -17,11 +17,24 @@ import type {
   TechnicalNudgeResponse,
 } from "@/api/generated/nudge-apis/models";
 import { SectionBanner } from "@/components/shared/SectionKit";
+import { SeeAllLink } from "@/components/shared/SeeAllLink";
+import { useRouter } from "next/navigation";
+import { HOLDINGS_NEWS_ROUTE } from "../../constants/routes";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
-import useIsDesktopWeb from "@/hooks/useIsDesktopWeb";
 import { Bell, RefreshCw } from "lucide-react";
 import { useMemo, type ReactNode, type Ref } from "react";
+import { newsAskPrompt } from "@/modules/discover/api/market-news";
+import {
+  NewsCard,
+  NewsCardSkeleton,
+} from "@/modules/discover/components/news/NewsCard";
 import { useInView } from "../../hooks/useInView";
+import {
+  fundamentalSignalMessage,
+  signalSymbol,
+  technicalSignalMessage,
+} from "../../utils/chat-handoffs";
+import { holdingsNewsItem } from "../../utils/holdings-news";
 import {
   fromServed,
   groupSmartAlerts,
@@ -29,14 +42,7 @@ import {
   type SmartAlertItem,
 } from "../../utils/smart-alerts";
 import { RowLabel, SectionTitle } from "../page/SectionTitle";
-import {
-  AlertCardSkeleton,
-  FundamentalAlertCard,
-  NewsCard,
-  RowMessage,
-  TechnicalAlertCard,
-} from "./nudge-cards";
-import { rowCardWidth } from "./layout";
+import { RowMessage, SignalCard, SignalCardSkeleton } from "./nudge-cards";
 import {
   SmartAlertsCard,
   SmartAlertSkeleton,
@@ -50,6 +56,11 @@ import { usePortfolioHoldings } from "./usePortfolioHoldings";
  * asset class (#86, from `POST /nudges/alerts` plus the SIP rules worked out
  * here), then a "Deep Dive" banner over the News, Technical and Fundamental
  * rows (equity only). Each fetches once it nears the viewport.
+ *
+ * The Deep Dive rows mirror finsharpe-mobile's `_SmartAlertsSection`
+ * (`portfolio_tab.dart`, #140 / #145): News draws the shared news card, and
+ * Technical and Fundamental carry an `Ask AI` link seeding chat with the
+ * card's own question. A row with nothing to show renders nothing.
  */
 export function PortfolioNudges() {
   const portfolio = usePortfolioHoldings();
@@ -91,22 +102,15 @@ function NudgeRows({
 }: {
   portfolio: ReturnType<typeof usePortfolioHoldings>;
 }) {
-  const { holdings, hasEquity, alertClasses, sipBook } = portfolio;
-  const isDesktopWeb = useIsDesktopWeb();
+  const { holdings, deepDiveHoldings, hasEquity, alertClasses, sipBook } =
+    portfolio;
+  const router = useRouter();
   const { createNewChat } = useAppNavigation();
-  const width = rowCardWidth(isDesktopWeb);
 
   const alertsView = useInView<HTMLDivElement>();
   const newsView = useInView<HTMLElement>();
   const technicalView = useInView<HTMLElement>();
   const fundamentalView = useInView<HTMLElement>();
-
-  // The Deep Dive feeds keep the equity + MF holdings they always had; only
-  // the alerts endpoint takes `etf` (finsharpe-agents#241).
-  const deepDiveHoldings = useMemo(
-    () => holdings.filter((h) => h.type !== "etf"),
-    [holdings],
-  );
 
   const alerts = useNudge<SmartAlertsResponse>(
     useSmartAlertsApiNudgesAlertsPost,
@@ -221,15 +225,27 @@ function NudgeRows({
             nudge={news}
             seen={newsView.inView}
             count={news.data?.articles?.length ?? 0}
-            empty="No recent news for your holdings."
-            width={width}
+            // No refresh control: mobile's News strip has none, and See all
+            // is where the rest of the feed lives.
+            refreshable={false}
+            // The row is page 1 of the holdings news (#174): See all only when
+            // there is a page 2 to see.
+            action={
+              news.data?.nextCursor ? (
+                <SeeAllLink
+                  label="See all holdings news"
+                  onClick={() => router.push(HOLDINGS_NEWS_ROUTE)}
+                />
+              ) : null
+            }
+            skeleton={<NewsCardSkeleton fixedHeight />}
           >
             {(news.data?.articles ?? []).map((a, i) => (
               <NewsCard
                 key={`${a.isin}-${i}`}
-                article={a}
-                width={width}
-                onDiscuss={createNewChat}
+                item={holdingsNewsItem(a)}
+                onAsk={(item) => createNewChat(newsAskPrompt(item.title))}
+                fixedHeight
               />
             ))}
           </AlertRow>
@@ -240,14 +256,21 @@ function NudgeRows({
             nudge={technical}
             seen={technicalView.inView}
             count={technicalCards.length}
-            empty="No technical signals for your holdings right now."
-            width={width}
+            skeleton={<SignalCardSkeleton />}
           >
             {technicalCards.map((card) => (
-              <TechnicalAlertCard
+              <SignalCard
                 key={card.holding.isin}
                 card={card}
-                width={width}
+                onAsk={() =>
+                  createNewChat(
+                    technicalSignalMessage({
+                      symbol: signalSymbol(card.holding),
+                      badge: card.badge?.label,
+                      line: card.line,
+                    }),
+                  )
+                }
               />
             ))}
           </AlertRow>
@@ -258,14 +281,21 @@ function NudgeRows({
             nudge={fundamental}
             seen={fundamentalView.inView}
             count={fundamentalCards.length}
-            empty="No fundamental data for your holdings yet."
-            width={width}
+            skeleton={<SignalCardSkeleton />}
           >
             {fundamentalCards.map((card) => (
-              <FundamentalAlertCard
+              <SignalCard
                 key={card.holding.isin}
                 card={card}
-                width={width}
+                onAsk={() =>
+                  createNewChat(
+                    fundamentalSignalMessage({
+                      symbol: signalSymbol(card.holding),
+                      badge: card.badge?.label,
+                      line: card.line,
+                    }),
+                  )
+                }
               />
             ))}
           </AlertRow>
@@ -283,15 +313,21 @@ function isRowLoading(
   return !seen || (n.isPending && !n.data && !n.isError);
 }
 
-/** One titled, horizontally scrolling alert row (News / Technical / …). */
+/**
+ * One titled, horizontally scrolling row (News / Technical / Fundamental).
+ * Loaded and empty, it renders nothing, as mobile's strips do — the section
+ * stays mounted, hidden, only because its ref is what triggered the fetch. A
+ * failed load says so rather than disappearing.
+ */
 function AlertRow({
   sectionRef,
   label,
   nudge,
   seen,
   count,
-  empty,
-  width,
+  skeleton,
+  action,
+  refreshable = true,
   children,
 }: {
   sectionRef: Ref<HTMLElement>;
@@ -299,45 +335,47 @@ function AlertRow({
   nudge: ReturnType<typeof useNudge>;
   seen: boolean;
   count: number;
-  empty: string;
-  width: string;
+  skeleton: ReactNode;
+  /** A head action beside the refresh control, such as See all. */
+  action?: ReactNode;
+  /** Whether the head carries the regenerate control. */
+  refreshable?: boolean;
   children: ReactNode;
 }) {
+  const loading = isRowLoading(nudge, seen);
+  const empty = !loading && !nudge.isError && count === 0;
   return (
     <section
       ref={sectionRef}
-      className="space-y-3"
+      className={empty ? "hidden" : "space-y-3"}
     >
       <RowHeader
         label={label}
         isFetching={nudge.isFetching}
-        onRefresh={nudge.triggerRefresh}
+        onRefresh={refreshable ? nudge.triggerRefresh : undefined}
+        action={action}
       />
-      {isRowLoading(nudge, seen) ? (
+      {loading ? (
         <Slider>
-          <AlertCardSkeleton width={width} />
-          <AlertCardSkeleton width={width} />
+          {skeleton}
+          {skeleton}
         </Slider>
       ) : nudge.isError ? (
         <ErrorMessage
           what={label.toLowerCase()}
           onRetry={nudge.retry}
         />
-      ) : count === 0 ? (
-        <RowMessage>{empty}</RowMessage>
-      ) : (
+      ) : empty ? null : (
         <Slider>{children}</Slider>
       )}
     </section>
   );
 }
 
+/** Fixed 270-wide cards 12px apart — Home's news carousel treatment. */
 function Slider({ children }: { children: ReactNode }) {
-  const isDesktopWeb = useIsDesktopWeb();
   return (
-    <div
-      className={`scrollbar-none flex snap-x snap-mandatory overflow-x-auto pb-1 ${isDesktopWeb ? "gap-4.5" : "gap-3"}`}
-    >
+    <div className="scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
       {children}
     </div>
   );
@@ -348,19 +386,26 @@ function RowHeader({
   label,
   isFetching,
   onRefresh,
+  action,
 }: {
   label: string;
   isFetching: boolean;
-  onRefresh: () => void;
+  onRefresh?: () => void;
+  action?: ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between">
       <RowLabel>{label}</RowLabel>
-      <RefreshButton
-        label={label}
-        isFetching={isFetching}
-        onRefresh={onRefresh}
-      />
+      <div className="flex items-center gap-1">
+        {action}
+        {onRefresh && (
+          <RefreshButton
+            label={label}
+            isFetching={isFetching}
+            onRefresh={onRefresh}
+          />
+        )}
+      </div>
     </div>
   );
 }

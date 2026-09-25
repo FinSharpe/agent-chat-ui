@@ -25,7 +25,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   );
 }
 
-const softButton =
+export const softButton =
   "rounded-full bg-[#063BAA]/8 px-4 py-2 text-[11px] font-medium text-[#063BAA] transition-colors hover-tint";
 
 /** The feed did not answer. One sentence, and a way to ask again. */

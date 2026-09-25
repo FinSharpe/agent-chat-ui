@@ -22,6 +22,7 @@ import type {
   FinSharpeScoreNudgeResponse,
   FundamentalNudgeResponse,
   HTTPValidationError,
+  NewsNudgeRequest,
   NewsNudgeResponse,
   NudgeRequest,
   SmartAlertsResponse,
@@ -30,6 +31,8 @@ import type {
 
 /**
  * Recent news for the top equity holdings, with a sentiment badge per item.
+
+Pages with `cursor` / `nextCursor`; the first page is the Portfolio strip.
  * @summary News Nudge
  */
 export type newsNudgeApiNudgesNewsPostResponse200 = {
@@ -60,14 +63,14 @@ export const getNewsNudgeApiNudgesNewsPostUrl = () => {
 };
 
 export const newsNudgeApiNudgesNewsPost = async (
-  nudgeRequest: NudgeRequest,
+  newsNudgeRequest: NewsNudgeRequest,
   options?: RequestInit,
 ): Promise<newsNudgeApiNudgesNewsPostResponse> => {
   const res = await fetch(getNewsNudgeApiNudgesNewsPostUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(nudgeRequest),
+    body: JSON.stringify(newsNudgeRequest),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -83,16 +86,16 @@ export const newsNudgeApiNudgesNewsPost = async (
 };
 
 export const getNewsNudgeApiNudgesNewsPostQueryKey = (
-  nudgeRequest?: NudgeRequest,
+  newsNudgeRequest?: NewsNudgeRequest,
 ) => {
-  return [`/api/utilities/nudges/news`, nudgeRequest] as const;
+  return [`/api/utilities/nudges/news`, newsNudgeRequest] as const;
 };
 
 export const getNewsNudgeApiNudgesNewsPostQueryOptions = <
   TData = Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>,
   TError = HTTPValidationError,
 >(
-  nudgeRequest: NudgeRequest,
+  newsNudgeRequest: NewsNudgeRequest,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -108,12 +111,12 @@ export const getNewsNudgeApiNudgesNewsPostQueryOptions = <
 
   const queryKey =
     queryOptions?.queryKey ??
-    getNewsNudgeApiNudgesNewsPostQueryKey(nudgeRequest);
+    getNewsNudgeApiNudgesNewsPostQueryKey(newsNudgeRequest);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>
   > = ({ signal }) =>
-    newsNudgeApiNudgesNewsPost(nudgeRequest, { signal, ...fetchOptions });
+    newsNudgeApiNudgesNewsPost(newsNudgeRequest, { signal, ...fetchOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>,
@@ -131,7 +134,7 @@ export function useNewsNudgeApiNudgesNewsPost<
   TData = Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>,
   TError = HTTPValidationError,
 >(
-  nudgeRequest: NudgeRequest,
+  newsNudgeRequest: NewsNudgeRequest,
   options: {
     query: Partial<
       UseQueryOptions<
@@ -158,7 +161,7 @@ export function useNewsNudgeApiNudgesNewsPost<
   TData = Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>,
   TError = HTTPValidationError,
 >(
-  nudgeRequest: NudgeRequest,
+  newsNudgeRequest: NewsNudgeRequest,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -185,7 +188,7 @@ export function useNewsNudgeApiNudgesNewsPost<
   TData = Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>,
   TError = HTTPValidationError,
 >(
-  nudgeRequest: NudgeRequest,
+  newsNudgeRequest: NewsNudgeRequest,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -208,7 +211,7 @@ export function useNewsNudgeApiNudgesNewsPost<
   TData = Awaited<ReturnType<typeof newsNudgeApiNudgesNewsPost>>,
   TError = HTTPValidationError,
 >(
-  nudgeRequest: NudgeRequest,
+  newsNudgeRequest: NewsNudgeRequest,
   options?: {
     query?: Partial<
       UseQueryOptions<
@@ -224,7 +227,7 @@ export function useNewsNudgeApiNudgesNewsPost<
   queryKey: DataTag<QueryKey, TData, TError>;
 } {
   const queryOptions = getNewsNudgeApiNudgesNewsPostQueryOptions(
-    nudgeRequest,
+    newsNudgeRequest,
     options,
   );
 

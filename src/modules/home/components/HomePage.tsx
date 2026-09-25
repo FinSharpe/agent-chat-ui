@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
@@ -38,6 +39,7 @@ import { WhatYouCanDo } from "./sections/WhatYouCanDo";
  */
 export function HomePage() {
   const isDesktopWeb = useIsDesktopWeb();
+  const router = useRouter();
   const [showGuide, setShowGuide] = useState(false);
   const [article, setArticle] = useState<ResearchArticle | null>(null);
   const [video, setVideo] = useState<LearnVideo | null>(null);
@@ -75,7 +77,10 @@ export function HomePage() {
             imageScrim
           />
 
-          <MarketNewsRow onAsk={askAi} />
+          <MarketNewsRow
+            onAsk={askAi}
+            onSeeAll={() => router.push("/discover?feature=news")}
+          />
 
           <PublicationsRow onOpen={setArticle} />
 

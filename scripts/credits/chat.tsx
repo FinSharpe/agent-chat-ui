@@ -605,11 +605,13 @@ const source = (path: string) =>
 const COMMENT_OR_STRING =
   /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
 const IMPORT_PATH = /\b(?:from|import)\s*\(?\s*(["'])([^"']*)\1/g;
-/** A name for credits state: `useCreditBalance`, `creditKeys`,
- *  `readCreditsCarrier`, `gated`, `balance_minor`, `shortBalance…`,
- *  `…Refusal…`. */
+/** A name for credits state: any identifier containing `credit`, `gated`,
+ *  `refus`, `short_balance`/`shortBalance` or `balance_minor` —
+ *  `useCreditBalance`, `readCreditsCarrier`, `isGated`, `balanceGated`,
+ *  `lastTurnRefused`, `…Refusal…`. Comments are blanked first, so the
+ *  substrings cost prose nothing. */
 const CREDITS_NAME =
-  /\b(?:\w*credit\w*|gated|\w*balance_minor|\w*short_?balance\w*|\w*refusal\w*)\b/i;
+  /\b\w*(?:credit|gated|refus|short_?balance|balance_minor)\w*\b/i;
 function readsCredits(text: string): boolean {
   const code = text.replace(
     COMMENT_OR_STRING,
@@ -637,6 +639,16 @@ eq(
   ],
   [false, false, true, true, true, true],
   "the scan reads imports and names, not prose: a comment about refusing cannot trip it",
+);
+eq(
+  [
+    readsCredits("<ChatComposer disabled={lastTurnRefused} />"),
+    readsCredits("const isGated = !isLoading;"),
+    readsCredits("<ChatComposer paused={balanceGated} />"),
+    readsCredits("// refuses while loading\nconst ready = !isLoading;"),
+  ],
+  [true, true, true, false],
+  "camel-cased names are names too: lastTurnRefused, isGated and balanceGated trip the scan, a comment that refuses does not",
 );
 eq(
   [

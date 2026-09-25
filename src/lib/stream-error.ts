@@ -115,11 +115,13 @@ export function streamErrorVariant(
 
 /**
  * The "briefly unavailable" state. The heading is finsharpe-mobile's
- * `SharedCopy.serviceBrieflyUnavailable`, the line both clients show for these
- * two classes; the agents' own sentence ("FinSharpe is briefly unavailable —
- * try again in a minute.") says the same and is never rendered from the wire.
+ * `SharedCopy.serviceBrieflyUnavailable` (`lib/core/copy.dart`) word for word,
+ * full stop included — the line both clients show for these two classes, so
+ * change the two together. The agents' own sentence ("FinSharpe is briefly
+ * unavailable — try again in a minute.") says the same and is never rendered
+ * from the wire. The body line and the toast's description are the web's own.
  */
-export const BRIEFLY_UNAVAILABLE_HEADING = "FinSharpe is briefly unavailable";
+export const BRIEFLY_UNAVAILABLE_HEADING = "FinSharpe is briefly unavailable.";
 export const BRIEFLY_UNAVAILABLE_BODY =
   "Your question didn't go through this time. Try again in a minute.";
 

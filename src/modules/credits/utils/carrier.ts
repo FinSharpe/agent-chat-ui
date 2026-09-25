@@ -46,9 +46,15 @@ export function getCreditsCarrier(
 
 /**
  * The carrier on `message` as the chat draws it, or null when it draws
- * nothing: a `charge` whose `charge_minor` is a whole number of hundredths, or
- * a `refused`. A charge carrier with no usable figure draws no label rather
- * than a guessed one; any other kind draws nothing (it still refetches).
+ * nothing: a `charge` whose `charge_minor` is a whole, non-negative number of
+ * hundredths, or a `refused`. A charge carrier with no usable figure draws no
+ * label rather than a guessed one — a Charge is posted hundredths and is never
+ * below zero, so a negative one is not a figure to show; any other kind draws
+ * nothing (it still refetches).
+ *
+ * A refusal is read off this carrier alone, never off the Refusal Marker
+ * (`finsharpe_refusal`): the marker rides on every refusal — scope, the
+ * In-flight Cap — and only a Short Balance carries `{kind: "refused"}`.
  */
 export function readCreditsCarrier(
   message: unknown,
@@ -58,9 +64,8 @@ export function readCreditsCarrier(
   if (carrier.kind === "refused") return { kind: "refused" };
   if (carrier.kind === "charge") {
     const minor = carrier.charge_minor;
-    return typeof minor === "number" && Number.isSafeInteger(minor)
-      ? { kind: "charge", chargeMinor: minor }
-      : null;
+    if (typeof minor !== "number" || !Number.isSafeInteger(minor)) return null;
+    return minor >= 0 ? { kind: "charge", chargeMinor: minor } : null;
   }
   return null;
 }

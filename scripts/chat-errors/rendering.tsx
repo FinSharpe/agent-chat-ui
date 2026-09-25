@@ -25,8 +25,10 @@ function eq(actual: unknown, expected: unknown, name: string) {
 
 const SERVER_SENTENCE =
   "FinSharpe is briefly unavailable — try again in a minute.";
+// The heading is finsharpe-mobile's SharedCopy.serviceBrieflyUnavailable,
+// full stop included; the body is the web's own.
 const UNAVAILABLE = [
-  "FinSharpe is briefly unavailable",
+  "FinSharpe is briefly unavailable.",
   "Your question didn't go through this time. Try again in a minute.",
 ];
 // Today's copy, word for word (stream-error.tsx before #282).

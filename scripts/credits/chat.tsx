@@ -5,10 +5,13 @@
  * - a turn whose answer carries `additional_kwargs.credits = {kind: "charge",
  *   turn_id, status, charge_minor}` shows `0.42 credits` under its card —
  *   outside the bubble, not in the hover-only CommandBar — opening the
- *   Credits page; an answer without the carrier shows none;
+ *   Credits page, named "This answer used 0.42 credits" for a screen reader;
+ *   an answer without the carrier, or with a negative figure, shows none;
  * - a turn refused on a Short Balance — `{kind: "refused"}` beside the Refusal
- *   Marker — is an ordinary answer card with the Short Balance notice and the
- *   Request credits pill beside it, and no label;
+ *   Marker, and keyed on the carrier alone — is an ordinary answer card with
+ *   the Short Balance notice and the Request credits pill beside it, and no
+ *   label, only while it is the thread's latest turn; once a later turn
+ *   exists it is the answer card alone (owner, 2026-09-25);
  * - the composer stays live after a refusal;
  * - nothing drawn names a USD figure, a rate or a token count, whatever else a
  *   carrier might carry.
@@ -125,6 +128,21 @@ eq(
   [null, null, null, null, null, null, null, null, null],
   "no carrier, another refusal, a charge with no whole figure or an unknown kind draws nothing",
 );
+eq(
+  [
+    readCreditsCarrier(
+      withKwargs({ finsharpe_refusal: { kind: "short_balance" } }),
+    ),
+    readCreditsCarrier(withKwargs({ credits: { kind: "refused" } })),
+  ],
+  [null, { kind: "refused" }],
+  "a refusal is read off the credits carrier alone: the marker by itself is nothing, the carrier by itself is a refusal",
+);
+eq(
+  [-1, -7, -4200].map((minor) => readCreditsCarrier(withKwargs(charge(minor)))),
+  [null, null, null],
+  "a negative charge_minor is no Charge: nothing is read",
+);
 
 /* -------------------------------------------------------------------------- */
 /* The charge label, under the answer card                                     */
@@ -135,8 +153,9 @@ const cls = (node: MarkupElement | undefined) =>
 const LABEL = /data-testid="charge-label"/;
 const CARD = /class="chat-msg glass-card /;
 
-/** Where each label sits: its text, where it leads, what holds it, and
- *  what comes before it in the turn's stack. */
+/** Where each label sits: its text, its accessible name (an `aria-label`
+ *  where there is one, else its text), its resting tone in each theme, where
+ *  it leads, what holds it, and what comes before it in the turn's stack. */
 function labels(markup: string) {
   return findAll(parseMarkup(markup), LABEL).map((label) => {
     const chain = ancestorsOf(label);
@@ -144,10 +163,17 @@ function labels(markup: string) {
     const stack = chain[1];
     const siblings = stack?.children ?? [];
     const before = siblings[siblings.indexOf(wrapper) - 1];
+    const text = textOf(
+      markup.slice(label.start, markup.indexOf("</a>", label.start)),
+    );
+    const ariaLabel = /aria-label="([^"]*)"/.exec(label.attrs)?.[1];
     return {
-      text: textOf(
-        markup.slice(label.start, markup.indexOf("</a>", label.start)),
-      ),
+      text,
+      name: ariaLabel === undefined ? text : textOf(ariaLabel),
+      tone: cls(label)
+        .split(/\s+/)
+        .filter((c) => /^(dark:)?text-slate-\d+$/.test(c))
+        .sort(),
       href: /href="([^"]*)"/.exec(label.attrs)?.[1],
       tag: label.tag,
       inCard: chain.some((node) => CARD.test(node.attrs)),
@@ -168,6 +194,10 @@ eq(
   [
     {
       text: "0.42 credits",
+      name: "This answer used 0.42 credits",
+      // design-system.css: slate-500 is navy 84% on white (~9.8:1); in dark
+      // mode both slate tones resolve to --text-muted (~7.7:1). AA is 4.5:1.
+      tone: ["dark:text-slate-400", "text-slate-500"],
       href: "/settings/credits",
       tag: "a",
       inCard: false,
@@ -203,6 +233,29 @@ eq(
   labels(enforcedBasic).map((l) => l.text),
   ["0.87 credits"],
   "an enforced turn is labelled for any account, from the carrier alone",
+);
+eq(
+  labels(enforcedBasic).map((l) => [
+    l.name,
+    l.name.endsWith(l.text),
+    l.href,
+    l.tag,
+  ]),
+  [["This answer used 0.87 credits", true, "/settings/credits", "a"]],
+  "the label's accessible name says what the figure is and contains it, and it still opens Credits",
+);
+eq(
+  [-7, -4200].map((minor) => {
+    const markup = thread({
+      messages: [question("h"), ai("a", ANSWER, charge(minor))],
+    });
+    return [labels(markup).length, textOf(markup).includes("credits")];
+  }),
+  [
+    [0, false],
+    [0, false],
+  ],
+  "a negative charge_minor draws no label: no figure is guessed",
 );
 
 eq(
@@ -373,7 +426,129 @@ eq(labels(refused), [], "the refusal carries no charge label");
 eq(
   (refused.match(/Your credits are used up/g) ?? []).length,
   1,
-  "one notice per refused turn",
+  "one notice for the latest refused turn",
+);
+
+/** The Short Balance notices a thread draws, and its Request credits pills. */
+const notices = (markup: string) =>
+  findAll(parseMarkup(markup), /data-testid="short-balance-refusal"/);
+const pills = (markup: string) => (markup.match(/href="mailto:/g) ?? []).length;
+const refusalDrawn = (markup: string) => [
+  notices(markup).length,
+  textOf(markup).includes(NOTICE),
+  pills(markup),
+  labels(markup).length,
+];
+
+// Keyed on the carrier, never on the Refusal Marker: the server sends both
+// today, so each alone pins which one the client reads.
+eq(
+  [
+    refusalDrawn(
+      thread({
+        messages: [
+          question("h-1"),
+          ai("a-1", SHORT_BALANCE_MESSAGE, {
+            finsharpe_refusal: { kind: "short_balance" },
+          }),
+        ],
+        balanceMinor: -1310,
+      }),
+    ),
+    refusalDrawn(
+      thread({
+        messages: [
+          question("h-1"),
+          ai("a-1", SHORT_BALANCE_MESSAGE, { credits: { kind: "refused" } }),
+        ],
+        balanceMinor: -1310,
+      }),
+    ),
+  ],
+  [
+    [0, false, 0, 0],
+    [1, true, 1, 0],
+  ],
+  "the Refusal Marker alone draws nothing; the credits carrier alone draws the notice and the pill",
+);
+
+/* -------------------------------------------------------------------------- */
+/* Only while the refusal is the thread's latest turn (owner, 2026-09-25)      */
+/* -------------------------------------------------------------------------- */
+
+// The follow-up has been sent: a later turn exists, its answer still coming.
+const followUpSent = thread({
+  messages: [
+    question("h-1"),
+    ai("a-1", SHORT_BALANCE_MESSAGE, REFUSED_KWARGS),
+    question("h-2"),
+  ],
+  isLoading: true,
+  balanceMinor: 1000,
+});
+// …and answered, with its Charge, once credits were added.
+const followUpAnswered = thread({
+  messages: [
+    question("h-1"),
+    ai("a-1", SHORT_BALANCE_MESSAGE, REFUSED_KWARGS),
+    question("h-2"),
+    ai("a-2", ANSWER, charge(42)),
+  ],
+  balanceMinor: 958,
+});
+eq(
+  [refused, followUpSent, followUpAnswered].map((markup) =>
+    refusalDrawn(markup).slice(0, 3),
+  ),
+  [
+    [1, true, 1],
+    [0, false, 0],
+    [0, false, 0],
+  ],
+  "the notice and the pill show while the refusal is the latest turn, and disappear once a later turn exists",
+);
+const olderTree = parseMarkup(followUpAnswered);
+const [olderCard] = findAll(olderTree, CARD);
+eq(
+  [
+    !!olderCard &&
+      textOf(followUpAnswered.slice(olderCard.start)).startsWith(
+        SHORT_BALANCE_MESSAGE,
+      ),
+    findAll(olderCard ?? olderTree, /class="chat-msg-actions/).length,
+    findAll(
+      stackOf(olderCard) ?? olderTree,
+      /data-testid="(short-balance-refusal|charge-label)"/,
+    ).length,
+    labels(followUpAnswered).map((l) => l.text),
+  ],
+  [true, 1, 0, ["0.42 credits"]],
+  "an older refused turn is its ordinary answer card alone; the later answer keeps its label",
+);
+const twoRefusals = thread({
+  messages: [
+    question("h-1"),
+    ai("a-1", SHORT_BALANCE_MESSAGE, REFUSED_KWARGS),
+    question("h-2"),
+    ai("a-2", SHORT_BALANCE_MESSAGE, REFUSED_KWARGS),
+  ],
+  balanceMinor: -1310,
+});
+const twoTree = parseMarkup(twoRefusals);
+const twoCards = findAll(twoTree, CARD);
+const [latestNotice, ...moreNotices] = findAll(
+  twoTree,
+  /data-testid="short-balance-refusal"/,
+);
+eq(
+  [
+    twoCards.length,
+    !!latestNotice && moreNotices.length === 0,
+    !!latestNotice && stackOf(latestNotice) === stackOf(twoCards[1]),
+    pills(twoRefusals),
+  ],
+  [2, true, true, 1],
+  "two refused turns in a row: one notice and one pill, beside the latest",
 );
 
 /* -------------------------------------------------------------------------- */
@@ -423,11 +598,51 @@ for (const variant of ["card", "pill"] as const) {
 }
 const source = (path: string) =>
   readFileSync(join(process.cwd(), path), "utf8");
+
+// Reading credits means importing the credits module or naming its state —
+// not saying "refuses" in a comment. So the scan reads import paths and the
+// names the code uses, with comments (and, for names, strings) blanked.
+const COMMENT_OR_STRING =
+  /("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+const IMPORT_PATH = /\b(?:from|import)\s*\(?\s*(["'])([^"']*)\1/g;
+/** A name for credits state: `useCreditBalance`, `creditKeys`,
+ *  `readCreditsCarrier`, `gated`, `balance_minor`, `shortBalance…`,
+ *  `…Refusal…`. */
+const CREDITS_NAME =
+  /\b(?:\w*credit\w*|gated|\w*balance_minor|\w*short_?balance\w*|\w*refusal\w*)\b/i;
+function readsCredits(text: string): boolean {
+  const code = text.replace(
+    COMMENT_OR_STRING,
+    (_, literal?: string) => literal ?? " ",
+  );
+  const names = text.replace(COMMENT_OR_STRING, " ");
+  return (
+    [...code.matchAll(IMPORT_PATH)].some(([, , path]) =>
+      /credits/i.test(path),
+    ) || CREDITS_NAME.test(names)
+  );
+}
+eq(
+  [
+    readsCredits(
+      "// the submit path refuses while loading\n/* credits are Admission's: a Short Balance is an answer, not an error */\nconst x = 1;",
+    ),
+    readsCredits('const hint = "Nothing here is paused for credits";'),
+    readsCredits(
+      'import { useCreditBalance } from "@/modules/credits/hooks/useCredits";',
+    ),
+    readsCredits('import { balanceLabel } from "../../credits/utils/format";'),
+    readsCredits("const { gated } = balance;"),
+    readsCredits("if (refusal) return;"),
+  ],
+  [false, false, true, true, true, true],
+  "the scan reads imports and names, not prose: a comment about refusing cannot trip it",
+);
 eq(
   [
     "src/modules/chat/components/ChatComposer.tsx",
     "src/modules/chat/hooks/useChatSubmit.ts",
-  ].filter((path) => /credit|gated|refus|short.?balance/i.test(source(path))),
+  ].filter((path) => readsCredits(source(path))),
   [],
   "neither the composer nor the send path reads credits: every send goes to Admission",
 );
@@ -435,7 +650,7 @@ const threadSource = source("src/components/thread/index.tsx");
 const composerProps =
   /<ChatComposer([\s\S]*?)\/>/.exec(threadSource)?.[1] ?? "";
 eq(
-  [composerProps.length > 0, /credit|gated|refus/i.test(composerProps)],
+  [composerProps.length > 0, readsCredits(composerProps)],
   [true, false],
   "the thread hands the composer no credits state",
 );

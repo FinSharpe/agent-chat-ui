@@ -213,6 +213,18 @@ export function AssistantMessage({
       thread.messages.slice(position + 1).some((m) => m.type === "human")
     );
   }, [isLoading, thread.messages, message?.id]);
+  // Whether this message is in the thread's latest turn: no question follows
+  // it. A Short Balance notice shows only there (#282, owner 2026-09-25).
+  const inLatestTurn = useMemo(() => {
+    if (!message) return false;
+    const position = thread.messages.findIndex(
+      (m) => m === message || (!!message.id && m.id === message.id),
+    );
+    return (
+      position !== -1 &&
+      !thread.messages.slice(position + 1).some((m) => m.type === "human")
+    );
+  }, [thread.messages, message]);
   // The floor, not a fallback: the footer renders whenever the turn retrieved
   // filings, cited or not. Held back until the run finishes so it does not
   // judder down the screen on every token.
@@ -332,9 +344,14 @@ export function AssistantMessage({
       <div className="animate-fade-in flex w-full flex-col gap-3 empty:hidden">
         {answerCard}
         {/* The answer's `credits` carrier (#282): the charge label, or the
-            Short Balance notice beside a refusal — under the card, outside
-            the bubble, never in the hover-only CommandBar. */}
-        {message && <TurnCredits message={message} />}
+            Short Balance notice beside a refusal in the latest turn — under
+            the card, outside the bubble, never in the hover-only CommandBar. */}
+        {message && (
+          <TurnCredits
+            message={message}
+            latestTurn={inLatestTurn}
+          />
+        )}
         {customComponents}
         {interrupt}
         {showHearOutput && (

@@ -192,6 +192,22 @@ eq(
   BRIEFLY_UNAVAILABLE_HEADING,
   "the toast and the thread say the same heading",
 );
+// finsharpe-mobile `lib/core/copy.dart`: `SharedCopy.serviceBrieflyUnavailable`
+// (#281). The two clients say this heading word for word; the body line and
+// the toast's description are the web's own and stay as they were.
+eq(
+  [
+    BRIEFLY_UNAVAILABLE_HEADING,
+    BRIEFLY_UNAVAILABLE_BODY,
+    BRIEFLY_UNAVAILABLE_TOAST.description,
+  ],
+  [
+    "FinSharpe is briefly unavailable.",
+    "Your question didn't go through this time. Try again in a minute.",
+    "Use Retry in the chat to ask again in a minute.",
+  ],
+  "the heading is mobile's shared copy word for word, full stop included; the body and toast line are the web's",
+);
 
 // Server text is never copy: nothing the client says is the frame's message.
 eq(

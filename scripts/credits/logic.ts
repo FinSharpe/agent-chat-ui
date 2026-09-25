@@ -712,6 +712,7 @@ const sentences = [
   ...Object.values(copy.TERMINAL_STATUS_WORDS),
   copy.mayAdjustUntil("14:02"),
   copy.quoteShortfallSentence("6.60"),
+  copy.chargeLabelName("0.42 credits"),
   refusalCopy.PRICE_CHANGED_NOTICE,
   refusalCopy.PURCHASES_UNAVAILABLE_NOTICE,
   REQUEST_BODY,

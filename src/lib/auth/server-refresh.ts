@@ -128,14 +128,24 @@ async function deduplicatedRefresh(
   return promise;
 }
 
-function isTokenExpired(token: string): boolean {
+/**
+ * Whether the access token needs refreshing before it is used. The signature
+ * is not checked here — the backend does that — so this only reads `exp`, and
+ * a token without a numeric one counts as expired. The backend never issues
+ * such a token, so the only one there is was made by hand: treated as live,
+ * it rode upstream as the Bearer; treated as expired, it costs a refresh the
+ * forger has no refresh token for.
+ */
+export function isTokenExpired(token: string): boolean {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return true;
     const payload = JSON.parse(
       atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
     );
-    if (!payload.exp) return false;
+    if (typeof payload?.exp !== "number" || !Number.isFinite(payload.exp)) {
+      return true;
+    }
     // Consider expired if within 30s of expiry (clock skew buffer)
     return payload.exp * 1000 <= Date.now() + 30_000;
   } catch {

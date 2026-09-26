@@ -13,9 +13,10 @@ import {
   persistQueryClientRestore,
   persistQueryClientSave,
 } from "@tanstack/react-query-persist-client";
-import { get, keys, set } from "idb-keyval";
+import { entries, get, keys, set } from "idb-keyval";
 import { USER_INFO_COOKIE } from "@/lib/auth/user-info";
 import {
+  COPY_DEHYDRATE_OPTIONS,
   createQueryPersister,
   persistedFiDataKey,
   QUERY_CACHE_KEY,
@@ -133,10 +134,10 @@ export const fiBlob = (consentID: string) => ({
 export const FI_BLOB = fiBlob("consent-1");
 
 /**
- * The copy as the app writes it: the persister `QueryProvider` uses, saving a
- * successful `["fi-data", consentID]` query per connection. `save()`
- * resolves once that save has run — for one inside the persister's 1s
- * throttle, once the throttle has let it.
+ * The copy as the app writes it: the persister `QueryProvider` uses, with the
+ * options it dehydrates with, saving a successful `["fi-data", consentID]`
+ * query per connection. `save()` resolves once that save has run — for one
+ * inside the persister's 1s throttle, once the throttle has let it.
  */
 export function appPersistence(consentIDs: string[] = [FI_BLOB.consentID]) {
   const queryClient = new QueryClient();
@@ -148,9 +149,7 @@ export function appPersistence(consentIDs: string[] = [FI_BLOB.consentID]) {
     persistQueryClientSave({
       queryClient,
       persister,
-      dehydrateOptions: {
-        shouldDehydrateQuery: (query) => query.queryKey[0] === "fi-data",
-      },
+      dehydrateOptions: COPY_DEHYDRATE_OPTIONS,
     });
   return { queryClient, persister, save };
 }
@@ -253,6 +252,23 @@ export async function storedOwner(): Promise<string | null | undefined> {
   if (stored === undefined) return undefined;
   const { owner } = JSON.parse(stored) as { owner?: string };
   return owner ?? null;
+}
+
+/**
+ * The mutations the persisted copy holds, or `null` when there is no copy.
+ */
+export async function storedMutations(): Promise<unknown[] | null> {
+  const stored = await get<string>(QUERY_CACHE_KEY);
+  if (stored === undefined) return null;
+  const copy = JSON.parse(stored) as { clientState: { mutations?: unknown[] } };
+  return copy.clientState.mutations ?? [];
+}
+
+/** The keys in the persister's IndexedDB store whose value mentions `text`. */
+export async function storedValuesNaming(text: string): Promise<string[]> {
+  return (await entries())
+    .filter(([, value]) => JSON.stringify(value).includes(text))
+    .map(([key]) => String(key));
 }
 
 /**

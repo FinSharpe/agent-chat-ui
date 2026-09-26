@@ -8,7 +8,9 @@
  * - once the session is gone, its next save writes nothing;
  * - a page starting with nobody signed in removes a copy it finds (one a
  *   failed clear left, or one an account deleted from another device left)
- *   rather than loading it;
+ *   rather than loading it, and every one of the old web build's consent
+ *   records with it; a page starting signed in leaves those for Import to
+ *   adopt;
  * - signed in again, it reads the copy; once another tab has revoked one of
  *   the connections it read, its next save does not put that one back — nor
  *   the last one, when that tab removed the whole copy;
@@ -29,7 +31,9 @@ import {
   fiBlob,
   finish,
   installWindow,
+  legacyKeys,
   seedCopy,
+  seedLegacyRecords,
   signIn,
   storedConsents,
   storedKeys,
@@ -54,19 +58,33 @@ const LATER = "consent-3";
   eq(await storedKeys(), [], "signed out elsewhere: this tab writes nothing");
 
   await seedCopy();
+  seedLegacyRecords([FIRST]);
+  eq(legacyKeys().length, 4, "setup: old consent records are kept");
   eq(
     await tab.persister.restoreClient(),
     undefined,
     "nobody signed in: a copy left behind is not loaded",
   );
   eq(await storedKeys(), [], "nobody signed in: and is removed");
+  eq(
+    legacyKeys(),
+    [],
+    "nobody signed in: and every old consent record goes with it",
+  );
 
   signIn();
   await seedCopy([FIRST, SECOND]);
+  seedLegacyRecords([FIRST]);
+  const records = legacyKeys();
   eq(
     (await tab.persister.restoreClient())?.clientState.queries.length,
     2,
     "signed in again: the copy is read",
+  );
+  eq(
+    legacyKeys(),
+    records,
+    "signed in: the old consent records are left for Import to adopt",
   );
   tab.queryClient.setQueryData(persistedFiDataKey(SECOND), fiBlob(SECOND));
 

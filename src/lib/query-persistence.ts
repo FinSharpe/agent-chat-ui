@@ -2,11 +2,12 @@
  * The query cache's copy in IndexedDB — the one place this browser keeps
  * connected financial data once the tab is closed.
  *
- * `QueryProvider` persists successful `["fi-data", consentID]` queries through
- * `createQueryPersister()`, into idb-keyval's default database and store under
- * `QUERY_CACHE_KEY`. Import keys its own FI queries `["aa", "fi-data", …]`
- * since it moved to the backend, so what this holds is a snapshot an earlier
- * build wrote — but that snapshot is restored when the app starts and written
+ * `QueryProvider` persists successful `["fi-data", consentID]` queries, and
+ * nothing else (`COPY_DEHYDRATE_OPTIONS`), through `createQueryPersister()`,
+ * into idb-keyval's default database and store under `QUERY_CACHE_KEY`.
+ * Import keys its own FI queries `["aa", "fi-data", …]` since it moved to the
+ * backend, so what this holds is a snapshot an earlier build wrote — but that
+ * snapshot is restored when the app starts and written
  * back on every cache change, so for anyone who keeps opening the app it
  * outlives the persister's 7-day `maxAge`.
  *
@@ -17,7 +18,8 @@
  *   and revoking a connection calls `forgetPersistedConnection()` for it;
  * - the copy is only kept while someone is signed in — a tab left open cannot
  *   write it back once the session cookies are gone, and a page that starts
- *   with nobody signed in removes any copy it finds instead of loading it;
+ *   with nobody signed in removes any copy it finds instead of loading it,
+ *   and the old web build's consent records (`legacy-consent-store.ts`) too;
  * - the copy belongs to the account that wrote it, named in the copy as
  *   `owner`: a page that starts with another account signed in — someone who
  *   signed in here after a session that ended elsewhere, or a new account
@@ -34,8 +36,10 @@
  * A copy with nothing in it is no copy: the entry is removed, not left empty.
  */
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import type { DehydrateOptions } from "@tanstack/react-query";
 import { createStore, del, promisifyRequest } from "idb-keyval";
 import { readUserInfoCookie } from "@/lib/auth/user-info";
+import { purgeLegacyConsentStore } from "@/lib/legacy-consent-store";
 
 /** The persister's key, named here so the code that clears it cannot drift. */
 export const QUERY_CACHE_KEY = "REACT_QUERY_OFFLINE_CACHE";
@@ -47,6 +51,34 @@ export const CLEAR_TIMEOUT_MS = 2_000;
  *  backend's Account Aggregator fetched it. */
 export const persistedFiDataKey = (consentID: string) =>
   ["fi-data", consentID] as const;
+
+/**
+ * What `QueryProvider` dehydrates into the copy: successful
+ * `["fi-data", consentID]` queries, and nothing else.
+ *
+ * - Not the disabled placeholder `["fi-data-disabled"]`, and only a query that
+ *   succeeded: `getAllFiData` polled with 3s delays, so the throttled
+ *   persister could otherwise snapshot a query still in flight, and the
+ *   pending promise it persisted rejected on the next page load ("A query
+ *   that was dehydrated as pending ended up rejecting").
+ * - No mutation, paused or not. The query library's default keeps a paused
+ *   one — any request started while the browser is offline — with its
+ *   arguments, so an offline sign-in would put an email and a password into
+ *   IndexedDB, and an offline revoke the connection's record with its mobile
+ *   number. Nor could a restored one run: no mutation has defaults to run it.
+ */
+export const COPY_DEHYDRATE_OPTIONS: DehydrateOptions = {
+  shouldDehydrateQuery: (query) => {
+    const queryKey = query.queryKey;
+    return (
+      Array.isArray(queryKey) &&
+      queryKey[0] === "fi-data" &&
+      queryKey.length > 1 &&
+      query.state.status === "success"
+    );
+  },
+  shouldDehydrateMutation: () => false,
+};
 
 /**
  * idb-keyval's default database and store, so copies written by earlier
@@ -215,7 +247,9 @@ export function createQueryPersister() {
         const account = signedInAccount();
         if (account === null) {
           // A session that ended without a sign-out here, or an account
-          // deleted elsewhere: with nobody signed in, no copy is kept either.
+          // deleted elsewhere: with nobody signed in, no copy is kept either,
+          // nor any of the old web build's consent records.
+          purgeLegacyConsentStore();
           await del(key, copyStore);
           return undefined;
         }

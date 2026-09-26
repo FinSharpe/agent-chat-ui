@@ -12,9 +12,9 @@
  * - `moneyone:userId`: a random ID for this browser.
  *
  * Every one of them is under `moneyone:`, and nothing else in this app uses
- * that namespace. Signing out and deleting the account remove all of it;
- * revoking a connection removes what names that connection
- * (finsharpe-agents#283).
+ * that namespace. Signing out, deleting the account and a page that starts
+ * with nobody signed in (`query-persistence.ts`) remove all of it; revoking a
+ * connection removes what names that connection (finsharpe-agents#283).
  *
  * Nothing here throws: storage may be blocked, and none of this may stand in
  * the way of signing out, deleting an account or revoking a connection.

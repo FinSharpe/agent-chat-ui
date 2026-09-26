@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useQueryState } from "nuqs";
 import {
@@ -20,6 +20,7 @@ import {
 import { useAppNavigation, TabState } from "@/hooks/useAppNavigation";
 import { useThreadsQuery } from "@/hooks/useThreadsQuery";
 import SectionErrorState from "@/components/shared/SectionErrorState";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/store/useUiStore";
 import {
   ChatSummary,
@@ -54,10 +55,20 @@ export default function WebSidebar() {
   const {
     isError: chatsFailed,
     isFetching: chatsRefetching,
+    isStale: chatsStale,
     refetch: refetchChats,
   } = useThreadsQuery();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const onToggleCollapsed = useUiStore((s) => s.toggleSidebar);
+
+  // The sidebar stays mounted for the whole session, so the list is otherwise
+  // read once. Expanding it re-reads a stale list, so chats started in another
+  // tab or on another device show up without a reload.
+  useEffect(() => {
+    if (!collapsed && chatsStale && !chatsRefetching) void refetchChats();
+    // Only on expand — not every time the cache turns stale while open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -265,6 +276,7 @@ export default function WebSidebar() {
 
       {/* Chat history */}
       <div className="scrollbar-none flex-1 overflow-y-auto px-2 pb-2">
+        {isLoading && !chatsFailed && <ChatHistorySkeleton />}
         {TIME_GROUPS.map((groupName) => {
           const groupChats = groups[groupName];
           if (groupChats.length === 0) return null;
@@ -364,5 +376,38 @@ export default function WebSidebar() {
       {/* theme · identity (→ Profile) + sign out (T-02) */}
       <SidebarAccountFooter />
     </aside>
+  );
+}
+
+const SKELETON_ROW_WIDTHS = ["78%", "62%", "85%", "54%", "70%", "66%", "48%"];
+
+// First load only: a group label and rows at the list's own geometry, so the
+// real chats land without shifting anything.
+function ChatHistorySkeleton() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mb-2"
+    >
+      <span className="sr-only">Loading your chats</span>
+      <div className="px-2.5 pt-2.5 pb-2">
+        <Skeleton className="h-2.5 w-12 bg-slate-200/70 dark:bg-slate-700/50" />
+      </div>
+      <div className="space-y-0.5">
+        {SKELETON_ROW_WIDTHS.map((width, i) => (
+          <div
+            key={i}
+            aria-hidden
+            className="flex h-9 items-center px-2.5"
+          >
+            <Skeleton
+              className="h-3 bg-slate-200/70 dark:bg-slate-700/50"
+              style={{ width }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -68,10 +68,10 @@ The chat itself (`/`) wraps `Thread` in `ArtifactProvider`.
 - Artifacts render via `ArtifactSlot` with `ArtifactContent` and `ArtifactTitle` portal targets
 
 ### API Passthrough Setup
-`src/app/api/[..._path]/route.ts` uses `langgraph-nextjs-api-passthrough` to proxy requests to LangGraph server:
-- Reads `LANGGRAPH_API_URL` and `LANGSMITH_API_KEY` from env
-- Injects API key server-side to avoid exposing it to clients
-- All HTTP methods (GET, POST, PUT, PATCH, DELETE, OPTIONS) proxied
+`src/app/api/[..._path]/route.ts` proxies every method to the LangGraph server at `LANGGRAPH_API_URL`, through `fetchWithRefresh` (`src/lib/auth/server-refresh.ts`):
+- **Only allow-listed browser headers go upstream** (`FORWARDED_REQUEST_HEADERS` in `src/lib/auth/forwarded-headers.ts`: `accept`, `content-type`, `last-event-id`, `x-app-version`, `x-app-platform`). `Authorization` (the `access_token` cookie), `X-Fgp` (the fingerprint cookie) and `X-Api-Key` (`LANGSMITH_API_KEY`) are set by this server alone. Never copy the browser's headers: the runtime reads its auth scheme from `x-auth-scheme`, and `langsmith` beside the injected key runs the caller as a LangSmith Studio user, outside Credits (finsharpe-agents whole-system review 2026-09-26, findings 1 and 4). Adding a header to the list is a security decision.
+- `isTokenExpired` reads the access token's `exp` without checking the signature, so a token with no numeric `exp` counts as expired and is refreshed before use.
+- The other server-side callers of the backend (`/api/utilities`, `/api/shared`, the PDF routes, the report pages) build their headers themselves and forward at most `content-type` or `range`. Checks: `pnpm check:bff-forward`, which also fails when a new module reads `LANGSMITH_API_KEY` until its forwarding has been looked at.
 
 ### Message Rendering System
 

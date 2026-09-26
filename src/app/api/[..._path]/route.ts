@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { upstreamHeaders } from "@/lib/auth/forwarded-headers";
 import {
   fetchWithRefresh,
   mergeSetCookieHeaders,
@@ -24,14 +25,15 @@ async function handler(request: NextRequest) {
   const { response, refreshSetCookieHeaders } = await fetchWithRefresh(
     request,
     (accessToken, fingerprint) => {
-      const headers = new Headers(request.headers);
-      // The browser's own cookies (the refresh token among them), host and
-      // hop-by-hop headers are for this server, not the LangGraph one.
-      for (const name of HOP_HEADERS) headers.delete(name);
-      headers.delete("cookie");
-      headers.set("Authorization", `Bearer ${accessToken}`);
-      if (fingerprint) headers.set("X-Fgp", fingerprint);
-      if (LANGSMITH_API_KEY) headers.set("X-Api-Key", LANGSMITH_API_KEY);
+      // Only allow-listed browser headers go upstream; the credentials are
+      // this server's. A copied `x-auth-scheme: langsmith` beside the key
+      // below would run the caller as a LangSmith Studio user, outside
+      // Credits (see forwarded-headers.ts).
+      const headers = upstreamHeaders(request.headers, {
+        accessToken,
+        fingerprint,
+        apiKey: LANGSMITH_API_KEY,
+      });
 
       return fetch(url, {
         method: request.method,

@@ -7,6 +7,8 @@
  * under node. A check prints its cases and exits non-zero on any failure.
  *
  *   pnpm check                      every suite
+ *   pnpm check:bff-forward          the LangGraph passthrough forwards only
+ *                                   allow-listed browser headers
  *   pnpm check:chat-errors          a run's error by its class name (agents#282)
  *   pnpm check:chat-handoffs        Import hand-offs send the request (#85)
  *   pnpm check:citations            filings citations (finsharpe-agents#66)
@@ -26,6 +28,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const SUITES = [
+  "bff-forward",
   "chat-errors",
   "chat-handoffs",
   "citations",
@@ -62,7 +65,12 @@ try {
         platform: "node",
         format: "cjs",
         jsx: "automatic",
-        alias: { "@": "./src" },
+        // A check runs as the server, so `server-only` has nothing to refuse
+        // (scripts/harness/server-only.ts).
+        alias: {
+          "@": "./src",
+          "server-only": "./scripts/harness/server-only.ts",
+        },
         // Stylesheets have no behaviour: a check that renders the chat
         // transcript reaches the markdown renderer's KaTeX CSS and its fonts.
         loader: { ".css": "empty" },

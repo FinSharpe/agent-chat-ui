@@ -9,7 +9,10 @@
  * collection timers that would keep node alive.
  */
 import { QueryClient } from "@tanstack/react-query";
-import { persistQueryClientSave } from "@tanstack/react-query-persist-client";
+import {
+  persistQueryClientRestore,
+  persistQueryClientSave,
+} from "@tanstack/react-query-persist-client";
 import { get, keys, set } from "idb-keyval";
 import { USER_INFO_COOKIE } from "@/lib/auth/user-info";
 import {
@@ -58,10 +61,21 @@ export const location = {
 /** The page's cookies, as `document.cookie` reads them. */
 const cookieJar = { cookie: "" };
 
-/** The BFF has set the session cookies (the readable one is all we see). */
-export function signIn() {
+/** The account `signIn()` signs in, unless told another. */
+export const ACCOUNT = "user-1";
+
+/** The BFF has set the session cookies (the readable one is all we see), for
+ *  `account`. A sign-in over another account's cookie replaces it. */
+export function signIn(account: string = ACCOUNT) {
   cookieJar.cookie = `${USER_INFO_COOKIE}=${encodeURIComponent(
-    JSON.stringify({ id: "user-1", name: "Asha", roles: ["USER"] }),
+    JSON.stringify({ id: account, name: "Asha", roles: ["USER"] }),
+  )}`;
+}
+
+/** A readable cookie with no account in it. */
+export function signInWithoutAccount() {
+  cookieJar.cookie = `${USER_INFO_COOKIE}=${encodeURIComponent(
+    JSON.stringify({ name: "Asha", roles: ["USER"] }),
   )}`;
 }
 
@@ -160,11 +174,44 @@ export async function appWithQueuedSave(
   return { ...app, queued, queuedRan: () => ran };
 }
 
-/** Put a copy straight into IndexedDB, as an earlier page (or tab) left it. */
-export async function seedCopy(consentIDs: string[] = [FI_BLOB.consentID]) {
+/**
+ * A page starting: `QueryProvider`'s persister restores the copy into an
+ * empty query client, as `PersistQueryClientProvider` does, under whoever
+ * the cookie says is signed in then.
+ */
+export async function startPage() {
+  const page = appPersistence([]);
+  await persistQueryClientRestore({
+    queryClient: page.queryClient,
+    persister: page.persister,
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+    buster: "",
+  });
+  return page;
+}
+
+/** The connections whose data a page holds in memory. */
+export function heldConsents(queryClient: QueryClient): string[] {
+  return queryClient
+    .getQueryCache()
+    .findAll({ queryKey: ["fi-data"] })
+    .map(({ queryKey }) => String(queryKey[1]))
+    .sort();
+}
+
+/**
+ * Put a copy straight into IndexedDB, as an earlier page (or tab) left it:
+ * written for `owner`, or — `null` — as a build from before copies named
+ * their account wrote it.
+ */
+export async function seedCopy(
+  consentIDs: string[] = [FI_BLOB.consentID],
+  owner: string | null = ACCOUNT,
+) {
   await set(
     QUERY_CACHE_KEY,
     JSON.stringify({
+      ...(owner === null ? {} : { owner }),
       buster: "",
       timestamp: Date.now(),
       clientState: {
@@ -195,6 +242,17 @@ export async function storedConsents(): Promise<string[] | null> {
     clientState: { queries: { queryKey: unknown[] }[] };
   };
   return copy.clientState.queries.map(({ queryKey }) => String(queryKey[1]));
+}
+
+/**
+ * The account the persisted copy names, `null` when it names none, or
+ * `undefined` when there is no copy.
+ */
+export async function storedOwner(): Promise<string | null | undefined> {
+  const stored = await get<string>(QUERY_CACHE_KEY);
+  if (stored === undefined) return undefined;
+  const { owner } = JSON.parse(stored) as { owner?: string };
+  return owner ?? null;
 }
 
 /**

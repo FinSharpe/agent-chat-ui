@@ -10,7 +10,7 @@
  * back on every cache change, so for anyone who keeps opening the app it
  * outlives the persister's 7-day `maxAge`.
  *
- * Three rules keep it from outliving the session or the connection
+ * Four rules keep it from outliving the session or the connection
  * (finsharpe-agents#283):
  *
  * - signing out and deleting the account call `clearPersistedQueryCache()`,
@@ -18,6 +18,14 @@
  * - the copy is only kept while someone is signed in — a tab left open cannot
  *   write it back once the session cookies are gone, and a page that starts
  *   with nobody signed in removes any copy it finds instead of loading it;
+ * - the copy belongs to the account that wrote it, named in the copy as
+ *   `owner`: a page that starts with another account signed in — someone who
+ *   signed in here after a session that ended elsewhere, or a new account
+ *   made after a deletion — removes it instead of loading it, and so does a
+ *   page that finds a copy naming no account (every copy written before this
+ *   rule). A page writes only for the first account it finds signed in (the
+ *   one it started with, if any): once another account signs in, even in the
+ *   same tab, it writes nothing again and leaves no copy but that account's;
  * - a page never writes back a query it loaded from the copy once that query
  *   has left the copy, so a connection revoked in another tab stays gone, and
  *   so does what a sign-out elsewhere removed if someone signs in again while
@@ -26,7 +34,7 @@
  * A copy with nothing in it is no copy: the entry is removed, not left empty.
  */
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { createStore, del, get, promisifyRequest } from "idb-keyval";
+import { createStore, del, promisifyRequest } from "idb-keyval";
 import { readUserInfoCookie } from "@/lib/auth/user-info";
 
 /** The persister's key, named here so the code that clears it cannot drift. */
@@ -63,11 +71,14 @@ const forgotten = new Set<string>();
 const restored = new Set<string>();
 
 /**
- * Signed in on this browser: the readable `user_info` cookie, which the BFF
- * sets with the session and removes on sign-out and on deletion — in every
- * tab at once.
+ * The account signed in on this browser: the `id` in the readable
+ * `user_info` cookie, which the BFF sets with the session and removes on
+ * sign-out and on deletion — in every tab at once. `null` when nobody is.
  */
-const inSession = () => readUserInfoCookie() !== null;
+function signedInAccount(): string | null {
+  const id: unknown = readUserInfoCookie()?.id;
+  return typeof id === "string" && id !== "" ? id : null;
+}
 
 interface PersistedQuery {
   queryKey?: unknown;
@@ -75,6 +86,8 @@ interface PersistedQuery {
 }
 
 interface PersistedCopy {
+  /** The account that wrote the copy. Absent from copies written before. */
+  owner?: unknown;
   clientState?: { queries?: PersistedQuery[]; mutations?: unknown[] };
 }
 
@@ -98,6 +111,11 @@ function queriesOf(copy: PersistedCopy | null): PersistedQuery[] {
 const hashesOf = (copy: PersistedCopy | null) =>
   new Set(queriesOf(copy).map((query) => String(query.queryHash)));
 
+/** Whether a stored copy was written for `account`. A copy naming no
+ *  account, or that cannot be read, was not. */
+const ownedBy = (stored: unknown, account: string): stored is string =>
+  parseCopy(stored)?.owner === account;
+
 /** A query holding this connection's data. */
 function holdsConnection(query: PersistedQuery, consentID: string) {
   const key = query.queryKey;
@@ -108,10 +126,13 @@ function holdsConnection(query: PersistedQuery, consentID: string) {
  * `value` without the queries `drop` picks, serialized again — or `undefined`
  * when nothing is left in it, which removes the entry. A value that cannot be
  * read is removed too: it cannot be shown to hold nothing it should not.
+ * `owner`, when given, is the account the result is written for; otherwise
+ * the value keeps the one it names.
  */
 function without(
   value: unknown,
   drop: (query: PersistedQuery) => boolean,
+  owner?: string,
 ): string | undefined {
   const copy = parseCopy(value);
   if (!copy?.clientState) return undefined;
@@ -121,6 +142,7 @@ function without(
   if (queries.length === 0 && !keepsMutations) return undefined;
   return JSON.stringify({
     ...copy,
+    ...(owner === undefined ? {} : { owner }),
     clientState: { ...copy.clientState, queries },
   });
 }
@@ -128,7 +150,8 @@ function without(
 /**
  * Read the copy and replace it in one transaction, so no other write — from
  * this page or another tab — can land between the two. `rewrite` answers the
- * new value, or `undefined` to remove the entry.
+ * new value (the one it was given, to leave it as it is), or `undefined` to
+ * remove the entry.
  */
 function rewriteCopy(
   rewrite: (stored: unknown) => string | undefined,
@@ -142,8 +165,11 @@ function rewriteCopy(
         read.onsuccess = () => {
           try {
             const next = rewrite(read.result);
-            if (next !== undefined) store.put(next, QUERY_CACHE_KEY);
-            else if (read.result !== undefined) store.delete(QUERY_CACHE_KEY);
+            if (next === undefined) {
+              if (read.result !== undefined) store.delete(QUERY_CACHE_KEY);
+            } else if (next !== read.result) {
+              store.put(next, QUERY_CACHE_KEY);
+            }
             resolve(promisifyRequest(store.transaction));
           } catch (error) {
             reject(error);
@@ -153,33 +179,85 @@ function rewriteCopy(
   );
 }
 
+/**
+ * The persister for one page (`QueryProvider` builds one). What it has in
+ * memory belongs to the account signed in when it first reads or writes the
+ * copy, and it reads and writes the copy only for that account.
+ */
 export function createQueryPersister() {
+  /** The account this page holds data for: the first it found signed in. */
+  let pageAccount: string | undefined;
+  /**
+   * Set for the rest of the page once another account has signed in (on the
+   * sign-in page, say, which started under the account before): this page
+   * may hold the first account's data in memory, so it writes nothing
+   * again, as after `cleared`.
+   */
+  let otherAccount = false;
+
+  /** Whether this page may act for `account`, the one signed in now. */
+  const actsFor = (account: string) => {
+    if (pageAccount === undefined) pageAccount = account;
+    if (account !== pageAccount) otherAccount = true;
+    return !otherAccount;
+  };
+
+  /** No copy is left but `account`'s own: one another account wrote, or one
+   *  naming no account, goes. */
+  const keepOnlyCopyOf = (account: string) =>
+    rewriteCopy((stored) => (ownedBy(stored, account) ? stored : undefined));
+
   return createAsyncStoragePersister({
     key: QUERY_CACHE_KEY,
     storage: {
       getItem: async (key) => {
         if (cleared) return undefined;
-        if (!inSession()) {
+        const account = signedInAccount();
+        if (account === null) {
           // A session that ended without a sign-out here, or an account
           // deleted elsewhere: with nobody signed in, no copy is kept either.
           await del(key, copyStore);
           return undefined;
         }
-        const stored = await get<string>(key, copyStore);
-        hashesOf(parseCopy(stored)).forEach((hash) => restored.add(hash));
-        return stored;
+        if (!actsFor(account)) {
+          await keepOnlyCopyOf(account);
+          return undefined;
+        }
+        // Only the account that wrote the copy loads it. Another account's —
+        // left by a session that ended elsewhere before someone else signed
+        // in here — is removed, and so is one naming no account.
+        let loaded: string | undefined;
+        await rewriteCopy((stored) => {
+          if (!ownedBy(stored, account)) return undefined;
+          loaded = stored;
+          return stored;
+        });
+        hashesOf(parseCopy(loaded)).forEach((hash) => restored.add(hash));
+        return loaded;
       },
       setItem: async (_key, value) => {
-        if (cleared || !inSession()) return;
+        if (cleared) return;
+        const account = signedInAccount();
+        if (account === null) return;
+        if (!actsFor(account)) {
+          // Someone else signed in while this page held the first account's
+          // data: none of it is written, and no copy but theirs is left.
+          await keepOnlyCopyOf(account);
+          return;
+        }
         await rewriteCopy((stored) => {
           const present = hashesOf(parseCopy(stored));
-          return without(value, (query) => {
-            const hash = String(query.queryHash);
-            // Loaded from the copy and gone from it since: removed on
-            // purpose (a revoke, here or in another tab), so not put back.
-            if (restored.has(hash) && !present.has(hash)) return true;
-            return [...forgotten].some((id) => holdsConnection(query, id));
-          });
+          return without(
+            value,
+            (query) => {
+              const hash = String(query.queryHash);
+              // Loaded from the copy and gone from it since: removed on
+              // purpose (a revoke, here or in another tab), so not put back.
+              if (restored.has(hash) && !present.has(hash)) return true;
+              return [...forgotten].some((id) => holdsConnection(query, id));
+            },
+            account,
+          );
         });
       },
       removeItem: async (key) => await del(key, copyStore),

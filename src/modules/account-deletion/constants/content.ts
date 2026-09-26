@@ -71,7 +71,7 @@ export const DELETED_DATA: DeletedDataRow[] = [
   {
     data: "Your financial data",
     outcome:
-      "We keep no separate copy on our servers. Holdings saved with a chat go with the chat. The copy in the app on your phone is removed when the app deletes your account. A copy that an earlier version of the web app saved in a browser is not: clear this site's data in that browser",
+      "We keep no separate copy on our servers. Holdings saved with a chat go with the chat. The copy in the app on your phone is removed when the app deletes your account. A copy that an earlier version of the web app saved in a browser is removed when you delete your account there. Another browser removes its copy the first time the web app opens there after that browser's sign-in has expired, which is at most 7 days after you last used the web app there; you can also clear this site's data in that browser",
   },
   {
     data: "Notification registrations",

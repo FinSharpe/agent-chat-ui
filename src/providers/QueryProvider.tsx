@@ -1,11 +1,13 @@
 "use client";
 
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { del, get, set } from 'idb-keyval';
 import { useState } from 'react';
+import {
+    COPY_DEHYDRATE_OPTIONS,
+    createQueryPersister,
+} from '@/lib/query-persistence';
 
 type QueryProviderProps = {
     children: React.ReactNode;
@@ -63,16 +65,9 @@ export function QueryProvider({ children }: QueryProviderProps) {
         return client;
     });
 
-    const [persister] = useState(() =>
-        createAsyncStoragePersister({
-            storage: {
-                getItem: async (key) => await get(key),
-                setItem: async (key, value) => await set(key, value),
-                removeItem: async (key) => await del(key),
-            },
-            throttleTime: 1000, // Throttle persistence writes to once per second
-        })
-    );
+    // IndexedDB, through the one module that can also clear it: signing out
+    // and deleting the account must leave no financial data behind.
+    const [persister] = useState(createQueryPersister);
 
     return (
         <PersistQueryClientProvider
@@ -81,28 +76,9 @@ export function QueryProvider({ children }: QueryProviderProps) {
                 persister,
                 maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days max
                 buster: '', // Empty string = no cache busting (persistent across app versions)
-                // Persist specific queries by matching query key patterns
-                dehydrateOptions: {
-                    shouldDehydrateQuery: (query) => {
-                        const queryKey = query.queryKey;
-
-                        // Only persist FI data queries with consent IDs: ["fi-data", consentID]
-                        // Excludes the disabled placeholder: ["fi-data-disabled"]
-                        //
-                        // Require status === 'success' so we never dehydrate a pending
-                        // (in-flight) or errored query. getAllFiData polls with 3s delays,
-                        // so the throttled persister can otherwise snapshot a query while
-                        // it's still pending — that pending promise gets persisted and
-                        // rejects on the next page load, surfacing as
-                        // "A query that was dehydrated as pending ended up rejecting".
-                        return (
-                            Array.isArray(queryKey) &&
-                            queryKey[0] === 'fi-data' &&
-                            queryKey.length > 1 &&
-                            query.state.status === 'success'
-                        );
-                    },
-                },
+                // Successful ["fi-data", consentID] queries only, and never a
+                // mutation: one started offline would be saved with its arguments.
+                dehydrateOptions: COPY_DEHYDRATE_OPTIONS,
             }}
         >
             {children}

@@ -1,6 +1,7 @@
 "use client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { forgetConnectionCopies } from "@/lib/browser-copies";
 import { AaError, refreshConsent, revokeConsent } from "../api/aa-client";
 import { useAaTroubleStore } from "../store/useAaTroubleStore";
 import type { ConsentRecord } from "../types/aa";
@@ -56,13 +57,24 @@ export function useSyncConsent() {
 /**
  * Withdraw a consent at the Account Aggregator and drop its row. `alreadyGone`
  * is a success for the user's intent — the mandate has already stopped.
+ *
+ * What this browser kept for the connection — its data in the persisted query
+ * cache and the old build's consent record — goes whatever the request did,
+ * so a revoke that fails part-way, or whose answer never arrives, leaves none
+ * of it behind here (finsharpe-agents#283).
  */
 export function useRevokeConsent() {
   const queryClient = useQueryClient();
   const forget = useAaTroubleStore((s) => s.forget);
 
   return useMutation({
-    mutationFn: (consent: ConsentRecord) => revokeConsent(consent.consentID),
+    mutationFn: async (consent: ConsentRecord) => {
+      try {
+        return await revokeConsent(consent.consentID);
+      } finally {
+        await forgetConnectionCopies(queryClient, consent.consentID);
+      }
+    },
     onSuccess: (_result, consent) => {
       forget(consent.consentID);
       queryClient.removeQueries({ queryKey: aaFiDataKey(consent.consentID) });
